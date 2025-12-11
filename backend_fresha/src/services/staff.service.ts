@@ -1,0 +1,539 @@
+import prisma from '../config/database'
+import { hashPassword } from '../utils/hash.util'
+
+interface CreateStaff {
+  salonId: string
+  email?: string
+  password?: string
+  firstName: string
+  lastName: string
+  phone?: string
+  avatar?: string
+  role?: 'MANAGER' | 'EMPLOYEE'
+  specialties?: string[]
+  bio?: string
+  isActive?: boolean
+}
+
+interface UpdateStaff {
+  id: string
+  salonId?: string
+  email?: string
+  password?: string
+  firstName?: string
+  lastName?: string
+  phone?: string
+  avatar?: string
+  role?: 'MANAGER' | 'EMPLOYEE'
+  specialties?: string[]
+  bio?: string
+  isActive?: boolean
+}
+
+// ============= CREATE =============
+export async function createStaff(data: CreateStaff) {
+  // 1. Vérifier que le salon existe
+  const salon = await prisma.salon.findUnique({
+    where: { id: data.salonId }
+  })
+
+  if (!salon) {
+    throw new Error('Salon introuvable')
+  }
+
+  // 2. Vérifier que l'email n'est pas déjà utilisé (si fourni)
+  if (data.email) {
+    const existingStaff = await prisma.staff.findUnique({
+      where: { email: data.email }
+    })
+
+    if (existingStaff) {
+      throw new Error('Cet email est déjà utilisé')
+    }
+  }
+
+  // 3. Hasher le mot de passe (si fourni)
+  let hashedPassword: string | null = null
+  if (data.password) {
+    hashedPassword = await hashPassword(data.password)
+  }
+
+  // 4. Créer le membre du personnel
+  const staff = await prisma.staff.create({
+    data: {
+      salonId: data.salonId,
+      email: data.email || null,
+      password: hashedPassword,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      avatar: data.avatar,
+      role: data.role || 'EMPLOYEE',
+      specialties: data.specialties || [],
+      bio: data.bio,
+      isActive: data.isActive ?? true
+    },
+    select: {
+      id: true,
+      salonId: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      specialties: true,
+      bio: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  })
+
+  return staff
+}
+
+// ============= READ (un seul) =============
+export async function getStaff(staffId: string) {
+  const staff = await prisma.staff.findUnique({
+    where: { id: staffId },
+    include: {
+      salon: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      },
+      schedules: true,
+      _count: {
+        select: {
+          bookings: true
+        }
+      }
+    }
+  })
+
+  if (!staff) {
+    throw new Error('Membre du personnel introuvable')
+  }
+
+  // Retirer le mot de passe de la réponse
+  const { password, ...staffWithoutPassword } = staff
+
+  return staffWithoutPassword
+}
+
+// ============= READ (liste par salon) =============
+export async function getStaffBySalon(salonId: string, activeOnly: boolean = false) {
+  const staff = await prisma.staff.findMany({
+    where: {
+      salonId: salonId,
+      ...(activeOnly && { isActive: true })
+    },
+    select: {
+      id: true,
+      salonId: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      specialties: true,
+      bio: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      schedules: {
+        select: {
+          id: true,
+          staffId: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          isAvailable: true
+        },
+        orderBy: {
+          dayOfWeek: 'asc'
+        }
+      },
+      _count: {
+        select: {
+          bookings: true
+        }
+      }
+    },
+    orderBy: [
+      { role: 'desc' }, // MANAGER avant EMPLOYEE
+      { firstName: 'asc' }
+    ]
+  })
+
+  return staff
+}
+
+// ============= READ (liste par rôle) =============
+export async function getStaffByRole(salonId: string, role: 'MANAGER' | 'EMPLOYEE') {
+  const staff = await prisma.staff.findMany({
+    where: {
+      salonId: salonId,
+      role: role,
+      isActive: true
+    },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      specialties: true,
+      bio: true
+    },
+    orderBy: {
+      firstName: 'asc'
+    }
+  })
+
+  return staff
+}
+
+// ============= UPDATE =============
+export async function updateStaff(data: UpdateStaff) {
+  // 1. Vérifier que le membre du personnel existe
+  const existingStaff = await prisma.staff.findUnique({
+    where: { id: data.id }
+  })
+
+  if (!existingStaff) {
+    throw new Error('Membre du personnel introuvable')
+  }
+
+  // 2. Si on change l'email, vérifier qu'il n'est pas déjà utilisé
+  if (data.email && data.email !== existingStaff.email) {
+    const emailExists = await prisma.staff.findUnique({
+      where: { email: data.email }
+    })
+
+    if (emailExists) {
+      throw new Error('Cet email est déjà utilisé')
+    }
+  }
+
+  // 3. Si on change le salonId, vérifier que le nouveau salon existe
+  if (data.salonId && data.salonId !== existingStaff.salonId) {
+    const salon = await prisma.salon.findUnique({
+      where: { id: data.salonId }
+    })
+
+    if (!salon) {
+      throw new Error('Salon introuvable')
+    }
+  }
+
+  // 4. Préparer les données de mise à jour
+  const { id, password, ...updateData } = data
+
+  // Si le mot de passe est fourni, le hasher
+  let hashedPassword: string | undefined
+  if (password) {
+    hashedPassword = await hashPassword(password)
+  }
+
+  // 5. Mettre à jour le membre du personnel
+  const updatedStaff = await prisma.staff.update({
+    where: { id: id },
+    data: {
+      ...updateData,
+      ...(hashedPassword && { password: hashedPassword })
+    },
+    select: {
+      id: true,
+      salonId: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      specialties: true,
+      bio: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  })
+
+  return updatedStaff
+}
+
+// ============= DELETE =============
+export async function deleteStaff(staffId: string, salonId?: string) {
+  // 1. Vérifier que le membre du personnel existe
+  const existingStaff = await prisma.staff.findUnique({
+    where: { id: staffId }
+  })
+
+  if (!existingStaff) {
+    throw new Error('Membre du personnel introuvable')
+  }
+
+  // 2. Vérifier que le membre appartient au salon (sécurité)
+  if (salonId && existingStaff.salonId !== salonId) {
+    throw new Error('Vous n\'avez pas la permission de supprimer ce membre du personnel')
+  }
+
+  // 3. Vérifier s'il y a des réservations liées
+  const bookingsCount = await prisma.booking.count({
+    where: {
+      staffId: staffId,
+      status: {
+        in: ['PENDING', 'CONFIRMED']
+      }
+    }
+  })
+
+  if (bookingsCount > 0) {
+    throw new Error(`Impossible de supprimer ce membre, ${bookingsCount} réservation(s) actives sont liées. Veuillez d'abord les réaffecter ou les annuler.`)
+  }
+
+  // 4. Supprimer le membre du personnel (les schedules seront supprimés en cascade)
+  await prisma.staff.delete({
+    where: { id: staffId }
+  })
+
+  return { message: 'Membre du personnel supprimé avec succès' }
+}
+
+// ============= SOFT DELETE (désactiver) =============
+export async function toggleStaffStatus(staffId: string, isActive: boolean) {
+  const staff = await prisma.staff.update({
+    where: { id: staffId },
+    data: { isActive: isActive },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      isActive: true
+    }
+  })
+
+  return staff
+}
+
+// ============= GET SPECIALTIES (pour dropdown) =============
+export async function getStaffSpecialties(salonId: string) {
+  const staff = await prisma.staff.findMany({
+    where: { salonId: salonId },
+    select: { specialties: true }
+  })
+
+  // Extraire toutes les spécialités uniques
+  const allSpecialties = staff.flatMap(s => s.specialties)
+  const uniqueSpecialties = [...new Set(allSpecialties)]
+
+  return uniqueSpecialties
+}
+
+// ============= GET AVAILABLE STAFF (pour réservation) =============
+export async function getAvailableStaff(salonId: string, date: Date, specialty?: string) {
+  const dayOfWeek = date.getDay()
+
+  const staff = await prisma.staff.findMany({
+    where: {
+      salonId: salonId,
+      isActive: true,
+      ...(specialty && {
+        specialties: {
+          has: specialty
+        }
+      })
+    },
+    include: {
+      schedules: {
+        where: {
+          dayOfWeek: dayOfWeek,
+          isAvailable: true
+        }
+      },
+      _count: {
+        select: {
+          bookings: {
+            where: {
+              startTime: {
+                gte: new Date(date.setHours(0, 0, 0, 0)),
+                lt: new Date(date.setHours(23, 59, 59, 999))
+              },
+              status: {
+                in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+              }
+            }
+          }
+        }
+      }
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      avatar: true,
+      specialties: true,
+      schedules: true,
+      _count: true
+    },
+    orderBy: {
+      firstName: 'asc'
+    }
+  })
+
+  return staff
+}
+
+// ============= STAFF SCHEDULE MANAGEMENT =============
+
+/**
+ * Create or update staff schedule for a specific day of week
+ */
+export async function upsertStaffSchedule(
+  staffId: string,
+  dayOfWeek: number,
+  startTime: string,
+  endTime: string,
+  isAvailable: boolean = true
+) {
+  // Check if schedule already exists
+  const existingSchedule = await prisma.staffSchedule.findFirst({
+    where: {
+      staffId: staffId,
+      dayOfWeek: dayOfWeek
+    }
+  })
+
+  if (existingSchedule) {
+    // Update existing schedule
+    return await prisma.staffSchedule.update({
+      where: { id: existingSchedule.id },
+      data: {
+        startTime,
+        endTime,
+        isAvailable
+      }
+    })
+  } else {
+    // Create new schedule
+    return await prisma.staffSchedule.create({
+      data: {
+        staffId,
+        dayOfWeek,
+        startTime,
+        endTime,
+        isAvailable
+      }
+    })
+  }
+}
+
+/**
+ * Get all schedules for a staff member
+ */
+export async function getStaffSchedules(staffId: string) {
+  return await prisma.staffSchedule.findMany({
+    where: { staffId },
+    orderBy: { dayOfWeek: 'asc' }
+  })
+}
+
+/**
+ * Delete a specific schedule
+ */
+export async function deleteStaffSchedule(scheduleId: string) {
+  return await prisma.staffSchedule.delete({
+    where: { id: scheduleId }
+  })
+}
+
+/**
+ * Delete all schedules for a staff member on a specific day
+ */
+export async function deleteStaffSchedulesByDay(staffId: string, dayOfWeek: number) {
+  return await prisma.staffSchedule.deleteMany({
+    where: {
+      staffId,
+      dayOfWeek
+    }
+  })
+}
+
+/**
+ * Batch update/create schedules for a staff member (all days of week)
+ */
+export async function batchUpsertStaffSchedules(
+  staffId: string,
+  schedules: Array<{
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    isAvailable: boolean
+  }>
+) {
+  // Delete all existing schedules for this staff
+  await prisma.staffSchedule.deleteMany({
+    where: { staffId }
+  })
+
+  // Create new schedules
+  const createPromises = schedules.map((schedule) =>
+    prisma.staffSchedule.create({
+      data: {
+        staffId,
+        ...schedule
+      }
+    })
+  )
+
+  return await Promise.all(createPromises)
+}
+
+/**
+ * Delete and create schedules for a staff member on a specific day
+ * This allows multiple time slots per day
+ */
+export async function deleteAndCreateSchedulesForDay(
+  staffId: string,
+  dayOfWeek: number,
+  timeSlots: Array<{
+    startTime: string
+    endTime: string
+    isAvailable?: boolean
+  }>
+) {
+  // Delete all existing schedules for this staff on this specific day
+  await prisma.staffSchedule.deleteMany({
+    where: {
+      staffId,
+      dayOfWeek
+    }
+  })
+
+  // If no time slots provided, just delete and return
+  if (!timeSlots || timeSlots.length === 0) {
+    return []
+  }
+
+  // Create new schedules for each time slot
+  const createPromises = timeSlots.map((slot) =>
+    prisma.staffSchedule.create({
+      data: {
+        staffId,
+        dayOfWeek,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true
+      }
+    })
+  )
+
+  return await Promise.all(createPromises)
+}

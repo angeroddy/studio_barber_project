@@ -1,0 +1,388 @@
+/* Animations pour le calendrier */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-in-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Transitions smooth pour les événements */
+.calendar-event {
+  transition: all 0.2s ease-in-out;
+}
+
+.calendar-event:hover {
+  transform: scale(1.02) translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+/* Animation pour le bouton de rafraîchissement */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Transitions pour le modal */
+.modal-enter {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Hover effects pour les cellules du calendrier */
+.calendar-cell:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Badge de statut avec animation */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+/* Card animations */
+.card-hover {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient animations pour les boutons */
+.btn-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: scale(1.05);
+}
+
+/* Skeleton loading */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    #f0f0f0 0%,
+    #e0e0e0 20%,
+    #f0f0f0 40%,
+    #f0f0f0 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Notification toast */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-notification {
+  animation: slideInRight 0.3s ease-in-out;
+}
+
+/* Calendrier grid hover effects */
+.calendar-grid-cell {
+  position: relative;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.calendar-grid-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(59, 130, 246, 0.05);
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.calendar-grid-cell:hover::before {
+  opacity: 1;
+}
+
+/* Success animation */
+@keyframes checkmark {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.checkmark-animation {
+  stroke-dasharray: 100;
+  animation: checkmark 0.5s ease-in-out forwards;
+}
+
+/* Styles personnalisés pour FullCalendar - Vue individuelle */
+.fc .fc-timegrid-slot {
+  height: 3rem !important; /* Hauteur des cellules horaires très augmentée */
+  min-height: 3rem !important;
+}
+
+.fc .fc-timegrid-slot-label {
+  vertical-align: middle;
+  font-size: 0.875rem !important;
+  padding: 1rem 0.5rem !important;
+}
+
+.fc .fc-timegrid-event {
+  min-height: 100px !important;
+}
+
+.fc .fc-event {
+  padding: 12px !important;
+  border-radius: 10px !important;
+  border-width: 3px !important;
+  font-size: 1rem !important;
+}
+
+.fc .fc-event-main {
+  padding: 8px !important;
+}
+
+.fc .fc-event-title {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+.fc .fc-event-time {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+.fc .fc-daygrid-event {
+  padding: 8px 10px !important;
+  margin: 3px !important;
+  font-size: 0.875rem !important;
+}
+
+.fc-theme-standard td {
+  border-color: #e5e7eb;
+}
+
+.fc-theme-standard th {
+  border-color: #e5e7eb;
+}
+
+/* Forcer une hauteur minimale pour les événements */
+.fc-timegrid-event-harness {
+  min-height: 100px !important;
+}
+
+.fc .fc-timegrid-event .fc-event-main-frame {
+  min-height: 90px !important;
+}
+
+/* Styles pour le drag and drop */
+.fc-event {
+  cursor: move !important;
+  cursor: grab !important;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out !important;
+}
+
+.fc-event:hover {
+  transform: scale(1.02) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  z-index: 1000 !important;
+}
+
+.fc-event:active {
+  cursor: grabbing !important;
+  opacity: 0.8 !important;
+}
+
+/* Indicateur visuel pendant le drag */
+.fc-event-dragging {
+  opacity: 0.6 !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+  z-index: 9999 !important;
+}
+
+/* Styles pour le redimensionnement */
+.fc-event-resizer {
+  cursor: ns-resize !important;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.fc-event:hover .fc-event-resizer {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Indicateur visuel pendant le redimensionnement */
+.fc-event-resizing {
+  opacity: 0.7 !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Ghost event pendant le drag (preview) */
+.fc-event-mirror {
+  opacity: 0.5 !important;
+  z-index: 9999 !important;
+}
+
+/* Animation douce pour les transitions d'événements */
+.fc-event-start,
+.fc-event-end {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Styles pour le drag and drop dans les vues grilles personnalisées */
+[draggable="true"] {
+  cursor: move;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Animation de drop zone */
+.drop-zone-active {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+}
+
+/* Indicateur visuel pendant le drag */
+.dragging-ghost {
+  opacity: 0.5 !important;
+  transform: rotate(2deg) scale(0.95);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Fix pour le datepicker dans le modal */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 8px;
+  opacity: 1;
+}
+
+/* Force l'affichage du calendrier au-dessus du modal */
+input[type="date"]::-webkit-datetime-edit {
+  cursor: pointer;
+}
+
+/* Container du modal avec overflow pour le datepicker */
+.modal-datepicker-container {
+  position: relative;
+  z-index: 9999;
+}
+
+.modal-datepicker-container input[type="date"] {
+  position: relative;
+  z-index: 9999;
+}
+
+
+/* Amélioration du Datepicker */
+.modal-datepicker-container input[type="date"] {
+  position: relative;
+  width: 100%;
+}
+
+/* Astuce pour que l'icône calendrier couvre tout le champ input (pour Chrome/Edge/Safari) */
+.modal-datepicker-container input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0; /* On rend l'icône native invisible mais cliquable partout */
+  cursor: pointer;
+  z-index: 10;
+}
