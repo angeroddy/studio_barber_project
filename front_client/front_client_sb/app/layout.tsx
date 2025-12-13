@@ -1,6 +1,38 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const bebasNeue = localFont({
+  src: [
+    {
+      path: "../public/fonts/bebas-neue/BebasNeue Thin.otf",
+      weight: "100",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bebas-neue/BebasNeue Light.otf",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bebas-neue/BebasNeue Book.otf",
+      weight: "350",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bebas-neue/BebasNeue Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/bebas-neue/BebasNeue Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-bebas",
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -10,6 +42,123 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const monumentExtended = localFont({
+  src: [
+    {
+      path: "../public/fonts/Monument/MonumentExtended-Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Monument/MonumentExtended-Ultrabold.otf",
+      weight: "800",
+      style: "normal",
+    },
+  ],
+  variable: "--font-monument-extended",
+});
+
+const cyGrotesk = localFont({
+  src: "../public/fonts/CyGrotesk/kobuzan-cy-grotesk-grand-dark.otf",
+  variable: "--font-cy-grotesk",
+});
+
+const archivo = localFont({
+  src: [
+    {
+      path: "../public/fonts/Archivo/Archivo-Thin.ttf",
+      weight: "100",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-ThinItalic.ttf",
+      weight: "100",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-ExtraLight.ttf",
+      weight: "200",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-ExtraLightItalic.ttf",
+      weight: "200",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Light.ttf",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-LightItalic.ttf",
+      weight: "300",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Italic.ttf",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Medium.ttf",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-MediumItalic.ttf",
+      weight: "500",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-SemiBold.ttf",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-SemiBoldItalic.ttf",
+      weight: "600",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-BoldItalic.ttf",
+      weight: "700",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-ExtraBold.ttf",
+      weight: "800",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-ExtraBoldItalic.ttf",
+      weight: "800",
+      style: "italic",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-Black.ttf",
+      weight: "900",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Archivo/Archivo-BlackItalic.ttf",
+      weight: "900",
+      style: "italic",
+    },
+  ],
+  variable: "--font-archivo",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +174,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${bebasNeue.variable} ${geistMono.variable} ${monumentExtended.variable} ${cyGrotesk.variable} antialiased`}
       >
         {children}
       </body>
