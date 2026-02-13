@@ -1,4 +1,5 @@
 import prisma from '../config/database'
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
 
 interface CreateService {
   salonId: string
@@ -93,35 +94,53 @@ export async function getService(serviceId: string) {
 }
 
 // ============= READ (liste par salon) =============
-export async function getServicesBySalon(salonId: string, activeOnly: boolean = false) {
-  const services = await prisma.service.findMany({
-    where: {
-      salonId: salonId,
-      ...(activeOnly && { isActive: true })
-    },
-    orderBy: [
-      { category: 'asc' },
-      { name: 'asc' }
-    ]
-  })
-  
-  return services
+export async function getServicesBySalon(salonId: string, activeOnly: boolean = false, page?: number, limit?: number) {
+  const pagination = getPaginationParams(page, limit)
+
+  const where = {
+    salonId: salonId,
+    ...(activeOnly && { isActive: true })
+  }
+
+  const [services, total] = await Promise.all([
+    prisma.service.findMany({
+      where,
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' }
+      ],
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.service.count({ where })
+  ])
+
+  return createPaginatedResponse(services, total, pagination.page, pagination.limit)
 }
 
 // ============= READ (liste par catégorie) =============
-export async function getServicesByCategory(salonId: string, category: string) {
-  const services = await prisma.service.findMany({
-    where: {
-      salonId: salonId,
-      category: category,
-      isActive: true
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  })
-  
-  return services
+export async function getServicesByCategory(salonId: string, category: string, page?: number, limit?: number) {
+  const pagination = getPaginationParams(page, limit)
+
+  const where = {
+    salonId: salonId,
+    category: category,
+    isActive: true
+  }
+
+  const [services, total] = await Promise.all([
+    prisma.service.findMany({
+      where,
+      orderBy: {
+        name: 'asc'
+      },
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.service.count({ where })
+  ])
+
+  return createPaginatedResponse(services, total, pagination.page, pagination.limit)
 }
 
 // ============= UPDATE =============

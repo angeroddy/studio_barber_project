@@ -51,14 +51,14 @@ export const usePopularServices = (salonId: string) => {
         const serviceCountsLastMonth: Record<string, number> = {};
 
         bookingsCurrentMonth
-          .filter(b => b.status !== 'CANCELLED' && b.serviceId)
+          .filter(b => b.status !== 'CANCELED' && b.serviceId)
           .forEach(booking => {
             serviceCountsCurrentMonth[booking.serviceId] =
               (serviceCountsCurrentMonth[booking.serviceId] || 0) + 1;
           });
 
         bookingsLastMonth
-          .filter(b => b.status !== 'CANCELLED' && b.serviceId)
+          .filter(b => b.status !== 'CANCELED' && b.serviceId)
           .forEach(booking => {
             serviceCountsLastMonth[booking.serviceId] =
               (serviceCountsLastMonth[booking.serviceId] || 0) + 1;
@@ -90,3 +90,4 @@ export const usePopularServices = (salonId: string) => {
 
   return { services, loading, error };
 };
+

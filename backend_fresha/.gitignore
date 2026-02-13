@@ -3,3 +3,6 @@ node_modules
 .env
 
 /generated/prisma
+
+# Logs Winston (garder le dossier mais pas les fichiers)
+logs/*.log

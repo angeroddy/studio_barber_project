@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import {
   createSalon,
+  getAllSalons,
   getSalonById,
   getSalonsByOwner,
   getSalonBySlug,
@@ -8,7 +9,32 @@ import {
   deleteSalon
 } from '../services/salon.service'
 import { validationResult } from 'express-validator'
+import logger from '../config/logger'
 
+/**
+ * GET /api/salons
+ * Récupérer tous les salons
+ */
+export async function getAllSalonsHandler(req: Request, res: Response) {
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
+
+    const result = await getAllSalons(page, limit)
+
+    res.json({
+      success: true,
+      ...result  // Déstructure { data: [...], pagination: {...} }
+    })
+
+  } catch (error: any) {
+    logger.error('Erreur récupération salons:', { error: error.message, stack: error.stack })
+    res.status(400).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
 
 /**
  * POST /api/salons
@@ -49,7 +75,7 @@ export async function createSalonHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur création salon:', error)
+    logger.error('Erreur création salon:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -74,7 +100,7 @@ export async function getSalonByIdHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération salon:', error)
+    logger.error('Erreur récupération salon:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message
@@ -98,7 +124,7 @@ export async function getSalonBySlugHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération salon par slug:', error)
+    logger.error('Erreur récupération salon par slug:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message
@@ -114,17 +140,18 @@ export async function getSalonBySlugHandler(req: Request, res: Response) {
 export async function getSalonsByOwnerHandler(req: Request, res: Response) {
   try {
     const { ownerId } = req.params
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
 
-    const salons = await getSalonsByOwner(ownerId)
+    const result = await getSalonsByOwner(ownerId, page, limit)
 
     res.json({
       success: true,
-      data: salons,
-      count: salons.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération salons du propriétaire:', error)
+    logger.error('Erreur récupération salons du propriétaire:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -141,17 +168,18 @@ export async function getMySalonsHandler(req: Request, res: Response) {
   try {
     // Récupérer l'ID du propriétaire depuis le token JWT
     const ownerId = (req as any).user.userId
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
 
-    const salons = await getSalonsByOwner(ownerId)
+    const result = await getSalonsByOwner(ownerId, page, limit)
 
     res.json({
       success: true,
-      data: salons,
-      count: salons.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération mes salons:', error)
+    logger.error('Erreur récupération mes salons:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -178,7 +206,7 @@ export async function updateSalonHandler(req: Request, res: Response) {
     const { id } = req.params
     const ownerId = (req as any).user.userId
 
-    const { name, address, city, zipCode, phone, email } = req.body
+    const { name, address, city, zipCode, phone, email, bufferBefore, bufferAfter, processingTime } = req.body
 
     const salon = await updateSalon(id, ownerId, {
       name,
@@ -186,7 +214,10 @@ export async function updateSalonHandler(req: Request, res: Response) {
       city,
       zipCode,
       phone,
-      email
+      email,
+      bufferBefore,
+      bufferAfter,
+      processingTime
     })
 
     res.json({
@@ -196,7 +227,7 @@ export async function updateSalonHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur mise à jour salon:', error)
+    logger.error('Erreur mise à jour salon:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -222,7 +253,7 @@ export async function deleteSalonHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur suppression salon:', error)
+    logger.error('Erreur suppression salon:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message

@@ -129,7 +129,10 @@ export const createClientValidation = [
 
   body('password')
     .optional()
-    .isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+    .isLength({ min: 8 })
+    .withMessage('Mot de passe minimum 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)'),
 
   body('notes')
     .optional()
@@ -162,7 +165,10 @@ export const updateClientValidation = [
 
   body('password')
     .optional()
-    .isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+    .isLength({ min: 8 })
+    .withMessage('Mot de passe minimum 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)'),
 
   body('notes')
     .optional()

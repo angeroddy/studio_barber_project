@@ -18,6 +18,8 @@ import {
 } from "../../services/booking.service";
 import type { Booking } from "../../services/booking.service";
 import { getServicesBySalon } from "../../services/service.service";
+import { getSchedulesBySalon } from "../../services/schedule.service";
+import type { Schedule } from "../../services/schedule.service";
 import { useSalon } from "../../context/SalonContext";
 import ClientAutocomplete from "../../components/form/input/ClientAutocomplete";
 import type { Client } from "../../services/client.service";
@@ -41,17 +43,25 @@ interface CalendarEvent extends EventInput {
     serviceId?: string; // ID du service pour les mises à jour
     resourceId?: string;
     bookingId?: string;
+    bookingServiceId?: string;
     status?: string;
     clientEmail?: string;
     clientPhone?: string;
     notes?: string;
+    isMultiService?: boolean;
+    serviceOrder?: number;
+    totalServices?: number;
   };
 }
 
 type TimeView = "day" | "week" | "month";
 type ViewMode = "all" | "single";
 
-const Calendrier: React.FC = () => {
+interface CalendrierProps {
+  readOnly?: boolean;
+}
+
+const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   // Utiliser le contexte salon
   const { selectedSalon, isLoading: salonLoading } = useSalon();
 
@@ -72,6 +82,7 @@ const Calendrier: React.FC = () => {
   const [hairdressers, setHairdressers] = useState<HairdresserResource[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,7 +118,7 @@ const Calendrier: React.FC = () => {
   };
 
   const handleDrop = async (hairdresserId: string, hourIndex: number, date: Date = selectedDate) => {
-    if (!draggedEvent) return;
+    if (readOnly || !draggedEvent) return;
 
     const hour = hourIndex + 8;
     const year = date.getFullYear();
@@ -231,6 +242,12 @@ const Calendrier: React.FC = () => {
         console.log("✅ [Calendrier] Services chargés:", servicesData);
         setServices(servicesData);
 
+        // Charger les horaires du salon
+        console.log("⏰ [Calendrier] Chargement des horaires du salon...");
+        const schedulesData = await getSchedulesBySalon(selectedSalon.id);
+        console.log("✅ [Calendrier] Horaires chargés:", schedulesData);
+        setSchedules(schedulesData);
+
         // Charger les réservations en passant la liste de staff
         console.log("📅 [Calendrier] Chargement des réservations...");
         await fetchBookings(formattedStaff);
@@ -288,40 +305,93 @@ const Calendrier: React.FC = () => {
       const activeStaffList = staffList || hairdressers;
 
       // Convertir les bookings en événements du calendrier
-      const calendarEvents: CalendarEvent[] = bookingsData.map((booking: Booking) => {
-        const serviceName = booking.service?.name || "Service";
-        // Trouver l'index du staff dans la liste
-        const staffIndex = activeStaffList.findIndex((h) => h.id === booking.staffId);
-        const colors = staffIndex >= 0 ? staffColors[staffIndex % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
+      const calendarEvents: CalendarEvent[] = [];
 
+      bookingsData.forEach((booking: Booking) => {
         // Construire le nom du client à partir de la relation client
         const clientName = booking.client
           ? `${booking.client.firstName} ${booking.client.lastName}`.trim()
           : booking.clientName || "Sans nom";
 
         console.log("👤 [Calendrier] Client name pour booking", booking.id, ":", clientName);
+        console.log("🔍 [Calendrier] isMultiService:", booking.isMultiService, "bookingServices:", booking.bookingServices?.length);
 
-        return {
-          id: booking.id,
-          resourceId: booking.staffId,
-          title: clientName,
-          start: booking.startTime,
-          end: booking.endTime,
-          backgroundColor: colors.bg,
-          borderColor: colors.border,
-          extendedProps: {
-            service: serviceName,
-            serviceId: booking.serviceId, // Ajout de l'ID du service
-            resourceId: booking.staffId,
+        // Si c'est une réservation multi-services, créer un événement par BookingService
+        if (booking.isMultiService && booking.bookingServices && booking.bookingServices.length > 0) {
+          booking.bookingServices.forEach((bookingService, index) => {
+            const serviceName = bookingService.service?.name || "Service";
+            const staffIndex = activeStaffList.findIndex((h) => h.id === bookingService.staffId);
+            const colors = staffIndex >= 0 ? staffColors[staffIndex % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
+
+            console.log(`📌 [Calendrier] Événement multi-service ${index + 1}/${booking.bookingServices!.length}:`, {
+              bookingServiceId: bookingService.id,
+              staffId: bookingService.staffId,
+              serviceName,
+              startTime: bookingService.startTime,
+              endTime: bookingService.endTime
+            });
+
+            calendarEvents.push({
+              id: `${booking.id}-${bookingService.id}`,
+              resourceId: bookingService.staffId,
+              title: `${clientName} (${index + 1}/${booking.bookingServices!.length})`,
+              start: bookingService.startTime,
+              end: bookingService.endTime,
+              backgroundColor: colors.bg,
+              borderColor: colors.border,
+              extendedProps: {
+                service: serviceName,
+                serviceId: bookingService.serviceId,
+                resourceId: bookingService.staffId,
+                bookingId: booking.id,
+                bookingServiceId: bookingService.id,
+                status: booking.status,
+                clientEmail: booking.client?.email || booking.clientEmail,
+                clientPhone: booking.client?.phone || booking.clientPhone,
+                notes: booking.notes,
+                isMultiService: true,
+                serviceOrder: index + 1,
+                totalServices: booking.bookingServices!.length
+              },
+            });
+          });
+        } else {
+          // Réservation simple
+          const serviceName = booking.service?.name || "Service";
+          const staffIndex = activeStaffList.findIndex((h) => h.id === booking.staffId);
+          const colors = staffIndex >= 0 ? staffColors[staffIndex % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
+
+          console.log("📌 [Calendrier] Événement simple:", {
             bookingId: booking.id,
-            status: booking.status,
-            clientEmail: booking.client?.email || booking.clientEmail,
-            clientPhone: booking.client?.phone || booking.clientPhone,
-            notes: booking.notes,
-          },
-        };
+            staffId: booking.staffId,
+            serviceName,
+            startTime: booking.startTime,
+            endTime: booking.endTime
+          });
+
+          calendarEvents.push({
+            id: booking.id,
+            resourceId: booking.staffId || '',
+            title: clientName,
+            start: booking.startTime,
+            end: booking.endTime,
+            backgroundColor: colors.bg,
+            borderColor: colors.border,
+            extendedProps: {
+              service: serviceName,
+              serviceId: booking.serviceId,
+              resourceId: booking.staffId,
+              bookingId: booking.id,
+              status: booking.status,
+              clientEmail: booking.client?.email || booking.clientEmail,
+              clientPhone: booking.client?.phone || booking.clientPhone,
+              notes: booking.notes,
+            },
+          });
+        }
       });
 
+      console.log(`✅ [Calendrier] Total événements créés: ${calendarEvents.length}`);
       setEvents(calendarEvents);
     } catch (err) {
       console.error("Erreur lors du chargement des réservations:", err);
@@ -552,6 +622,7 @@ const Calendrier: React.FC = () => {
   }, [selectedDate]);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
+    if (readOnly) return; // Désactiver la sélection en mode lecture seule
     resetModalFields();
     setEventStartDate(selectInfo.startStr);
     setEventEndDate(selectInfo.endStr || selectInfo.startStr);
@@ -562,6 +633,7 @@ const Calendrier: React.FC = () => {
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
+    if (readOnly) return; // Désactiver les clics sur les événements en mode lecture seule
     const event = clickInfo.event;
     setSelectedEvent(event as unknown as CalendarEvent);
     setEventTitle(event.title);
@@ -759,27 +831,65 @@ const Calendrier: React.FC = () => {
   ): Array<{ time: string; available: boolean }> => {
     const slots: Array<{ time: string; available: boolean }> = [];
 
-    // Générer les créneaux de 8h à 20h avec un pas de 5 minutes
-    for (let hour = 8; hour < 20; hour++) {
-      for (let minute = 0; minute < 60; minute += 5) {
-        const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    // Récupérer le jour de la semaine (0 = Dimanche, 1 = Lundi, ...)
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay();
+
+    // Trouver le schedule pour ce jour de la semaine
+    const daySchedule = schedules.find(s => s.dayOfWeek === dayOfWeek);
+
+    // Si pas d'horaire défini ou salon fermé ce jour-là, retourner un tableau vide
+    if (!daySchedule || daySchedule.isClosed || !daySchedule.timeSlots || daySchedule.timeSlots.length === 0) {
+      console.log(`⚠️ [TimeSlots] Salon fermé le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
+      return [];
+    }
+
+    // Fonction helper pour convertir "HH:mm" en minutes depuis minuit
+    const timeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Fonction helper pour convertir les minutes en "HH:mm"
+    const minutesToTime = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    };
+
+    // Pour chaque plage horaire du salon (ex: 10h-12h, 14h-18h)
+    for (const timeSlot of daySchedule.timeSlots) {
+      const startMinutes = timeToMinutes(timeSlot.startTime);
+      const endMinutes = timeToMinutes(timeSlot.endTime);
+
+      // Générer les créneaux dans cette plage avec un pas de 15 minutes
+      for (let currentMinutes = startMinutes; currentMinutes < endMinutes; currentMinutes += 15) {
+        const slotEndMinutes = currentMinutes + serviceDuration;
+
+        // Vérifier que le service se termine avant la fin de la plage horaire
+        if (slotEndMinutes > endMinutes) {
+          break; // Pas assez de temps pour ce service dans cette plage
+        }
+
+        const timeString = minutesToTime(currentMinutes);
 
         // Calculer l'heure de début et de fin pour ce créneau
         const startDateTime = `${date}T${timeString}:00`;
         const startDate = new Date(startDateTime);
-        const endDate = new Date(startDate.getTime() + serviceDuration * 60000); // Ajouter la durée en millisecondes
+        const endDate = new Date(startDate.getTime() + serviceDuration * 60000);
         const endDateTime = endDate.toISOString();
 
         // Vérifier si tout l'intervalle est disponible
         const available = isIntervalAvailable(staffId, startDateTime, endDateTime, excludeEventId);
 
         slots.push({
-          time: timeString, // Format 24h pour les calculs
+          time: timeString,
           available
         });
       }
     }
 
+    console.log(`✅ [TimeSlots] ${slots.length} créneaux générés pour ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
     return slots;
   };
 
@@ -842,6 +952,7 @@ const Calendrier: React.FC = () => {
 
   // Gérer le clic sur une cellule vide pour créer un rendez-vous
   const handleCellClick = (hairdresserId: string, hourIndex: number) => {
+    if (readOnly) return; // Désactiver la création de RDV en mode lecture seule
     const hour = hourIndex + 8; // Les heures commencent à 8h
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
     const startDateTime = `${dateStr}T${String(hour).padStart(2, "0")}:00:00`;
@@ -1209,22 +1320,25 @@ const Calendrier: React.FC = () => {
             </svg>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={openModal}
-              className="pl-4 pr-10 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium"
-            >
-              Add
-            </button>
-            <svg
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white dark:text-gray-900 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+          {/* Bouton Add - masqué en mode lecture seule */}
+          {!readOnly && (
+            <div className="relative">
+              <button
+                onClick={openModal}
+                className="pl-4 pr-10 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium"
+              >
+                Add
+              </button>
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white dark:text-gray-900 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1323,14 +1437,15 @@ const Calendrier: React.FC = () => {
                           return (
                             <div
                               key={appointment.id}
-                              draggable
+                              draggable={!readOnly}
                               onDragStart={(e) => {
+                                if (readOnly) return;
                                 e.stopPropagation();
                                 handleDragStart(appointment);
                               }}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => {
-                                if (isDragging) return;
+                                if (readOnly || isDragging) return;
                                 e.stopPropagation();
                                 const event = {
                                   ...appointment,
@@ -1523,14 +1638,15 @@ const Calendrier: React.FC = () => {
                           return (
                             <div
                               key={appointment.id}
-                              draggable
+                              draggable={!readOnly}
                               onDragStart={(e) => {
+                                if (readOnly) return;
                                 e.stopPropagation();
                                 handleDragStart(appointment);
                               }}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => {
-                                if (isDragging) return;
+                                if (readOnly || isDragging) return;
                                 e.stopPropagation();
                                 const event = {
                                   ...appointment,
@@ -1605,13 +1721,13 @@ const Calendrier: React.FC = () => {
               }}
               initialDate={selectedDate}
               events={getFilteredEvents()}
-              selectable={true}
+              selectable={!readOnly}
               select={handleDateSelect}
               eventClick={handleEventClick}
-              editable={true}
+              editable={!readOnly}
               eventDrop={handleEventDrop}
               eventResize={handleEventResize}
-              eventDurationEditable={true}
+              eventDurationEditable={!readOnly}
               snapDuration="00:05:00"
               slotMinTime="08:00:00"
               slotMaxTime="20:00:00"
@@ -1890,38 +2006,40 @@ const Calendrier: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mt-6 modal-footer sm:justify-between">
-            <div>
-              {selectedEvent && (
+          {!readOnly && (
+            <div className="flex items-center gap-3 mt-6 modal-footer sm:justify-between">
+              <div>
+                {selectedEvent && (
+                  <button
+                    onClick={handleDeleteEvent}
+                    type="button"
+                    disabled={loading}
+                    className="flex justify-center rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Supprimer
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={handleDeleteEvent}
+                  onClick={closeModal}
                   type="button"
                   disabled={loading}
-                  className="flex justify-center rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Supprimer
+                  Annuler
                 </button>
-              )}
+                <button
+                  onClick={handleAddOrUpdateEvent}
+                  type="button"
+                  disabled={loading || !eventStartDate || !eventEndDate || !selectedTimeSlot}
+                  className="flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Enregistrement..." : selectedEvent ? "Mettre à jour" : "Ajouter"}
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={closeModal}
-                type="button"
-                disabled={loading}
-                className="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleAddOrUpdateEvent}
-                type="button"
-                disabled={loading || !eventStartDate || !eventEndDate || !selectedTimeSlot}
-                className="flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Enregistrement..." : selectedEvent ? "Mettre à jour" : "Ajouter"}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </Modal>
     </div>

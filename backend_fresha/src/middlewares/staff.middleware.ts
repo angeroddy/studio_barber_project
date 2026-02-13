@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import prisma from '../config/database'
+import logger from '../config/logger'
 
 // ============= Vérifier que le staff existe =============
 export async function checkStaffExists(req: Request, res: Response, next: NextFunction) {
@@ -35,12 +36,10 @@ export async function checkStaffOwnership(req: Request, res: Response, next: Nex
     const userId = req.user?.userId // Suppose que tu as un middleware d'auth qui ajoute req.user
     const { id } = req.params
 
-    console.log('=== BACKEND: Vérification ownership staff ===')
-    console.log('User ID:', userId)
-    console.log('Staff ID:', id)
+    logger.debug('Checking staff ownership', { staffId: id })
 
     if (!userId) {
-      console.log('Erreur: userId manquant')
+      logger.warn('Staff ownership check failed: missing userId')
       return res.status(401).json({
         success: false,
         message: 'Non authentifié'
@@ -59,14 +58,8 @@ export async function checkStaffOwnership(req: Request, res: Response, next: Nex
       }
     })
 
-    console.log('Staff trouvé:', staff ? 'Oui' : 'Non')
-    if (staff) {
-      console.log('Owner du salon:', staff.salon.ownerId)
-      console.log('Match avec user?', staff.salon.ownerId === userId)
-    }
-
     if (!staff) {
-      console.log('Erreur: Staff introuvable')
+      logger.warn('Staff ownership check failed: staff not found', { staffId: id })
       return res.status(404).json({
         success: false,
         message: 'Membre du personnel introuvable'
@@ -75,19 +68,19 @@ export async function checkStaffOwnership(req: Request, res: Response, next: Nex
 
     // Vérifier que l'owner possède le salon
     if (staff.salon.ownerId !== userId) {
-      console.log('Erreur: Pas de permission (owner différent)')
+      logger.warn('Staff ownership check failed: permission denied', { staffId: id })
       return res.status(403).json({
         success: false,
         message: 'Vous n\'avez pas la permission d\'accéder à ce membre du personnel'
       })
     }
 
-    console.log('Ownership OK, passage au next()')
+    logger.debug('Staff ownership check passed', { staffId: id })
     req.staff = staff
 
     next()
   } catch (error: any) {
-    console.error('Erreur dans checkStaffOwnership:', error)
+    logger.error('Error in checkStaffOwnership', { error: error.message, stack: error.stack })
     return res.status(500).json({
       success: false,
       message: 'Erreur lors de la vérification des permissions'
@@ -147,9 +140,7 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
 export function validateCreateStaff(req: Request, res: Response, next: NextFunction) {
   const { salonId, email, password, firstName, lastName, role, specialties } = req.body
 
-  // Debug logs
-  console.log('=== BACKEND: Validation création staff ===')
-  console.log('Body reçu:', req.body)
+  logger.debug('Validating staff creation')
 
   const errors: string[] = []
 

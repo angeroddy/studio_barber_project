@@ -219,6 +219,39 @@ const StaffScheduleGrid: React.FC = () => {
     }
   };
 
+  const handleCopyToOtherDays = async (
+    sourceDayOfWeek: number,
+    targetDays: number[],
+    timeSlots: any[],
+    isWorking: boolean
+  ) => {
+    if (!selectedStaff?.id) {
+      throw new Error("Staff non sélectionné");
+    }
+
+    try {
+      const schedulesToSave = isWorking && timeSlots.length > 0 ? timeSlots : [];
+
+      // Sauvegarder les horaires pour chaque jour cible
+      for (const dayOfWeek of targetDays) {
+        await upsertStaffSchedulesForDay(
+          selectedStaff.id,
+          dayOfWeek,
+          schedulesToSave
+        );
+      }
+
+      // Recharger les données
+      if (selectedSalon?.id) {
+        const data = await getStaffBySalon(selectedSalon.id);
+        setStaffMembers(data.filter(s => s.isActive));
+      }
+    } catch (error) {
+      console.error("Erreur lors de la copie:", error);
+      throw error;
+    }
+  };
+
   if (loading) {
     return (
       <div className="schedule-grid-container">
@@ -430,6 +463,7 @@ const StaffScheduleGrid: React.FC = () => {
             : []
         }
         onSave={handleSaveSchedule}
+        onCopyToOtherDays={handleCopyToOtherDays}
       />
     </div>
   );

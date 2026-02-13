@@ -1,19 +1,48 @@
 import api from './api';
 
+// Interface pour un BookingService (service dans une réservation multi-services)
+export interface BookingService {
+  id: string;
+  bookingId: string;
+  serviceId: string;
+  staffId: string;
+  duration: number;
+  price: number;
+  order: number;
+  startTime: string;
+  endTime: string;
+  service: {
+    id: string;
+    name: string;
+    duration: number;
+    price: number;
+    category?: string;
+  };
+  staff: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  };
+}
+
 // Interface pour un Booking (Rendez-vous)
 export interface Booking {
   id: string;
   salonId: string;
-  staffId: string;
-  serviceId: string;
+  staffId?: string | null;
+  serviceId?: string | null;
   clientId: string;
   clientName?: string; // Deprecated - utiliser client.firstName + client.lastName
   clientEmail?: string;
   clientPhone?: string;
   startTime: string;
   endTime: string;
+  duration: number;
+  price: number;
   status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
   notes?: string;
+  isMultiService?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
   client?: {
@@ -28,13 +57,14 @@ export interface Booking {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   service?: {
     id: string;
     name: string;
     duration: number;
     price: number;
-  };
+  } | null;
+  bookingServices?: BookingService[];
 }
 
 // Interface pour créer un rendez-vous
@@ -103,11 +133,13 @@ export const getBookingsBySalon = async (
     endDate?: string;
     staffId?: string;
     status?: string;
+    page?: number;
+    limit?: number;
   }
 ): Promise<Booking[]> => {
   const response = await api.get<ApiResponse<Booking[]>>(
     `/bookings/salon/${salonId}`,
-    { params: filters }
+    { params: { ...filters, limit: filters?.limit || 1000 } }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération des rendez-vous');
@@ -124,11 +156,13 @@ export const getBookingsByStaff = async (
     startDate?: string;
     endDate?: string;
     status?: string;
+    page?: number;
+    limit?: number;
   }
 ): Promise<Booking[]> => {
   const response = await api.get<ApiResponse<Booking[]>>(
     `/bookings/staff/${staffId}`,
-    { params: filters }
+    { params: { ...filters, limit: filters?.limit || 1000 } }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération des rendez-vous');

@@ -16,6 +16,7 @@ interface StaffScheduleModalProps {
   dayOfWeek: number;
   existingSchedules?: StaffSchedule[];
   onSave: (timeSlots: TimeSlot[], isWorking: boolean) => Promise<void>;
+  onCopyToOtherDays?: (sourceDayOfWeek: number, targetDays: number[], timeSlots: TimeSlot[], isWorking: boolean) => Promise<void>;
 }
 
 const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
@@ -26,10 +27,13 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
   dayOfWeek,
   existingSchedules = [],
   onSave,
+  onCopyToOtherDays,
 }) => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [isWorking, setIsWorking] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedTargetDays, setSelectedTargetDays] = useState<Set<number>>(new Set());
 
   // Génère des options d'heures (00:00 à 23:45 par intervalles de 15 min)
   const generateTimeOptions = (): string[] => {
@@ -181,12 +185,54 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
     ]);
   };
 
+  // Ouvre le modal de copie
+  const handleOpenCopyModal = () => {
+    setShowCopyModal(true);
+    setSelectedTargetDays(new Set());
+  };
+
+  // Ferme le modal de copie
+  const handleCloseCopyModal = () => {
+    setShowCopyModal(false);
+    setSelectedTargetDays(new Set());
+  };
+
+  // Toggle jour de destination
+  const handleToggleTargetDay = (day: number) => {
+    setSelectedTargetDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(day)) {
+        newSet.delete(day);
+      } else {
+        newSet.add(day);
+      }
+      return newSet;
+    });
+  };
+
+  // Copie vers d'autres jours
+  const handleCopyToOtherDays = async () => {
+    if (!onCopyToOtherDays || selectedTargetDays.size === 0) return;
+
+    try {
+      setIsSaving(true);
+      await onCopyToOtherDays(dayOfWeek, Array.from(selectedTargetDays), timeSlots, isWorking);
+      handleCloseCopyModal();
+      alert(`Horaires copiés vers ${selectedTargetDays.size} jour(s) avec succès`);
+    } catch (error) {
+      console.error("Erreur lors de la copie:", error);
+      alert("Erreur lors de la copie des horaires");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!staff || !date) return null;
 
   const totalDuration = calculateTotalDuration();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-2xl">
       <div className="p-6">
         {/* En-tête */}
         <div className="flex items-start justify-between mb-6">
@@ -366,8 +412,26 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
             </button>
           )}
 
-          {/* Boutons annuler/enregistrer (droite) */}
+          {/* Boutons annuler/copier/enregistrer (droite) */}
           <div className="flex gap-3 ml-auto">
+            {onCopyToOtherDays && (
+              <button
+                onClick={handleOpenCopyModal}
+                disabled={isSaving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title="Copier ces horaires vers d'autres jours de la semaine"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                Copier vers...
+              </button>
+            )}
             <button
               onClick={onClose}
               disabled={isSaving}
@@ -411,6 +475,61 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal secondaire pour copier vers d'autres jours */}
+      {showCopyModal && (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-xl">
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Copier les horaires du {dayNames[dayOfWeek]}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Sélectionnez les jours où vous souhaitez appliquer ces horaires
+              </p>
+            </div>
+
+            <div className="mb-6 space-y-2">
+              {dayNames.map((name, index) => {
+                if (index === dayOfWeek) return null; // Ne pas afficher le jour source
+                return (
+                  <label
+                    key={index}
+                    className="flex cursor-pointer items-center gap-3 rounded-md border border-gray-200 p-3 transition hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedTargetDays.has(index)}
+                      onChange={() => handleToggleTargetDay(index)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-900 capitalize">
+                      {name}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseCopyModal}
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCopyToOtherDays}
+                disabled={isSaving || selectedTargetDays.size === 0}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Copier ({selectedTargetDays.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 };

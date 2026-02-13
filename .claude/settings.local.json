@@ -4,7 +4,10 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(curl:*)",
-      "Bash(dir /b)"
+      "Bash(dir /b)",
+      "Bash(dir /b /s \"C:\\Users\\N''''Guessan Ange\\Documents\\Fresha-Clone-Project\\backend_fresha\\src\")",
+      "Bash(npm test:*)",
+      "Bash(npm run test)"
     ],
     "deny": [],
     "ask": []

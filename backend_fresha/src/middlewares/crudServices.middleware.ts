@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import prisma from '../config/database'// Ajuste selon ton setup
+import prisma from '../config/database'
+import logger from '../config/logger'
 
 // ============= Vérifier que le service existe =============
 export async function checkServiceExists(req: Request, res: Response, next: NextFunction) {
@@ -35,12 +36,10 @@ export async function checkServiceOwnership(req: Request, res: Response, next: N
     const userId = req.user?.userId // Suppose que tu as un middleware d'auth qui ajoute req.user
     const { id } = req.params
 
-    console.log('=== BACKEND: Vérification ownership ===');
-    console.log('User ID:', userId);
-    console.log('Service ID:', id);
+    logger.debug('Checking service ownership', { serviceId: id });
 
     if (!userId) {
-      console.log('Erreur: userId manquant');
+      logger.warn('Service ownership check failed: missing userId');
       return res.status(401).json({
         success: false,
         message: 'Non authentifié'
@@ -59,14 +58,8 @@ export async function checkServiceOwnership(req: Request, res: Response, next: N
       }
     })
 
-    console.log('Service trouvé:', service ? 'Oui' : 'Non');
-    if (service) {
-      console.log('Owner du salon:', service.salon.ownerId);
-      console.log('Match avec user?', service.salon.ownerId === userId);
-    }
-
     if (!service) {
-      console.log('Erreur: Service introuvable');
+      logger.warn('Service ownership check failed: service not found', { serviceId: id });
       return res.status(404).json({
         success: false,
         message: 'Service introuvable'
@@ -75,19 +68,19 @@ export async function checkServiceOwnership(req: Request, res: Response, next: N
 
     // Vérifier que l'owner possède le salon
     if (service.salon.ownerId !== userId) {
-      console.log('Erreur: Pas de permission (owner différent)');
+      logger.warn('Service ownership check failed: permission denied', { serviceId: id });
       return res.status(403).json({
         success: false,
         message: 'Vous n\'avez pas la permission d\'accéder à ce service'
       })
     }
 
-    console.log('Ownership OK, passage au next()');
+    logger.debug('Service ownership check passed', { serviceId: id });
     req.service = service
 
     next()
   } catch (error: any) {
-    console.error('Erreur dans checkServiceOwnership:', error);
+    logger.error('Error in checkServiceOwnership', { error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
       message: 'Erreur lors de la vérification des permissions'
@@ -147,16 +140,7 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
 export function validateCreateService(req: Request, res: Response, next: NextFunction) {
   const { salonId, name, duration, price, category } = req.body
 
-  // Debug logs
-  console.log('=== BACKEND: Validation création service ===')
-  console.log('Body reçu:', req.body)
-  console.log('Types:', {
-    salonId: typeof salonId,
-    name: typeof name,
-    duration: typeof duration,
-    price: typeof price,
-    category: typeof category
-  })
+  logger.debug('Validating service creation')
 
   const errors: string[] = []
   

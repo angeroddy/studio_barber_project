@@ -11,6 +11,9 @@ export interface Salon {
   phone: string;
   email: string;
   ownerId: string;
+  bufferBefore?: number; // Temps bloqué AVANT chaque rendez-vous (en minutes)
+  bufferAfter?: number; // Temps bloqué APRÈS chaque rendez-vous (en minutes)
+  processingTime?: number; // Temps de traitement supplémentaire (en minutes)
   createdAt?: Date;
   updatedAt?: Date;
   owner?: {
@@ -37,7 +40,7 @@ export interface CreateSalonData {
   email: string;
 }
 
-// Interface pour mettre � jour un salon
+// Interface pour mettre à jour un salon
 export interface UpdateSalonData {
   name?: string;
   address?: string;
@@ -45,6 +48,9 @@ export interface UpdateSalonData {
   zipCode?: string;
   phone?: string;
   email?: string;
+  bufferBefore?: number;
+  bufferAfter?: number;
+  processingTime?: number;
 }
 
 // Interface pour la r�ponse API
@@ -185,4 +191,15 @@ export const deleteSalon = async (id: string): Promise<void> => {
     console.error('Erreur dans deleteSalon:', error);
     throw error;
   }
+};
+
+// Backward-compatible grouped API used by React Query hooks
+export const salonService = {
+  createSalon,
+  getSalonById,
+  getSalonBySlug,
+  getSalonsByOwner,
+  getMySalons,
+  updateSalon,
+  deleteSalon,
 };

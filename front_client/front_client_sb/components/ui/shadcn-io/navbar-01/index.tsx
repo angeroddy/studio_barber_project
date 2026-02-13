@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import Logo2 from '@/public/logoApp.png';
+import { isAuthenticated } from '@/lib/api/auth';
+import { useRouter } from 'next/navigation';
 
 
 // Simple logo component for the navbar
@@ -119,7 +121,9 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
     ref
   ) => {
     const [isMobile, setIsMobile] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const containerRef = useRef<HTMLElement>(null);
+    const router = useRouter();
 
     useEffect(() => {
       const checkWidth = () => {
@@ -138,6 +142,29 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
 
       return () => {
         resizeObserver.disconnect();
+      };
+    }, []);
+
+    // Vérifier l'authentification au montage et lors des changements
+    useEffect(() => {
+      const checkAuth = () => {
+        setIsLoggedIn(isAuthenticated());
+      };
+
+      checkAuth();
+
+      // Écouter les changements de localStorage pour détecter login/logout
+      const handleStorageChange = () => {
+        checkAuth();
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      // Vérifier périodiquement (pour détecter les changements dans le même onglet)
+      const interval = setInterval(checkAuth, 1000);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        clearInterval(interval);
       };
     }, []);
 
@@ -207,7 +234,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
                 <div className="text-2xl">
                   {logo}
                 </div>
-              
+               
               </button>
               {/* Navigation menu */}
               {!isMobile && (
@@ -238,7 +265,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
              <Button
               variant="ghost"
               size="sm"
-              className="font-monument font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              className="font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
               onClick={(e) => {
                 e.preventDefault();
                 if (onSignInClick) onSignInClick();
@@ -249,7 +276,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
             <Button
               variant="ghost"
               size="sm"
-              className=" font-monument font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              className=" font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
               onClick={(e) => {
                 e.preventDefault();
                 if (onSignInClick) onSignInClick();
@@ -257,16 +284,29 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
             >
               {signInText}
             </Button>
-            <Button
-              size="sm"
-              className="rounded-none font-monument font-extrabold text-sm font-medium px-4 h-9 shadow-sm bg-[#DE2788]"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onCtaClick) onCtaClick();
-              }}
-            >
-              {ctaText}
-            </Button>
+            {isLoggedIn ? (
+              <Button
+                size="sm"
+                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788] hover:bg-[#c01f73]"
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push('/dashboard');
+                }}
+              >
+                MON COMPTE
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788]"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onCtaClick) onCtaClick();
+                }}
+              >
+                {ctaText}
+              </Button>
+            )}
           </div>
         </div>
       </header>

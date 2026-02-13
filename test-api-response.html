@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Response</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+            max-height: 600px;
+            overflow: auto;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            border-left-color: #f44336;
+            background-color: #ffebee;
+        }
+        .info {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test des API Response</h1>
+
+        <div class="info">
+            <strong>Objectif:</strong> Vérifier que les endpoints retournent bien la structure { success, data, pagination }
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="testEndpoint('/api/salons', 'Salons')">Test Salons</button>
+            <button onclick="testEndpoint('/api/staff/salon/1', 'Staff')">Test Staff</button>
+            <button onclick="testEndpoint('/api/services/salon/1', 'Services')">Test Services</button>
+            <button onclick="clearResults()">Clear</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+
+        async function testEndpoint(endpoint, name) {
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+
+                // Vérifier la structure
+                const hasSuccess = 'success' in data;
+                const hasData = 'data' in data;
+                const hasPagination = 'pagination' in data;
+                const isDataArray = Array.isArray(data.data);
+
+                const structureOk = hasSuccess && hasData && hasPagination && isDataArray;
+
+                const resultHTML = `
+                    <div class="result ${structureOk ? '' : 'error'}">
+                        <h3>${structureOk ? '✅' : '❌'} ${name}</h3>
+                        <p><strong>URL:</strong> ${endpoint}</p>
+                        <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                        <p><strong>Structure Check:</strong></p>
+                        <ul>
+                            <li>${hasSuccess ? '✅' : '❌'} Has 'success' field</li>
+                            <li>${hasData ? '✅' : '❌'} Has 'data' field</li>
+                            <li>${hasPagination ? '✅' : '❌'} Has 'pagination' field</li>
+                            <li>${isDataArray ? '✅' : '❌'} 'data' is an array</li>
+                        </ul>
+                        ${hasPagination ? `
+                            <p><strong>Pagination:</strong></p>
+                            <ul>
+                                <li>Total: ${data.pagination.total}</li>
+                                <li>Page: ${data.pagination.page}</li>
+                                <li>Limit: ${data.pagination.limit}</li>
+                                <li>Total Pages: ${data.pagination.totalPages}</li>
+                            </ul>
+                        ` : ''}
+                        ${isDataArray ? `<p><strong>Items count:</strong> ${data.data.length}</p>` : ''}
+                        <details>
+                            <summary>View Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+
+                resultsDiv.insertAdjacentHTML('beforeend', resultHTML);
+
+            } catch (error) {
+                const errorHTML = `
+                    <div class="result error">
+                        <h3>❌ ${name} - Error</h3>
+                        <p><strong>URL:</strong> ${endpoint}</p>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `;
+                resultsDiv.insertAdjacentHTML('beforeend', errorHTML);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

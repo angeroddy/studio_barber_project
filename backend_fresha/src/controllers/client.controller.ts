@@ -11,14 +11,15 @@ import {
   searchClients
 } from '../services/client.service'
 import { validationResult } from 'express-validator'
+import logger from '../config/logger'
 
 /**
  * POST /api/clients
- * Créer un nouveau client
+ * Crï¿½er un nouveau client
  */
 export async function createClientHandler(req: Request, res: Response) {
   try {
-    // Vérifier les erreurs de validation
+    // Vï¿½rifier les erreurs de validation
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -42,12 +43,12 @@ export async function createClientHandler(req: Request, res: Response) {
 
     res.status(201).json({
       success: true,
-      message: 'Client créé avec succès',
+      message: 'Client crï¿½ï¿½ avec succï¿½s',
       data: client
     })
 
   } catch (error: any) {
-    console.error('Erreur création client:', error)
+    logger.error('Erreur crï¿½ation client:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -57,7 +58,7 @@ export async function createClientHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/:id
- * Récupérer un client par son ID
+ * Rï¿½cupï¿½rer un client par son ID
  */
 export async function getClientByIdHandler(req: Request, res: Response) {
   try {
@@ -71,7 +72,7 @@ export async function getClientByIdHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération client:', error)
+    logger.error('Erreur rï¿½cupï¿½ration client:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message
@@ -81,7 +82,7 @@ export async function getClientByIdHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/email/:email
- * Récupérer un client par son email
+ * Rï¿½cupï¿½rer un client par son email
  */
 export async function getClientByEmailHandler(req: Request, res: Response) {
   try {
@@ -95,7 +96,7 @@ export async function getClientByEmailHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération client par email:', error)
+    logger.error('Erreur rï¿½cupï¿½ration client par email:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message
@@ -105,7 +106,7 @@ export async function getClientByEmailHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/phone/:phone
- * Récupérer les clients par numéro de téléphone
+ * Rï¿½cupï¿½rer les clients par numï¿½ro de tï¿½lï¿½phone
  */
 export async function getClientsByPhoneHandler(req: Request, res: Response) {
   try {
@@ -120,7 +121,7 @@ export async function getClientsByPhoneHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération clients par téléphone:', error)
+    logger.error('Erreur rï¿½cupï¿½ration clients par tï¿½lï¿½phone:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -130,7 +131,7 @@ export async function getClientsByPhoneHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/salon/:salonId
- * Récupérer tous les clients d'un salon
+ * Rï¿½cupï¿½rer tous les clients d'un salon
  */
 export async function getClientsBySalonHandler(req: Request, res: Response) {
   try {
@@ -145,7 +146,7 @@ export async function getClientsBySalonHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération clients du salon:', error)
+    logger.error('Erreur rï¿½cupï¿½ration clients du salon:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -155,7 +156,7 @@ export async function getClientsBySalonHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients
- * Récupérer tous les clients avec pagination
+ * Rï¿½cupï¿½rer tous les clients avec pagination
  */
 export async function getAllClientsHandler(req: Request, res: Response) {
   try {
@@ -170,7 +171,7 @@ export async function getAllClientsHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération clients:', error)
+    logger.error('Erreur rï¿½cupï¿½ration clients:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -204,7 +205,7 @@ export async function searchClientsHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur recherche clients:', error)
+    logger.error('Erreur recherche clients:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -214,11 +215,11 @@ export async function searchClientsHandler(req: Request, res: Response) {
 
 /**
  * PUT /api/clients/:id
- * Mettre à jour un client
+ * Mettre ï¿½ jour un client
  */
 export async function updateClientHandler(req: Request, res: Response) {
   try {
-    // Vérifier les erreurs de validation
+    // Vï¿½rifier les erreurs de validation
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -241,12 +242,12 @@ export async function updateClientHandler(req: Request, res: Response) {
 
     res.json({
       success: true,
-      message: 'Client mis à jour avec succès',
+      message: 'Client mis ï¿½ jour avec succï¿½s',
       data: client
     })
 
   } catch (error: any) {
-    console.error('Erreur mise à jour client:', error)
+    logger.error('Erreur mise ï¿½ jour client:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -270,7 +271,7 @@ export async function deleteClientHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur suppression client:', error)
+    logger.error('Erreur suppression client:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message

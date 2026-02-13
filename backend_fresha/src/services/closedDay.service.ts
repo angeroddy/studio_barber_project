@@ -1,4 +1,5 @@
 import prisma from '../config/database'
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
 
 interface CreateClosedDayData {
   salonId: string
@@ -64,7 +65,9 @@ export async function createClosedDay(data: CreateClosedDayData) {
 /**
  * Récupérer tous les jours de fermeture d'un salon
  */
-export async function getClosedDaysBySalon(salonId: string, fromDate?: Date) {
+export async function getClosedDaysBySalon(salonId: string, fromDate?: Date, page?: number, limit?: number) {
+  const pagination = getPaginationParams(page, limit)
+
   const whereClause: any = { salonId }
 
   // Filtrer uniquement les jours futurs si fromDate est fourni
@@ -74,12 +77,17 @@ export async function getClosedDaysBySalon(salonId: string, fromDate?: Date) {
     }
   }
 
-  const closedDays = await prisma.closedDay.findMany({
-    where: whereClause,
-    orderBy: { date: 'asc' }
-  })
+  const [closedDays, total] = await Promise.all([
+    prisma.closedDay.findMany({
+      where: whereClause,
+      orderBy: { date: 'asc' },
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.closedDay.count({ where: whereClause })
+  ])
 
-  return closedDays
+  return createPaginatedResponse(closedDays, total, pagination.page, pagination.limit)
 }
 
 /**

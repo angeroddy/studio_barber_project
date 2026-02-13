@@ -10,14 +10,57 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, isLoading, error, clearError } = useAuth();
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loginType, setLoginType] = useState<'owner' | 'staff'>('owner');
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const { login, staffLogin, isLoading, error, clearError } = useAuth();
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
+    setLocalError(null);
+
+    // Validation des champs requis
+    if (!email || !password) {
+      setLocalError("Veuillez remplir tous les champs requis");
+      return;
+    }
+
+    // Si c'est une première connexion, on vérifie que les mots de passe correspondent
+    if (isFirstLogin) {
+      if (password !== confirmPassword) {
+        setLocalError("Les mots de passe ne correspondent pas");
+        return;
+      }
+      if (password.length < 6) {
+        setLocalError("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+
+      try {
+        // Appel à l'API de première connexion
+        const response = await import('../../services/staffAuth.service').then(m => m.default.firstLogin(email, password));
+
+        // Sauvegarder le token et l'utilisateur
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        localStorage.setItem('userType', 'staff');
+
+        // Rediriger
+        window.location.href = '/';
+      } catch (error: any) {
+        setLocalError(error.message || 'Erreur lors de la création du mot de passe');
+      }
+      return;
+    }
 
     try {
-      await login({ email, password });
+      if (loginType === 'owner') {
+        await login({ email, password });
+      } else {
+        await staffLogin({ email, password });
+      }
       // La redirection est gérée dans le contexte
     } catch (error) {
       // L'erreur est gérée dans le contexte
@@ -40,9 +83,52 @@ export default function SignInForm() {
           </div>
           <div>
 
-            {error && (
+            {/* Toggle pour choisir le type de connexion (masqué si première connexion) */}
+            {!isFirstLogin && (
+              <div className="flex gap-2 p-1 mb-6 bg-gray-100 rounded-lg dark:bg-gray-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginType('owner');
+                    clearError();
+                    setLocalError(null);
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+                    loginType === 'owner'
+                      ? 'bg-white text-gray-900 dark:bg-gray-700 dark:text-white shadow'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Propriétaire
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginType('staff');
+                    clearError();
+                    setLocalError(null);
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+                    loginType === 'staff'
+                      ? 'bg-white text-gray-900 dark:bg-gray-700 dark:text-white shadow'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Employé
+                </button>
+              </div>
+            )}
+
+            {/* Message si première connexion */}
+            {isFirstLogin && (
+              <div className="p-3 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-900 dark:text-blue-300">
+                Première connexion : créez votre mot de passe
+              </div>
+            )}
+
+            {(error || localError) && (
               <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900 dark:text-red-300">
-                {error}
+                {localError || error}
               </div>
             )}
 
@@ -66,7 +152,7 @@ export default function SignInForm() {
                   <div className="relative">
                     <Input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Entrer votre mot de passe"
+                      placeholder={isFirstLogin ? "Choisir un mot de passe" : "Entrer votre mot de passe"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -83,26 +169,81 @@ export default function SignInForm() {
                   </div>
                 </div>
 
+                {/* Champ de confirmation de mot de passe (seulement pour première connexion) */}
+                {isFirstLogin && (
+                  <div>
+                    <Label>
+                      Confirmer le mot de passe <span className="text-error-500">*</span>{" "}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Confirmer votre mot de passe"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <button
                     type="submit"
                     disabled={isLoading}
                     className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-[#EB549E] hover:bg-[#D33982] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? "Connexion..." : "Se connecter"}
+                    {isLoading ? "Connexion..." : isFirstLogin ? "Créer mon mot de passe" : "Se connecter"}
                   </button>
                 </div>
 
                 <div className="mt-5">
-                  <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
-                    Pas encore de compte?{" "}
-                    <Link
-                      to="/signup"
-                      className="text-[#EB549E] hover:text-[#D33982]"
-                    >
-                      S'inscrire
-                    </Link>
-                  </p>
+                  {!isFirstLogin && loginType === 'owner' && (
+                    <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
+                      Pas encore de compte?{" "}
+                      <Link
+                        to="/signup"
+                        className="text-[#EB549E] hover:text-[#D33982]"
+                      >
+                        S'inscrire
+                      </Link>
+                    </p>
+                  )}
+                  {!isFirstLogin && loginType === 'staff' && (
+                    <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
+                      Première connexion?{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFirstLogin(true);
+                          clearError();
+                          setLocalError(null);
+                          setPassword('');
+                          setConfirmPassword('');
+                        }}
+                        className="text-[#EB549E] hover:text-[#D33982]"
+                      >
+                        Créer mon mot de passe
+                      </button>
+                    </p>
+                  )}
+                  {isFirstLogin && (
+                    <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
+                      Déjà un mot de passe?{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFirstLogin(false);
+                          clearError();
+                          setLocalError(null);
+                          setPassword('');
+                          setConfirmPassword('');
+                        }}
+                        className="text-[#EB549E] hover:text-[#D33982]"
+                      >
+                        Se connecter
+                      </button>
+                    </p>
+                  )}
                 </div>
               </div>
             </form>

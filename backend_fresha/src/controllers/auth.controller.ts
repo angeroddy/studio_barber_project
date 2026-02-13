@@ -1,11 +1,16 @@
 import { Request, Response } from 'express'
 import { register, login, getProfile } from '../services/auth.service'
 import { body, validationResult } from 'express-validator'
+import logger from '../config/logger'
 
 // Validation rules
 export const registerValidation = [
   body('email').isEmail().withMessage('Email invalide'),
-  body('password').isLength({ min: 6 }).withMessage('Mot de passe minimum 6 caractères'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Mot de passe minimum 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)'),
   body('firstName').notEmpty().withMessage('Prénom requis'),
   body('lastName').notEmpty().withMessage('Nom requis')
 ]
@@ -46,7 +51,7 @@ export async function registerHandler(req: Request, res: Response) {
     })
     
   } catch (error: any) {
-    console.error('Erreur inscription:', error)
+    logger.error('Erreur inscription:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -78,7 +83,7 @@ export async function loginHandler(req: Request, res: Response) {
     })
     
   } catch (error: any) {
-    console.error('Erreur connexion:', error)
+    logger.error('Erreur connexion:', { error: error.message, stack: error.stack })
     res.status(401).json({
       success: false,
       error: error.message
@@ -103,7 +108,7 @@ export async function getMeHandler(req: Request, res: Response) {
     })
     
   } catch (error: any) {
-    console.error('Erreur récupération profil:', error)
+    logger.error('Erreur récupération profil:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message

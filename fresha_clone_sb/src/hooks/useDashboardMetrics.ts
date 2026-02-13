@@ -90,10 +90,10 @@ export const useDashboardMetrics = (salonId: string) => {
 
         // Calculer les réservations du jour
         const bookingsTodayCount = bookingsToday.filter(
-          b => b.status !== 'CANCELLED'
+          b => b.status !== 'CANCELED'
         ).length;
         const bookingsYesterdayCount = bookingsYesterday.filter(
-          b => b.status !== 'CANCELLED'
+          b => b.status !== 'CANCELED'
         ).length;
 
         const bookingsTodayChange = bookingsYesterdayCount > 0
@@ -102,11 +102,11 @@ export const useDashboardMetrics = (salonId: string) => {
 
         // Calculer le chiffre d'affaires du jour
         const revenueToday = bookingsToday
-          .filter(b => b.status !== 'CANCELLED')
+          .filter(b => b.status !== 'CANCELED')
           .reduce((sum, booking) => sum + (booking.service?.price || 0), 0);
 
         const revenueYesterday = bookingsYesterday
-          .filter(b => b.status !== 'CANCELLED')
+          .filter(b => b.status !== 'CANCELED')
           .reduce((sum, booking) => sum + (booking.service?.price || 0), 0);
 
         const revenueTodayChange = revenueYesterday > 0
@@ -116,7 +116,7 @@ export const useDashboardMetrics = (salonId: string) => {
         // Calculer le taux d'occupation (hypothèse : 8h de travail par jour, 60 min par heure = 480 min)
         const totalAvailableMinutes = 480; // 8 heures * 60 minutes
         const totalBookedMinutes = bookingsToday
-          .filter(b => b.status !== 'CANCELLED')
+          .filter(b => b.status !== 'CANCELED')
           .reduce((sum, booking) => sum + (booking.service?.duration || 0), 0);
 
         const occupancyRateToday = totalAvailableMinutes > 0
@@ -124,7 +124,7 @@ export const useDashboardMetrics = (salonId: string) => {
           : 0;
 
         const totalBookedMinutesYesterday = bookingsYesterday
-          .filter(b => b.status !== 'CANCELLED')
+          .filter(b => b.status !== 'CANCELED')
           .reduce((sum, booking) => sum + (booking.service?.duration || 0), 0);
 
         const occupancyRateYesterday = totalAvailableMinutes > 0
@@ -158,3 +158,4 @@ export const useDashboardMetrics = (salonId: string) => {
 
   return { metrics, loading, error };
 };
+

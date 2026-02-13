@@ -1,5 +1,6 @@
 import prisma from '../config/database'
 import { hashPassword } from '../utils/hash.util'
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
 
 interface CreateStaff {
   salonId: string
@@ -125,79 +126,97 @@ export async function getStaff(staffId: string) {
 }
 
 // ============= READ (liste par salon) =============
-export async function getStaffBySalon(salonId: string, activeOnly: boolean = false) {
-  const staff = await prisma.staff.findMany({
-    where: {
-      salonId: salonId,
-      ...(activeOnly && { isActive: true })
-    },
-    select: {
-      id: true,
-      salonId: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      avatar: true,
-      role: true,
-      specialties: true,
-      bio: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-      schedules: {
-        select: {
-          id: true,
-          staffId: true,
-          dayOfWeek: true,
-          startTime: true,
-          endTime: true,
-          isAvailable: true
+export async function getStaffBySalon(salonId: string, activeOnly: boolean = false, page?: number, limit?: number) {
+  const pagination = getPaginationParams(page, limit)
+
+  const where = {
+    salonId: salonId,
+    ...(activeOnly && { isActive: true })
+  }
+
+  const [staff, total] = await Promise.all([
+    prisma.staff.findMany({
+      where,
+      select: {
+        id: true,
+        salonId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        avatar: true,
+        role: true,
+        specialties: true,
+        bio: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        schedules: {
+          select: {
+            id: true,
+            staffId: true,
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            isAvailable: true
+          },
+          orderBy: {
+            dayOfWeek: 'asc'
+          }
         },
-        orderBy: {
-          dayOfWeek: 'asc'
+        _count: {
+          select: {
+            bookings: true
+          }
         }
       },
-      _count: {
-        select: {
-          bookings: true
-        }
-      }
-    },
-    orderBy: [
-      { role: 'desc' }, // MANAGER avant EMPLOYEE
-      { firstName: 'asc' }
-    ]
-  })
+      orderBy: [
+        { role: 'desc' }, // MANAGER avant EMPLOYEE
+        { firstName: 'asc' }
+      ],
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.staff.count({ where })
+  ])
 
-  return staff
+  return createPaginatedResponse(staff, total, pagination.page, pagination.limit)
 }
 
 // ============= READ (liste par rôle) =============
-export async function getStaffByRole(salonId: string, role: 'MANAGER' | 'EMPLOYEE') {
-  const staff = await prisma.staff.findMany({
-    where: {
-      salonId: salonId,
-      role: role,
-      isActive: true
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      avatar: true,
-      role: true,
-      specialties: true,
-      bio: true
-    },
-    orderBy: {
-      firstName: 'asc'
-    }
-  })
+export async function getStaffByRole(salonId: string, role: 'MANAGER' | 'EMPLOYEE', page?: number, limit?: number) {
+  const pagination = getPaginationParams(page, limit)
 
-  return staff
+  const where = {
+    salonId: salonId,
+    role: role,
+    isActive: true
+  }
+
+  const [staff, total] = await Promise.all([
+    prisma.staff.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        avatar: true,
+        role: true,
+        specialties: true,
+        bio: true
+      },
+      orderBy: {
+        firstName: 'asc'
+      },
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.staff.count({ where })
+  ])
+
+  return createPaginatedResponse(staff, total, pagination.page, pagination.limit)
 }
 
 // ============= UPDATE =============
@@ -339,7 +358,12 @@ export async function getStaffSpecialties(salonId: string) {
 
 // ============= GET AVAILABLE STAFF (pour réservation) =============
 export async function getAvailableStaff(salonId: string, date: Date, specialty?: string) {
-  const dayOfWeek = date.getDay()
+  // Utiliser getUTCDay() car la date reçue est interprétée en UTC
+  const dayOfWeek = date.getUTCDay()
+
+  // Créer les bornes de la journée en UTC pour éviter les décalages de timezone
+  const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0))
+  const endOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999))
 
   const staff = await prisma.staff.findMany({
     where: {
@@ -363,8 +387,8 @@ export async function getAvailableStaff(salonId: string, date: Date, specialty?:
           bookings: {
             where: {
               startTime: {
-                gte: new Date(date.setHours(0, 0, 0, 0)),
-                lt: new Date(date.setHours(23, 59, 59, 999))
+                gte: startOfDay,
+                lt: endOfDay
               },
               status: {
                 in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
@@ -373,15 +397,6 @@ export async function getAvailableStaff(salonId: string, date: Date, specialty?:
           }
         }
       }
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      avatar: true,
-      specialties: true,
-      schedules: true,
-      _count: true
     },
     orderBy: {
       firstName: 'asc'

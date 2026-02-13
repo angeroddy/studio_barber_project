@@ -48,7 +48,15 @@ export async function register(data: RegisterData) {
         select: {
           id: true,
           name: true,
-          slug: true
+          slug: true,
+          address: true,
+          city: true,
+          zipCode: true,
+          phone: true,
+          email: true,
+          bufferBefore: true,
+          bufferAfter: true,
+          processingTime: true
         }
       }
     }
@@ -75,7 +83,15 @@ export async function login(data: LoginData) {
         select: {
           id: true,
           name: true,
-          slug: true
+          slug: true,
+          address: true,
+          city: true,
+          zipCode: true,
+          phone: true,
+          email: true,
+          bufferBefore: true,
+          bufferAfter: true,
+          processingTime: true
         }
       }
     }
@@ -121,7 +137,15 @@ export async function getProfile(userId: string) {
         select: {
           id: true,
           name: true,
-          slug: true
+          slug: true,
+          address: true,
+          city: true,
+          zipCode: true,
+          phone: true,
+          email: true,
+          bufferBefore: true,
+          bufferAfter: true,
+          processingTime: true
         }
       }
     }

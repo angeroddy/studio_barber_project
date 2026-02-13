@@ -69,13 +69,14 @@ export async function getStaffBySalonController(req: Request, res: Response) {
   try {
     const { salonId } = req.params
     const activeOnly = req.query.activeOnly === 'true'
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
 
-    const staff = await getStaffBySalon(salonId, activeOnly)
+    const result = await getStaffBySalon(salonId, activeOnly, page, limit)
 
     return res.status(200).json({
       success: true,
-      data: staff,
-      count: staff.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
   } catch (error: any) {
     return res.status(400).json({
@@ -89,6 +90,8 @@ export async function getStaffBySalonController(req: Request, res: Response) {
 export async function getStaffByRoleController(req: Request, res: Response) {
   try {
     const { salonId, role } = req.params
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
 
     if (role !== 'MANAGER' && role !== 'EMPLOYEE') {
       return res.status(400).json({
@@ -97,12 +100,11 @@ export async function getStaffByRoleController(req: Request, res: Response) {
       })
     }
 
-    const staff = await getStaffByRole(salonId, role as 'MANAGER' | 'EMPLOYEE')
+    const result = await getStaffByRole(salonId, role as 'MANAGER' | 'EMPLOYEE', page, limit)
 
     return res.status(200).json({
       success: true,
-      data: staff,
-      count: staff.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
   } catch (error: any) {
     return res.status(400).json({

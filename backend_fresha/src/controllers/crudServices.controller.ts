@@ -62,13 +62,14 @@ export async function getServicesBySalonController(req: Request, res: Response) 
   try {
     const { salonId } = req.params
     const activeOnly = req.query.activeOnly === 'true'
-    
-    const services = await getServicesBySalon(salonId, activeOnly)
-    
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
+
+    const result = await getServicesBySalon(salonId, activeOnly, page, limit)
+
     return res.status(200).json({
       success: true,
-      data: services,
-      count: services.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
   } catch (error: any) {
     return res.status(400).json({
@@ -82,13 +83,14 @@ export async function getServicesBySalonController(req: Request, res: Response) 
 export async function getServicesByCategoryController(req: Request, res: Response) {
   try {
     const { salonId, category } = req.params
-    
-    const services = await getServicesByCategory(salonId, category)
-    
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
+
+    const result = await getServicesByCategory(salonId, category, page, limit)
+
     return res.status(200).json({
       success: true,
-      data: services,
-      count: services.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
   } catch (error: any) {
     return res.status(400).json({

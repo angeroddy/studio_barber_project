@@ -5,28 +5,22 @@ const router = Router()
 
 // ============= ROUTES =============
 
-// Créer une réservation
+// Get available slots (must be before dynamic :id routes)
+router.get('/available-slots', bookingController.getAvailableSlots)
+
+// Create bookings
 router.post('/', bookingController.createBooking)
+router.post('/multi-services', bookingController.createMultiServiceBooking)
+router.post('/check-availability', bookingController.checkAvailability)
 
-// Récupérer une réservation par ID
-router.get('/:id', bookingController.getBooking)
-
-// Récupérer les réservations d'un salon
+// Collection routes
 router.get('/salon/:salonId', bookingController.getBookingsBySalon)
-
-// Récupérer les réservations d'un staff
 router.get('/staff/:staffId', bookingController.getBookingsByStaff)
 
-// Mettre à jour une réservation
+// Single booking routes
+router.get('/:id', bookingController.getBooking)
 router.put('/:id', bookingController.updateBooking)
-
-// Supprimer une réservation
 router.delete('/:id', bookingController.deleteBooking)
-
-// Mettre à jour le statut d'une réservation
 router.patch('/:id/status', bookingController.updateBookingStatus)
-
-// Vérifier la disponibilité
-router.post('/check-availability', bookingController.checkAvailability)
 
 export default router

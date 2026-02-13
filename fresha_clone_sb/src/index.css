@@ -120,6 +120,20 @@ layer(base);
   --color-error-900: #7a271a;
   --color-error-950: #55160c;
 
+  /* Alias danger = error for consistency */
+  --color-danger-25: var(--color-error-25);
+  --color-danger-50: var(--color-error-50);
+  --color-danger-100: var(--color-error-100);
+  --color-danger-200: var(--color-error-200);
+  --color-danger-300: var(--color-error-300);
+  --color-danger-400: var(--color-error-400);
+  --color-danger-500: var(--color-error-500);
+  --color-danger-600: var(--color-error-600);
+  --color-danger-700: var(--color-error-700);
+  --color-danger-800: var(--color-error-800);
+  --color-danger-900: var(--color-error-900);
+  --color-danger-950: var(--color-error-950);
+
   --color-warning-25: #fffcf5;
   --color-warning-50: #fffaeb;
   --color-warning-100: #fef0c7;

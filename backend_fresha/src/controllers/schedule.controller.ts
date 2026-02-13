@@ -1,27 +1,63 @@
 import { Request, Response } from 'express'
+import logger from '../config/logger'
 import {
   upsertSchedule,
   getSchedulesBySalon,
   getScheduleByDay,
   updateSchedule,
   deleteSchedule,
-  createDefaultSchedules
+  createDefaultSchedules,
+  TimeSlotData
 } from '../services/schedule.service'
 
 /**
  * POST /api/salons/:salonId/schedules
- * Créer ou mettre à jour un horaire
+ * Créer ou mettre à jour un horaire avec plusieurs plages horaires
  */
 export async function upsertScheduleHandler(req: Request, res: Response) {
   try {
     const { salonId } = req.params
-    const { dayOfWeek, openTime, closeTime, isClosed } = req.body
+    const { dayOfWeek, timeSlots, isClosed } = req.body
+
+    // Validation
+    if (dayOfWeek === undefined || dayOfWeek === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Le champ dayOfWeek est requis'
+      })
+    }
+
+    if (isClosed === undefined || isClosed === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Le champ isClosed est requis'
+      })
+    }
+
+    // Si non fermé, vérifier que timeSlots est fourni
+    if (!isClosed && (!timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Au moins une plage horaire est requise lorsque le salon est ouvert'
+      })
+    }
+
+    // Valider chaque timeSlot
+    if (!isClosed) {
+      for (const slot of timeSlots) {
+        if (!slot.startTime || !slot.endTime) {
+          return res.status(400).json({
+            success: false,
+            error: 'Chaque plage horaire doit avoir un startTime et un endTime'
+          })
+        }
+      }
+    }
 
     const schedule = await upsertSchedule({
       salonId,
       dayOfWeek: Number(dayOfWeek),
-      openTime,
-      closeTime,
+      timeSlots: isClosed ? [] : (timeSlots as TimeSlotData[]),
       isClosed: Boolean(isClosed)
     })
 
@@ -32,17 +68,17 @@ export async function upsertScheduleHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur upsert schedule:', error)
+    logger.error('Erreur upsert schedule:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de l\'enregistrement de l\'horaire'
     })
   }
 }
 
 /**
  * GET /api/salons/:salonId/schedules
- * Récupérer tous les horaires d'un salon
+ * Récupérer tous les horaires d'un salon avec leurs plages horaires
  */
 export async function getSchedulesBySalonHandler(req: Request, res: Response) {
   try {
@@ -57,17 +93,17 @@ export async function getSchedulesBySalonHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération schedules:', error)
+    logger.error('Erreur récupération schedules:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de la récupération des horaires'
     })
   }
 }
 
 /**
  * GET /api/salons/:salonId/schedules/:dayOfWeek
- * Récupérer l'horaire d'un jour spécifique
+ * Récupérer l'horaire d'un jour spécifique avec ses plages horaires
  */
 export async function getScheduleByDayHandler(req: Request, res: Response) {
   try {
@@ -88,28 +124,51 @@ export async function getScheduleByDayHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération schedule:', error)
+    logger.error('Erreur récupération schedule:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de la récupération de l\'horaire'
     })
   }
 }
 
 /**
  * PUT /api/salons/:salonId/schedules/:dayOfWeek
- * Mettre à jour un horaire
+ * Mettre à jour un horaire avec ses plages horaires
  */
 export async function updateScheduleHandler(req: Request, res: Response) {
   try {
     const { salonId, dayOfWeek } = req.params
-    const { openTime, closeTime, isClosed } = req.body
+    const { timeSlots, isClosed } = req.body
 
-    const schedule = await updateSchedule(salonId, Number(dayOfWeek), {
-      openTime,
-      closeTime,
-      isClosed
-    })
+    const updateData: any = {}
+
+    if (isClosed !== undefined) {
+      updateData.isClosed = Boolean(isClosed)
+    }
+
+    if (timeSlots !== undefined) {
+      if (!Array.isArray(timeSlots)) {
+        return res.status(400).json({
+          success: false,
+          error: 'timeSlots doit être un tableau'
+        })
+      }
+
+      // Valider chaque timeSlot
+      for (const slot of timeSlots) {
+        if (!slot.startTime || !slot.endTime) {
+          return res.status(400).json({
+            success: false,
+            error: 'Chaque plage horaire doit avoir un startTime et un endTime'
+          })
+        }
+      }
+
+      updateData.timeSlots = timeSlots as TimeSlotData[]
+    }
+
+    const schedule = await updateSchedule(salonId, Number(dayOfWeek), updateData)
 
     res.json({
       success: true,
@@ -118,10 +177,10 @@ export async function updateScheduleHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur mise à jour schedule:', error)
+    logger.error('Erreur mise à jour schedule:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de la mise à jour de l\'horaire'
     })
   }
 }
@@ -142,17 +201,20 @@ export async function deleteScheduleHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur suppression schedule:', error)
+    logger.error('Erreur suppression schedule:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de la suppression de l\'horaire'
     })
   }
 }
 
 /**
  * POST /api/salons/:salonId/schedules/default
- * Créer les horaires par défaut
+ * Créer les horaires par défaut avec plages horaires
+ * Lundi-Vendredi: 9h-12h et 14h-18h (avec pause déjeuner)
+ * Samedi: 9h-17h
+ * Dimanche: Fermé
  */
 export async function createDefaultSchedulesHandler(req: Request, res: Response) {
   try {
@@ -162,15 +224,14 @@ export async function createDefaultSchedulesHandler(req: Request, res: Response)
 
     res.status(201).json({
       success: true,
-      message: 'Horaires par défaut créés avec succès',
-      data: result
+      message: result.message
     })
 
   } catch (error: any) {
-    console.error('Erreur création horaires par défaut:', error)
+    logger.error('Erreur création horaires par défaut:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || 'Erreur lors de la création des horaires par défaut'
     })
   }
 }

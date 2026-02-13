@@ -19,6 +19,8 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useSalon } from "../context/SalonContext";
+import { useAuth } from "../context/AuthContext";
+import type { StaffUser } from "../services/staffAuth.service";
 
 type NavItem = {
   name: string;
@@ -27,6 +29,13 @@ type NavItem = {
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
   disabled?: boolean;
 };
+
+// Icône pour les absences
+const AbsenceIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
 
 const navItems: NavItem[] = [
   {
@@ -39,7 +48,11 @@ const navItems: NavItem[] = [
     name: "Calendrier",
     path: "/calendar",
   },
-
+  {
+    icon: <AbsenceIcon />,
+    name: "Absences",
+    path: "/absences",
+  },
 ];
 
 const gestionItems: NavItem[] = [
@@ -64,6 +77,11 @@ const gestionItems: NavItem[] = [
     path: "/planification",
   },
   {
+    icon: <AbsenceIcon />,
+    name: "Gestion des Absences",
+    path: "/gestion-absences",
+  },
+  {
     icon: <StoreIcon />,
     name: "Mes Salons",
     path: "/salons",
@@ -81,7 +99,7 @@ const othersItems: NavItem[] = [
     icon: <SettingsIcon />,
     name: "Paramètres",
     path: "/parametres",
-    disabled: true,
+    // Activé pour les owners uniquement
   },
   {
     icon: <BellIcon />,
@@ -94,7 +112,11 @@ const othersItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const { selectedSalon, salons, selectSalon } = useSalon();
+  const { user, isStaff, isOwner, isManager } = useAuth();
   const location = useLocation();
+
+  // Déterminer si l'utilisateur est un simple employé (pas manager, pas owner)
+  const isSimpleEmployee = isStaff && !isManager && !isOwner;
 
   const [isSalonDropdownOpen, setIsSalonDropdownOpen] = useState(false);
 
@@ -351,15 +373,15 @@ const AppSidebar: React.FC = () => {
         </Link>
       </div>
       <div className="flex flex-col h-full overflow-y-auto duration-300 ease-linear no-scrollbar">
-        {/* Salon Selector */}
-        {(isExpanded || isHovered || isMobileOpen) && salons.length > 0 && (
+        {/* Salon Selector - Hidden for simple employees */}
+        {!isSimpleEmployee && (isExpanded || isHovered || isMobileOpen) && salons.length > 0 && (
           <div className="relative px-3 py-3 mb-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setIsSalonDropdownOpen(!isSalonDropdownOpen)}
               className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <div className="flex items-center gap-2">
-              
+
                 <span className="truncate">{selectedSalon?.name || 'Sélectionner un salon'}</span>
               </div>
               <ChevronDownIcon className={`w-4 h-4 transition-transform ${isSalonDropdownOpen ? 'rotate-180' : ''}`} />
@@ -391,35 +413,55 @@ const AppSidebar: React.FC = () => {
           </div>
         )}
 
+        {/* Display salon name for simple employees (read-only) */}
+        {isSimpleEmployee && (isExpanded || isHovered || isMobileOpen) && user && (
+          <div className="px-3 py-3 mb-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white">
+              <div className="flex items-center gap-2">
+                <span className="truncate">{(user as StaffUser).salon?.name}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <nav className="flex-1 mb-6">
           <div className="flex flex-col gap-6">
             {/* Main Menu Items */}
             <div>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(
+                isSimpleEmployee
+                  ? navItems // Afficher tous les items y compris Absences pour les employés simples
+                  : navItems.filter(item => item.name !== "Absences"), // Masquer Absences pour les autres
+                "main"
+              )}
             </div>
 
-            {/* Gestion Section */}
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 font-semibold px-3 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "GESTION"
-                ) : (
-                  <HorizontaLDots className="size-6" />
-                )}
-              </h2>
-              {renderMenuItems(gestionItems, "gestion")}
-            </div>
+            {/* Gestion Section - Hidden for simple employees */}
+            {!isSimpleEmployee && (
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 font-semibold px-3 ${
+                    !isExpanded && !isHovered
+                      ? "lg:justify-center"
+                      : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "GESTION"
+                  ) : (
+                    <HorizontaLDots className="size-6" />
+                  )}
+                </h2>
+                {renderMenuItems(gestionItems, "gestion")}
+              </div>
+            )}
 
-            {/* Others Section */}
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              {renderMenuItems(othersItems, "others")}
-            </div>
+            {/* Others Section - Hidden for simple employees */}
+            {!isSimpleEmployee && (
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                {renderMenuItems(othersItems, "others")}
+              </div>
+            )}
           </div>
         </nav>
 

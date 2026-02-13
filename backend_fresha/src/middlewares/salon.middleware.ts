@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import prisma from '../config/database'
 import { body } from 'express-validator'
+import logger from '../config/logger'
 
 // ============= Vérifier que le salon existe =============
 export async function checkSalonExists(req: Request, res: Response, next: NextFunction) {
@@ -36,12 +37,10 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
     const userId = req.user?.userId
     const { id } = req.params
 
-    console.log('=== BACKEND: Vérification ownership salon ===')
-    console.log('User ID:', userId)
-    console.log('Salon ID:', id)
+    logger.debug('Checking salon ownership', { salonId: id })
 
     if (!userId) {
-      console.log('Erreur: userId manquant')
+      logger.warn('Salon ownership check failed: missing userId')
       return res.status(401).json({
         success: false,
         message: 'Non authentifié'
@@ -57,14 +56,8 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
       }
     })
 
-    console.log('Salon trouvé:', salon ? 'Oui' : 'Non')
-    if (salon) {
-      console.log('Owner du salon:', salon.ownerId)
-      console.log('Match avec user?', salon.ownerId === userId)
-    }
-
     if (!salon) {
-      console.log('Erreur: Salon introuvable')
+      logger.warn('Salon ownership check failed: salon not found', { salonId: id })
       return res.status(404).json({
         success: false,
         message: 'Salon introuvable'
@@ -73,19 +66,19 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
 
     // Vérifier que l'owner possède le salon
     if (salon.ownerId !== userId) {
-      console.log('Erreur: Pas de permission (owner différent)')
+      logger.warn('Salon ownership check failed: permission denied', { salonId: id })
       return res.status(403).json({
         success: false,
         message: 'Vous n\'avez pas la permission d\'accéder à ce salon'
       })
     }
 
-    console.log('Ownership OK, passage au next()')
+    logger.debug('Salon ownership check passed', { salonId: id })
     req.salon = salon
 
     next()
   } catch (error: any) {
-    console.error('Erreur dans checkSalonOwnership:', error)
+    logger.error('Error in checkSalonOwnership', { error: error.message, stack: error.stack })
     return res.status(500).json({
       success: false,
       message: 'Erreur lors de la vérification des permissions'
@@ -97,8 +90,7 @@ export async function checkSalonOwnership(req: Request, res: Response, next: Nex
 export function validateCreateSalon(req: Request, res: Response, next: NextFunction) {
   const { name, address, city, zipCode, phone, email } = req.body
 
-  console.log('=== BACKEND: Validation création salon ===')
-  console.log('Body reçu:', req.body)
+  logger.debug('Validating salon creation')
 
   const errors: string[] = []
 

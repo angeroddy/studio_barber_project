@@ -28,7 +28,7 @@ const ClientAutocomplete: React.FC<ClientAutocompleteProps> = ({
   const [hasSearched, setHasSearched] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<number | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fermer le dropdown quand on clique à l'extérieur
   useEffect(() => {

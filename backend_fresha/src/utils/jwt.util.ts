@@ -1,10 +1,19 @@
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+// Validation stricte - pas de fallback
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be defined in environment variables')
+}
+
+const JWT_SECRET = process.env.JWT_SECRET
 
 interface TokenPayload {
   userId: string
   email: string
+  userType?: string
+  type?: string
+  salonId?: string
+  role?: string
 }
 
 export function generateToken(payload: TokenPayload): string {

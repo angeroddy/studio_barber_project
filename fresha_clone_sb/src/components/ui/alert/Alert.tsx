@@ -1,22 +1,28 @@
 import { Link } from "react-router";
 
 interface AlertProps {
-  variant: "success" | "error" | "warning" | "info"; // Alert type
+  variant?: "success" | "error" | "warning" | "info"; // Alert type
+  type?: "success" | "error" | "warning" | "info"; // Backward-compatible alias
   title: string; // Title of the alert
   message: string; // Message of the alert
   showLink?: boolean; // Whether to show the "Learn More" link
   linkHref?: string; // Link URL
   linkText?: string; // Link text
+  onClose?: () => void; // Optional close callback
 }
 
 const Alert: React.FC<AlertProps> = ({
   variant,
+  type,
   title,
   message,
   showLink = false,
   linkHref = "#",
   linkText = "Learn more",
+  onClose,
 }) => {
+  const resolvedVariant = variant ?? type ?? "info";
+
   // Tailwind classes for each variant
   const variantClasses = {
     success: {
@@ -113,14 +119,14 @@ const Alert: React.FC<AlertProps> = ({
 
   return (
     <div
-      className={`rounded-xl border p-4 ${variantClasses[variant].container}`}
+      className={`rounded-xl border p-4 ${variantClasses[resolvedVariant].container}`}
     >
       <div className="flex items-start gap-3">
-        <div className={`-mt-0.5 ${variantClasses[variant].icon}`}>
-          {icons[variant]}
+        <div className={`-mt-0.5 ${variantClasses[resolvedVariant].icon}`}>
+          {icons[resolvedVariant]}
         </div>
 
-        <div>
+        <div className="flex-1">
           <h4 className="mb-1 text-sm font-semibold text-gray-800 dark:text-white/90">
             {title}
           </h4>
@@ -136,6 +142,17 @@ const Alert: React.FC<AlertProps> = ({
             </Link>
           )}
         </div>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            aria-label="Close alert"
+          >
+            ×
+          </button>
+        )}
       </div>
     </div>
   );

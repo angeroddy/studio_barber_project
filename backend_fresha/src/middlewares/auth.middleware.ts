@@ -37,3 +37,6 @@ export async function authMiddleware(
     })
   }
 }
+
+// Export alias for compatibility
+export { authMiddleware as authenticate }

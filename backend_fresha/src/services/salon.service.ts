@@ -1,4 +1,5 @@
 import prisma from '../config/database'
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
 
 interface CreateSalonData {
   name: string
@@ -17,6 +18,9 @@ interface UpdateSalonData {
   zipCode?: string
   phone?: string
   email?: string
+  bufferBefore?: number
+  bufferAfter?: number
+  processingTime?: number
 }
 
 // Fonction pour générer un slug unique à partir du nom du salon
@@ -95,6 +99,42 @@ export async function createSalon(data: CreateSalonData) {
   return salon
 }
 
+export async function getAllSalons(page?: number, limit?: number) {
+  // Pagination
+  const pagination = getPaginationParams(page, limit)
+
+  const [salons, total] = await Promise.all([
+    prisma.salon.findMany({
+      include: {
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        _count: {
+          select: {
+            services: true,
+            staff: true,
+            clients: true,
+            bookings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.salon.count()
+  ])
+
+  return createPaginatedResponse(salons, total, pagination.page, pagination.limit)
+}
+
 export async function getSalonById(salonId: string) {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
@@ -125,25 +165,35 @@ export async function getSalonById(salonId: string) {
   return salon
 }
 
-export async function getSalonsByOwner(ownerId: string) {
-  const salons = await prisma.salon.findMany({
-    where: { ownerId },
-    include: {
-      _count: {
-        select: {
-          services: true,
-          staff: true,
-          clients: true,
-          bookings: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  })
+export async function getSalonsByOwner(ownerId: string, page?: number, limit?: number) {
+  // Pagination
+  const pagination = getPaginationParams(page, limit)
 
-  return salons
+  const where = { ownerId }
+
+  const [salons, total] = await Promise.all([
+    prisma.salon.findMany({
+      where,
+      include: {
+        _count: {
+          select: {
+            services: true,
+            staff: true,
+            clients: true,
+            bookings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip: pagination.skip,
+      take: pagination.take
+    }),
+    prisma.salon.count({ where })
+  ])
+
+  return createPaginatedResponse(salons, total, pagination.page, pagination.limit)
 }
 
 export async function getSalonBySlug(slug: string) {

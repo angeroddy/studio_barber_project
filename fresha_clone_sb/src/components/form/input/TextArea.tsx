@@ -1,6 +1,7 @@
 import React from "react";
 
 interface TextareaProps {
+  label?: string; // Optional field label
   placeholder?: string; // Placeholder text
   rows?: number; // Number of rows
   value?: string; // Current value
@@ -12,6 +13,7 @@ interface TextareaProps {
 }
 
 const TextArea: React.FC<TextareaProps> = ({
+  label,
   placeholder = "Enter your message", // Default placeholder
   rows = 3, // Default number of rows
   value = "", // Default value
@@ -39,6 +41,11 @@ const TextArea: React.FC<TextareaProps> = ({
 
   return (
     <div className="relative">
+      {label && (
+        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+      )}
       <textarea
         placeholder={placeholder}
         rows={rows}

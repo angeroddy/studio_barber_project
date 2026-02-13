@@ -22,16 +22,27 @@ model Owner {
 }
 
 model Schedule {
-  id        String  @id @default(uuid())
+  id        String     @id @default(uuid())
   salonId   String
   dayOfWeek Int
-  openTime  String
-  closeTime String
-  isClosed  Boolean @default(false)
-  salon     Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  isClosed  Boolean    @default(false)
+  timeSlots TimeSlot[]
+  salon     Salon      @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@unique([salonId, dayOfWeek])
   @@index([salonId])
+}
+
+model TimeSlot {
+  id         String   @id @default(uuid())
+  scheduleId String
+  startTime  String   // Format "HH:mm" (ex: "10:00")
+  endTime    String   // Format "HH:mm" (ex: "12:00")
+  order      Int      // Pour trier les plages (0, 1, 2...)
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([order])
 }
 
 model ClosedDay {
@@ -47,42 +58,48 @@ model ClosedDay {
 }
 
 model Salon {
-  id         String      @id @default(uuid())
-  name       String
-  slug       String      @unique
-  address    String
-  city       String
-  zipCode    String
-  phone      String
-  email      String
-  ownerId    String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  bookings   Booking[]
-  clients    Client[]
-  closedDays ClosedDay[]
-  owner      Owner       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  schedules  Schedule[]
-  services   Service[]
-  staff      Staff[]
+  id              String      @id @default(uuid())
+  name            String
+  slug            String      @unique
+  address         String
+  city            String
+  zipCode         String
+  phone           String
+  email           String
+  ownerId         String
+  // Configuration des temps tampons (buffer time) - s'applique à TOUS les services
+  bufferBefore    Int         @default(0) // Temps bloqué AVANT chaque rendez-vous (en minutes)
+  bufferAfter     Int         @default(0) // Temps bloqué APRÈS chaque rendez-vous (en minutes)
+  processingTime  Int         @default(0) // Temps de traitement supplémentaire (en minutes)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  bookings        Booking[]
+  clients         Client[]
+  closedDays      ClosedDay[]
+  owner           Owner       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  schedules       Schedule[]
+  services        Service[]
+  staff           Staff[]
+  absences        Absence[]
 
   @@index([ownerId])
 }
 
 model Service {
-  id          String    @id @default(uuid())
-  salonId     String
-  name        String
-  description String?
-  duration    Int
-  price       Decimal   @db.Decimal(10, 2)
-  category    String
-  isActive    Boolean   @default(true)
-  color       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  bookings    Booking[]
-  salon       Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid())
+  salonId         String
+  name            String
+  description     String?
+  duration        Int              // Durée principale du service (en minutes)
+  price           Decimal          @db.Decimal(10, 2)
+  category        String
+  isActive        Boolean          @default(true)
+  color           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bookings        Booking[]
+  bookingServices BookingService[] // Services dans réservations multiples
+  salon           Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@index([salonId])
   @@index([category])
@@ -109,28 +126,30 @@ model Client {
 }
 
 model Booking {
-  id             String        @id @default(uuid())
-  salonId        String
-  clientId       String
-  staffId        String
-  serviceId      String
-  startTime      DateTime
-  endTime        DateTime
-  duration       Int
-  status         BookingStatus @default(PENDING)
-  price          Decimal       @db.Decimal(10, 2)
-  paid           Boolean       @default(false)
-  notes          String?
-  internalNotes  String?
-  reminderSent   Boolean       @default(false)
-  reminderSentAt DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  canceledAt     DateTime?
-  client         Client        @relation(fields: [clientId], references: [id])
-  salon          Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  service        Service       @relation(fields: [serviceId], references: [id])
-  staff          Staff         @relation(fields: [staffId], references: [id])
+  id              String           @id @default(uuid())
+  salonId         String
+  clientId        String
+  staffId         String?          // Optionnel pour multi-services (staff différent par service)
+  serviceId       String?          // Optionnel pour multi-services
+  startTime       DateTime
+  endTime         DateTime
+  duration        Int              // Durée totale pour multi-services
+  status          BookingStatus    @default(PENDING)
+  price           Decimal          @db.Decimal(10, 2) // Prix total
+  paid            Boolean          @default(false)
+  notes           String?
+  internalNotes   String?
+  reminderSent    Boolean          @default(false)
+  reminderSentAt  DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  canceledAt      DateTime?
+  isMultiService  Boolean          @default(false) // Indique si c'est une réservation multi-services
+  client          Client           @relation(fields: [clientId], references: [id])
+  salon           Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service         Service?         @relation(fields: [serviceId], references: [id])
+  staff           Staff?           @relation(fields: [staffId], references: [id])
+  bookingServices BookingService[] // Services multiples
 
   @@index([salonId])
   @@index([clientId])
@@ -139,24 +158,48 @@ model Booking {
   @@index([status])
 }
 
+model BookingService {
+  id        String   @id @default(uuid())
+  bookingId String
+  serviceId String
+  staffId   String
+  duration  Int      // Durée de ce service spécifique
+  price     Decimal  @db.Decimal(10, 2) // Prix de ce service spécifique
+  order     Int      // Ordre d'exécution (1, 2, 3...)
+  startTime DateTime // Heure de début de ce service dans la session
+  endTime   DateTime // Heure de fin de ce service dans la session
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id])
+  staff     Staff    @relation(fields: [staffId], references: [id])
+
+  @@unique([bookingId, serviceId, order])
+  @@index([bookingId])
+  @@index([serviceId])
+  @@index([staffId])
+}
+
 model Staff {
-  id          String          @id @default(uuid())
-  salonId     String
-  email       String?         @unique
-  password    String?
-  firstName   String
-  lastName    String
-  phone       String?
-  avatar      String?
-  role        StaffRole       @default(EMPLOYEE)
-  specialties String[]
-  bio         String?
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  bookings    Booking[]
-  salon       Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  schedules   StaffSchedule[]
+  id              String           @id @default(uuid())
+  salonId         String
+  email           String?          @unique
+  password        String?
+  firstName       String
+  lastName        String
+  phone           String?
+  avatar          String?
+  role            StaffRole        @default(EMPLOYEE)
+  specialties     String[]
+  bio             String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bookings        Booking[]
+  bookingServices BookingService[] // Services dans réservations multiples
+  salon           Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  schedules       StaffSchedule[]
+  absences        Absence[]
 
   @@index([salonId])
   @@index([email])
@@ -175,6 +218,29 @@ model StaffSchedule {
   @@index([dayOfWeek])
 }
 
+model Absence {
+  id         String        @id @default(uuid())
+  staffId    String
+  salonId    String
+  type       AbsenceType   @default(OTHER)
+  startDate  DateTime      @db.Date
+  endDate    DateTime      @db.Date
+  reason     String?
+  status     AbsenceStatus @default(PENDING)
+  approvedBy String?
+  notes      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  staff      Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  salon      Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([salonId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -187,4 +253,17 @@ enum BookingStatus {
 enum StaffRole {
   MANAGER
   EMPLOYEE
+}
+
+enum AbsenceType {
+  VACATION
+  SICK_LEAVE
+  PERSONAL
+  OTHER
+}
+
+enum AbsenceStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

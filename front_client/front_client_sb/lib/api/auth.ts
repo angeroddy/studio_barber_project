@@ -1,0 +1,229 @@
+import { API_URL } from './config'
+
+export interface CheckEmailResponse {
+  success: boolean
+  data: {
+    exists: boolean
+    hasPassword: boolean
+    client?: {
+      id: string
+      firstName: string
+      lastName: string
+    }
+  }
+}
+
+export interface AuthResponse {
+  success: boolean
+  message: string
+  data: {
+    user: {
+      id: string
+      email: string
+      firstName: string
+      lastName: string
+      phone: string
+    }
+    token: string
+  }
+}
+
+export interface ErrorResponse {
+  success: false
+  error: string
+  errors?: Array<{
+    msg: string
+    param: string
+  }>
+}
+
+/**
+ * Vérifier si un email existe dans la base de données
+ */
+export async function checkEmail(email: string): Promise<CheckEmailResponse> {
+  const response = await fetch(`${API_URL}/client-auth/check-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(error.error || 'Erreur lors de la vérification de l\'email')
+  }
+
+  return response.json()
+}
+
+/**
+ * Définir le mot de passe pour un client existant (migré)
+ */
+export async function setPassword(email: string, password: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/client-auth/set-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(error.error || 'Erreur lors de la définition du mot de passe')
+  }
+
+  return response.json()
+}
+
+/**
+ * Inscription complète d'un nouveau client
+ */
+export async function register(data: {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  phone: string
+  salonId?: string
+  marketing?: boolean
+}): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/client-auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(error.error || 'Erreur lors de l\'inscription')
+  }
+
+  return response.json()
+}
+
+/**
+ * Connexion d'un client
+ */
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/client-auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(error.error || 'Erreur lors de la connexion')
+  }
+
+  return response.json()
+}
+
+/**
+ * Obtenir le profil du client connecté
+ */
+export async function getProfile(token: string) {
+  const response = await fetch(`${API_URL}/client-auth/me`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(error.error || 'Erreur lors de la récupération du profil')
+  }
+
+  return response.json()
+}
+
+/**
+ * Sauvegarder le token dans le localStorage
+ */
+export function saveToken(token: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('authToken', token)
+  }
+}
+
+/**
+ * Récupérer le token du localStorage
+ */
+export function getToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('authToken')
+  }
+  return null
+}
+
+/**
+ * Supprimer le token du localStorage
+ */
+export function removeToken() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('authUser')
+  }
+}
+
+/**
+ * Sauvegarder les données utilisateur dans le localStorage
+ */
+export function saveUser(user: {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+}) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('authUser', JSON.stringify(user))
+  }
+}
+
+/**
+ * Récupérer les données utilisateur du localStorage
+ */
+export function getUser(): {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+} | null {
+  if (typeof window !== 'undefined') {
+    const userStr = localStorage.getItem('authUser')
+    if (userStr) {
+      try {
+        return JSON.parse(userStr)
+      } catch (e) {
+        return null
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Vérifier si l'utilisateur est connecté ET que le token n'est pas expiré
+ */
+export function isAuthenticated(): boolean {
+  const token = getToken()
+  if (!token) return false
+
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+    const payload = JSON.parse(atob(parts[1]))
+    const now = Math.floor(Date.now() / 1000)
+    return typeof payload.exp === 'number' && payload.exp > now
+  } catch {
+    return false
+  }
+}

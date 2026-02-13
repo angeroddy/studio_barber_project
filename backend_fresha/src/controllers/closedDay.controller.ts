@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import logger from '../config/logger'
 import {
   createClosedDay,
   getClosedDaysBySalon,
@@ -30,7 +31,7 @@ export async function createClosedDayHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur création jour de fermeture:', error)
+    logger.error('Erreur création jour de fermeture:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -45,20 +46,21 @@ export async function createClosedDayHandler(req: Request, res: Response) {
 export async function getClosedDaysBySalonHandler(req: Request, res: Response) {
   try {
     const { salonId } = req.params
-    const { fromDate } = req.query
+    const { fromDate, page, limit } = req.query
 
     const fromDateObj = fromDate ? new Date(fromDate as string) : undefined
+    const pageNum = page ? parseInt(page as string) : undefined
+    const limitNum = limit ? parseInt(limit as string) : undefined
 
-    const closedDays = await getClosedDaysBySalon(salonId, fromDateObj)
+    const result = await getClosedDaysBySalon(salonId, fromDateObj, pageNum, limitNum)
 
     res.json({
       success: true,
-      data: closedDays,
-      count: closedDays.length
+      ...result  // Déstructure { data: [...], pagination: {...} }
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération jours de fermeture:', error)
+    logger.error('Erreur récupération jours de fermeture:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -82,7 +84,7 @@ export async function getClosedDayByIdHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur récupération jour de fermeture:', error)
+    logger.error('Erreur récupération jour de fermeture:', { error: error.message, stack: error.stack })
     res.status(404).json({
       success: false,
       error: error.message
@@ -111,7 +113,7 @@ export async function updateClosedDayHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur mise à jour jour de fermeture:', error)
+    logger.error('Erreur mise à jour jour de fermeture:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -135,7 +137,7 @@ export async function deleteClosedDayHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur suppression jour de fermeture:', error)
+    logger.error('Erreur suppression jour de fermeture:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message
@@ -159,7 +161,7 @@ export async function deleteOldClosedDaysHandler(req: Request, res: Response) {
     })
 
   } catch (error: any) {
-    console.error('Erreur nettoyage jours de fermeture:', error)
+    logger.error('Erreur nettoyage jours de fermeture:', { error: error.message, stack: error.stack })
     res.status(400).json({
       success: false,
       error: error.message

@@ -1,5 +1,6 @@
 import express from 'express'
 import {
+  getAllSalonsHandler,
   createSalonHandler,
   getSalonByIdHandler,
   getSalonBySlugHandler,
@@ -56,6 +57,13 @@ router.post(
 router.get('/my-salons', authMiddleware, getMySalonsHandler)
 
 // ============= Routes publiques =============
+
+/**
+ * GET /api/salons
+ * Récupérer tous les salons (route publique)
+ * IMPORTANT: Cette route doit être avant GET /:id pour éviter les conflits
+ */
+router.get('/', getAllSalonsHandler)
 
 /**
  * GET /api/salons/slug/:slug
