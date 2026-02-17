@@ -31,13 +31,13 @@ function HeurePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const salonId = searchParams.get("salon") || "championnet";
-  const servicesParam = searchParams.get("services") || searchParams.get("service") || "";
+  const serviceParam = searchParams.get("service")?.trim() || "";
   const professionalId = searchParams.get("professional") || "any";
 
   const salon = salonsData[salonId as keyof typeof salonsData];
 
   // States pour les données chargées depuis l'API
-  const [services, setServices] = useState<Service[]>([]);
+  const [service, setService] = useState<Service | null>(null);
   const [professional, setProfessional] = useState<Staff | null>(null);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,36 +52,32 @@ function HeurePageContent() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
   // Calculer la durée totale et le prix total
-  const totalDuration = services.reduce((sum, service) => sum + service.duration, 0);
-  const totalPrice = services.reduce((sum, service) => sum + Number(service.price), 0);
+  const totalPrice = service ? Number(service.price) : 0;
 
-  // Charger les services depuis l'API
+  // Charger la prestation depuis l'API
   useEffect(() => {
-    async function fetchServices() {
-      if (!servicesParam) {
-        setError("Aucun service sélectionné");
+    async function fetchService() {
+      if (!serviceParam) {
+        setError("Aucune prestation selectionnee");
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        const serviceIds = servicesParam.split(',');
-        const servicesData = await Promise.all(
-          serviceIds.map(id => api.services.getServiceById(id))
-        );
-        setServices(servicesData);
+        const serviceData = await api.services.getServiceById(serviceParam);
+        setService(serviceData);
         setError(null);
       } catch (err) {
-        console.error('Erreur lors du chargement des services:', err);
-        setError(err instanceof Error ? err.message : 'Erreur lors du chargement des services');
+        console.error('Erreur lors du chargement de la prestation:', err);
+        setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la prestation');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchServices();
-  }, [servicesParam]);
+    fetchService();
+  }, [serviceParam]);
 
   // Charger le professionnel si ce n'est pas "any"
   useEffect(() => {
@@ -106,8 +102,8 @@ function HeurePageContent() {
   // 1. Charger les créneaux disponibles (Ne dépend PLUS de selectedTime)
   useEffect(() => {
     async function fetchAvailableSlots() {
-      // Si pas de date ou de services, on vide les slots
-      if (!selectedDate || services.length === 0) {
+      // Si pas de date ou de prestation, on vide les slots
+      if (!selectedDate || !service) {
         setAvailableSlots([]);
         return;
       }
@@ -120,14 +116,12 @@ function HeurePageContent() {
         const day = String(selectedDate.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
-        // Pour multi-services, passer la durée totale personnalisée
-        // On utilise le premier service ID (nécessaire pour l'API) mais avec la durée totale
+        // Reservation mono-prestation
         const slots = await api.bookings.getAvailableSlots(
           salonId,
           professionalId,
-          services[0].id,
-          dateStr,
-          totalDuration // Passer la durée totale des services sélectionnés
+          service.id,
+          dateStr
         );
 
         setAvailableSlots(slots);
@@ -140,7 +134,7 @@ function HeurePageContent() {
     }
 
     fetchAvailableSlots();
-  }, [selectedDate, salonId, professionalId, services, totalDuration]); // Changé serviceId en services
+  }, [selectedDate, salonId, professionalId, service]);
 
   // 2. Vérifier si l'heure sélectionnée est toujours valide
   // Ce petit effet instantané ne fait pas d'appel API
@@ -224,7 +218,7 @@ function HeurePageContent() {
 
       const params = new URLSearchParams({
         salon: salonId,
-        services: servicesParam,
+        service: serviceParam,
         professional: professionalId,
         date: dateStr,
         time: selectedTime
@@ -259,12 +253,12 @@ function HeurePageContent() {
   }
 
   // Afficher l'erreur
-  if (error || services.length === 0) {
+  if (error || !service) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="font-archivo text-xl text-red-600 mb-4">
-            {error || "Services introuvables"}
+            {error || "Prestation introuvable"}
           </p>
           <Link
             href={`/reserver/prestations?salon=${salonId}`}
@@ -282,7 +276,7 @@ function HeurePageContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Back button */}
         <Link
-          href={`/reserver/professionnel?salon=${salonId}&services=${servicesParam}`}
+          href={`/reserver/professionnel?salon=${salonId}&service=${serviceParam}`}
           className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-gray-300 hover:border-[#DE2788] transition-colors mb-4 sm:mb-6"
         >
           <svg
@@ -332,7 +326,7 @@ function HeurePageContent() {
             },
             {
               label: "Professionnel",
-              href: `/reserver/professionnel?salon=${salonId}&services=${servicesParam}`,
+              href: `/reserver/professionnel?salon=${salonId}&service=${serviceParam}`,
             },
             { label: "Heure", active: true },
             { label: "Valider" },
@@ -349,7 +343,7 @@ function HeurePageContent() {
 
             {/* Professional selector */}
             <div className="mb-6 sm:mb-8">
-              <select className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-white border-2 border-black font-archivo font-bold text-sm sm:text-base uppercase focus:outline-none focus:border-[#DE2788]">
+              <select className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-white border border-black font-archivo font-bold text-sm sm:text-base uppercase focus:outline-none focus:border-[#DE2788]">
                 <option>{professionalName}</option>
               </select>
             </div>
@@ -427,12 +421,12 @@ function HeurePageContent() {
                       <button
                         onClick={() => handleDateSelect(day)}
                         className={`aspect-square w-full flex items-center justify-center font-archivo font-black text-sm sm:text-base md:text-lg transition-all cursor-pointer ${selectedDate?.toDateString() === day.date.toDateString()
-                            ? "bg-[#DE2788] text-white border-2 border-[#DE2788]"
+                            ? "bg-[#DE2788] text-white border border-[#DE2788]"
                             : day.isPast
-                              ? "bg-gray-100 text-gray-300 cursor-not-allowed border-2 border-gray-200"
+                              ? "bg-gray-100 text-gray-300 cursor-not-allowed border border-gray-200"
                               : day.isToday
-                                ? "bg-black text-white border-2 border-black hover:bg-[#DE2788] hover:border-[#DE2788]"
-                                : "bg-white text-black border-2 border-black hover:border-[#DE2788]"
+                                ? "bg-black text-white border border-black hover:bg-[#DE2788] hover:border-[#DE2788]"
+                                : "bg-white text-black border border-black hover:border-[#DE2788]"
                           }`}
                         disabled={day.isPast}
                       >
@@ -455,7 +449,7 @@ function HeurePageContent() {
 
               {/* Aucun créneau disponible */}
               {!loadingSlots && availableSlots.length === 0 && (
-                <div className="bg-yellow-50 border-2 border-yellow-300 p-4 sm:p-6 text-center">
+                <div className="bg-yellow-50 border border-yellow-300 p-4 sm:p-6 text-center">
                   <p className="font-archivo text-sm sm:text-base text-yellow-800">
                     Aucun créneau disponible pour cette date.
                   </p>
@@ -471,8 +465,8 @@ function HeurePageContent() {
                   key={time}
                   onClick={() => setSelectedTime(time)}
                   className={`w-full p-4 sm:p-5 text-center font-archivo font-black text-base sm:text-lg uppercase transition-colors cursor-pointer ${selectedTime === time
-                      ? "bg-[#DE2788] text-white border-2 border-[#DE2788]"
-                      : "bg-white text-black border-2 border-black hover:border-[#DE2788]"
+                      ? "bg-[#DE2788] text-white border border-[#DE2788]"
+                      : "bg-white text-black border border-black hover:border-[#DE2788]"
                     }`}
                 >
                   {time}
@@ -485,11 +479,11 @@ function HeurePageContent() {
           <div className="lg:col-span-1">
             <BookingSummary
               salon={salon}
-              services={services.map(s => ({
-                name: s.name,
-                duration: formatDuration(s.duration),
-                price: s.price,
-              }))}
+              service={service ? {
+                name: service.name,
+                duration: formatDuration(service.duration),
+                price: Number(service.price),
+              } : undefined}
               professional={{ name: professionalName }}
               date={
                 selectedDate
@@ -497,7 +491,6 @@ function HeurePageContent() {
                   : undefined
               }
               time={selectedTime || undefined}
-              totalDuration={formatDuration(totalDuration)}
               total={totalPrice}
               onContinue={handleContinue}
               continueDisabled={!selectedTime}

@@ -862,8 +862,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       const startMinutes = timeToMinutes(timeSlot.startTime);
       const endMinutes = timeToMinutes(timeSlot.endTime);
 
-      // Générer les créneaux dans cette plage avec un pas de 15 minutes
-      for (let currentMinutes = startMinutes; currentMinutes < endMinutes; currentMinutes += 15) {
+      // Générer les créneaux dans cette plage avec un pas de 20 minutes
+      for (let currentMinutes = startMinutes; currentMinutes < endMinutes; currentMinutes += 20) {
         const slotEndMinutes = currentMinutes + serviceDuration;
 
         // Vérifier que le service se termine avant la fin de la plage horaire
@@ -1731,7 +1731,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               snapDuration="00:05:00"
               slotMinTime="08:00:00"
               slotMaxTime="20:00:00"
-              slotDuration="00:15:00"
+              slotDuration="00:20:00"
               slotLabelInterval="01:00:00"
               height="auto"
               contentHeight="auto"
@@ -2047,3 +2047,4 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 };
 
 export default Calendrier;
+

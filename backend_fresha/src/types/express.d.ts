@@ -1,4 +1,4 @@
-import { Service, Salon, Client, Staff } from '@prisma/client'
+import { Service, Salon, Client, Staff, StaffRole } from '@prisma/client'
 
 declare global {
   namespace Express {
@@ -6,7 +6,9 @@ declare global {
       user?: {
         userId: string
         email: string
+        userType: 'owner' | 'staff' | 'client'
         salonId?: string
+        role?: StaffRole
       }
       service?: Service | Partial<Service>
       salon?: Salon | Partial<Salon>

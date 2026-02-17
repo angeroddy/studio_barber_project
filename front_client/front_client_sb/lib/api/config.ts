@@ -4,14 +4,13 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://loca
 
 // Helper function to get auth token
 export const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('authToken');
+  return null;
 };
 
 // Helper function to set auth token
-export const setAuthToken = (token: string): void => {
+export const setAuthToken = (_token: string): void => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('authToken', token);
+    localStorage.removeItem('authToken');
   }
 };
 
@@ -24,16 +23,9 @@ export const removeAuthToken = (): void => {
 
 // Default headers for API requests
 export const getDefaultHeaders = (): HeadersInit => {
-  const headers: HeadersInit = {
+  return {
     'Content-Type': 'application/json',
   };
-
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  return headers;
 };
 
 // API Response type

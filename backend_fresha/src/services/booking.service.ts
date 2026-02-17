@@ -1,5 +1,10 @@
 import prisma from '../config/database'
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
+import {
+  acquireBookingLocks,
+  buildOverlapConditions,
+  withSerializableBookingTransaction
+} from '../utils/booking-concurrency.util'
 
 interface CreateBooking {
   salonId: string
@@ -28,211 +33,141 @@ interface UpdateBooking {
 
 // ============= CREATE =============
 export async function createBooking(data: CreateBooking) {
-  // 1-3. Vérifier en parallèle que salon, staff et service existent (optimisation)
-  const [salon, staff, service] = await Promise.all([
-    prisma.salon.findUnique({ where: { id: data.salonId } }),
-    prisma.staff.findUnique({ where: { id: data.staffId } }),
-    prisma.service.findUnique({ where: { id: data.serviceId } })
-  ])
+  return withSerializableBookingTransaction(async (tx) => {
+    const [salon, staff, service] = await Promise.all([
+      tx.salon.findUnique({ where: { id: data.salonId } }),
+      tx.staff.findUnique({ where: { id: data.staffId } }),
+      tx.service.findUnique({ where: { id: data.serviceId } })
+    ])
 
-  if (!salon) {
-    throw new Error('Salon introuvable')
-  }
+    if (!salon) {
+      throw new Error('Salon introuvable')
+    }
 
-  if (!staff) {
-    throw new Error('Membre du personnel introuvable')
-  }
+    if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
+      throw new Error('Membre du personnel introuvable')
+    }
 
-  if (!service) {
-    throw new Error('Service introuvable')
-  }
+    if (!service || service.salonId !== data.salonId || service.isActive === false) {
+      throw new Error('Service introuvable')
+    }
 
-  // 4. Créer ou trouver le client
-  // Extraire le prénom et nom du clientName (format: "Prénom Nom")
-  const nameParts = data.clientName.trim().split(' ')
-  const firstName = nameParts[0] || 'Client'
-  const lastName = nameParts.slice(1).join(' ') || 'Inconnu'
+    const nameParts = data.clientName.trim().split(' ')
+    const firstName = nameParts[0] || 'Client'
+    const lastName = nameParts.slice(1).join(' ') || 'Inconnu'
 
-  // Chercher si un client existe déjà avec cet email ou téléphone
-  let client = null
-  if (data.clientEmail) {
-    client = await prisma.client.findUnique({
-      where: { email: data.clientEmail }
-    })
-  }
+    let client = null
+    if (data.clientEmail) {
+      client = await tx.client.findUnique({
+        where: { email: data.clientEmail }
+      })
+    }
 
-  // Si pas trouvé, créer un nouveau client
-  if (!client) {
-    client = await prisma.client.create({
+    if (!client) {
+      client = await tx.client.create({
+        data: {
+          salonId: data.salonId,
+          firstName,
+          lastName,
+          email: data.clientEmail || `client-${Date.now()}@temporary.com`,
+          phone: data.clientPhone || 'N/A',
+          notes: data.notes
+        }
+      })
+    }
+
+    const clientSelectedTime = new Date(data.startTime)
+    const actualStartTime = new Date(clientSelectedTime.getTime() - salon.bufferBefore * 60000)
+    const totalDuration = salon.bufferBefore + service.duration + salon.processingTime + salon.bufferAfter
+    const endTime = new Date(actualStartTime.getTime() + totalDuration * 60000)
+
+    await acquireBookingLocks(tx, [`staff:${staff.id}`, `client:${client.id}`])
+    const overlapConditions = buildOverlapConditions(actualStartTime, endTime)
+
+    const [existingStaffBooking, existingBookingService, existingClientBooking] = await Promise.all([
+      tx.booking.findFirst({
+        where: {
+          staffId: staff.id,
+          OR: overlapConditions,
+          status: {
+            notIn: ['CANCELED', 'NO_SHOW']
+          }
+        }
+      }),
+      tx.bookingService.findFirst({
+        where: {
+          staffId: staff.id,
+          OR: overlapConditions,
+          booking: {
+            status: {
+              notIn: ['CANCELED', 'NO_SHOW']
+            }
+          }
+        }
+      }),
+      tx.booking.findFirst({
+        where: {
+          clientId: client.id,
+          OR: overlapConditions,
+          status: {
+            notIn: ['CANCELED', 'NO_SHOW']
+          }
+        }
+      })
+    ])
+
+    if (existingStaffBooking || existingBookingService) {
+      throw new Error('Ce professionnel a déjà un rendez-vous prévu à cette heure')
+    }
+
+    if (existingClientBooking) {
+      throw new Error('Ce client a déjà un rendez-vous prévu à cette heure')
+    }
+
+    const booking = await tx.booking.create({
       data: {
         salonId: data.salonId,
-        firstName,
-        lastName,
-        email: data.clientEmail || `client-${Date.now()}@temporary.com`,
-        phone: data.clientPhone || 'N/A',
+        clientId: client.id,
+        staffId: staff.id,
+        serviceId: service.id,
+        startTime: actualStartTime,
+        endTime,
+        duration: totalDuration,
+        price: service.price,
+        status: data.status || 'CONFIRMED',
         notes: data.notes
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
+          }
+        },
+        staff: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+            price: true
+          }
+        }
       }
     })
-  }
 
-  // 5. Calculer startTime et endTime en incluant les temps tampons du salon
-  // Le client choisit une heure APRÈS bufferBefore (ex: 10h05)
-  // On doit créer un booking qui commence AVANT (ex: 10h00) pour inclure le buffer
-  const clientSelectedTime = new Date(data.startTime)
-  const actualStartTime = new Date(clientSelectedTime.getTime() - salon.bufferBefore * 60000)
-
-  // Calculer la durée totale incluant les buffers
-  const totalDuration = salon.bufferBefore + service.duration + salon.processingTime + salon.bufferAfter
-  const endTime = new Date(actualStartTime.getTime() + totalDuration * 60000) // Convertir minutes en millisecondes
-
-  // 6. Vérifier les réservations simples
-  const existingStaffBooking = await prisma.booking.findFirst({
-    where: {
-      staffId: data.staffId,
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: actualStartTime } },
-            { endTime: { gt: actualStartTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { lt: endTime } },
-            { endTime: { gte: endTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { gte: actualStartTime } },
-            { endTime: { lte: endTime } }
-          ]
-        }
-      ],
-      status: {
-        notIn: ['CANCELED', 'NO_SHOW']
-      }
-    }
+    return booking
   })
-
-  if (existingStaffBooking) {
-    throw new Error('Ce professionnel a déjà un rendez-vous prévu à cette heure')
-  }
-
-  // Vérifier aussi les BookingService (pour les réservations multi-services)
-  const existingBookingService = await prisma.bookingService.findFirst({
-    where: {
-      staffId: data.staffId,
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: actualStartTime } },
-            { endTime: { gt: actualStartTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { lt: endTime } },
-            { endTime: { gte: endTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { gte: actualStartTime } },
-            { endTime: { lte: endTime } }
-          ]
-        }
-      ],
-      booking: {
-        status: {
-          notIn: ['CANCELED', 'NO_SHOW']
-        }
-      }
-    }
-  })
-
-  if (existingBookingService) {
-    throw new Error('Ce professionnel a déjà un rendez-vous prévu à cette heure')
-  }
-
-  // Vérifier que le client n'a pas déjà un rendez-vous au même moment
-  const existingClientBooking = await prisma.booking.findFirst({
-    where: {
-      clientId: client.id,
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: actualStartTime } },
-            { endTime: { gt: actualStartTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { lt: endTime } },
-            { endTime: { gte: endTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { gte: actualStartTime } },
-            { endTime: { lte: endTime } }
-          ]
-        }
-      ],
-      status: {
-        notIn: ['CANCELED', 'NO_SHOW']
-      }
-    }
-  })
-
-  if (existingClientBooking) {
-    throw new Error('Ce client a déjà un rendez-vous prévu à cette heure')
-  }
-
-  // 7. Créer la réservation
-  const booking = await prisma.booking.create({
-    data: {
-      salonId: data.salonId,
-      clientId: client.id,
-      staffId: data.staffId,
-      serviceId: data.serviceId,
-      startTime: actualStartTime, // Heure réelle incluant bufferBefore
-      endTime: endTime, // endTime calculé avec les buffers
-      duration: totalDuration, // Durée totale incluant les buffers
-      price: service.price,
-      status: data.status || 'CONFIRMED',
-      notes: data.notes
-    },
-    include: {
-      client: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true
-        }
-      },
-      staff: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          avatar: true
-        }
-      },
-      service: {
-        select: {
-          id: true,
-          name: true,
-          duration: true,
-          price: true
-        }
-      }
-    }
-  })
-
-  return booking
 }
 
 // ============= READ (un seul) =============
@@ -1115,7 +1050,7 @@ function generateSlotsForSchedule(
   bufferBefore: number = 0 // Temps tampon avant le service
 ): string[] {
   const slots: string[] = []
-  const slotInterval = 15 // Créneaux toutes les 15 minutes
+  const slotInterval = 20 // Creneaux toutes les 20 minutes
 
   // Convertir les heures en minutes depuis minuit
   const toMinutes = (time: string): number => {
@@ -1202,13 +1137,11 @@ interface CreateMultiServiceBooking {
  * Les services sont exécutés séquentiellement dans l'ordre fourni
  */
 export async function createMultiServiceBooking(data: CreateMultiServiceBooking) {
-  // 1. Validation de base
   if (!data.services || data.services.length === 0) {
     throw new Error('Au moins un service doit être fourni')
   }
 
   if (data.services.length === 1) {
-    // Si un seul service, utiliser la fonction classique
     return createBooking({
       salonId: data.salonId,
       staffId: data.services[0].staffId || '',
@@ -1217,339 +1150,262 @@ export async function createMultiServiceBooking(data: CreateMultiServiceBooking)
       clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
       startTime: data.startTime,
-      endTime: data.startTime, // Sera calculé dans createBooking
+      endTime: data.startTime,
       notes: data.notes,
       status: data.status
     })
   }
 
-  // 2. Vérifier que le salon existe
-  const salon = await prisma.salon.findUnique({
-    where: { id: data.salonId }
-  })
+  return withSerializableBookingTransaction(async (tx) => {
+    const salon = await tx.salon.findUnique({
+      where: { id: data.salonId }
+    })
 
-  if (!salon) {
-    throw new Error('Salon introuvable')
-  }
-
-  // 3. Récupérer tous les services en une seule requête
-  const serviceIds = data.services.map(s => s.serviceId)
-  const services = await prisma.service.findMany({
-    where: {
-      id: { in: serviceIds },
-      salonId: data.salonId,
-      isActive: true
-    }
-  })
-
-  if (services.length !== data.services.length) {
-    throw new Error('Un ou plusieurs services sont introuvables ou inactifs')
-  }
-
-  // 4. Créer une map pour un accès rapide aux services
-  const serviceMap = new Map(services.map(s => [s.id, s]))
-
-  // 5. Calculer la durée totale et le prix total
-  // Pour les multi-services : appliquer les buffers au DÉBUT et à la FIN de la session complète
-  let servicesDurationSum = 0 // Durée totale de tous les services (sans buffers)
-  let totalPrice = 0
-
-  const bookingServicesData = []
-  // Le client choisit une heure visible (ex: 10h15)
-  // Mais le système doit bloquer du temps AVANT pour la préparation (bufferBefore)
-  // Donc le vrai début du bloc est : heure choisie - bufferBefore
-  let currentStartTime = new Date(data.startTime)
-
-  // Pour le PREMIER service seulement, soustraire bufferBefore pour bloquer le temps de préparation
-  if (salon.bufferBefore > 0) {
-    currentStartTime = new Date(currentStartTime.getTime() - salon.bufferBefore * 60000)
-  }
-
-  for (let i = 0; i < data.services.length; i++) {
-    const serviceInput = data.services[i]
-    const service = serviceMap.get(serviceInput.serviceId)
-
-    if (!service) {
-      throw new Error(`Service ${serviceInput.serviceId} introuvable`)
+    if (!salon) {
+      throw new Error('Salon introuvable')
     }
 
-    const serviceDuration = service.duration + salon.processingTime
-    const servicePrice = Number(service.price)
+    const serviceIds = data.services.map((s) => s.serviceId)
+    const services = await tx.service.findMany({
+      where: {
+        id: { in: serviceIds },
+        salonId: data.salonId,
+        isActive: true
+      }
+    })
 
-    servicesDurationSum += service.duration
-    totalPrice += servicePrice
+    if (services.length !== data.services.length) {
+      throw new Error('Un ou plusieurs services sont introuvables ou inactifs')
+    }
 
-    // Calculer les heures de début et fin pour ce service
-    // Pour le premier service : startTime inclut déjà bufferBefore (soustrait au-dessus)
-    // Pour les services suivants : on commence là où le précédent s'est terminé
-    const serviceStartTime = new Date(currentStartTime)
-    const serviceEndTime = new Date(currentStartTime.getTime() + serviceDuration * 60000)
+    const serviceMap = new Map(services.map((s) => [s.id, s]))
 
-    // Assigner un staff si non fourni
-    let staffId = serviceInput.staffId
+    let servicesDurationSum = 0
+    let totalPrice = 0
+    const bookingServicesData = []
 
-    if (!staffId || staffId === 'any') {
-      // Trouver un staff disponible pour ce service
-      const availableStaff = await prisma.staff.findFirst({
-        where: {
+    let currentStartTime = new Date(data.startTime)
+    if (salon.bufferBefore > 0) {
+      currentStartTime = new Date(currentStartTime.getTime() - salon.bufferBefore * 60000)
+    }
+
+    for (let i = 0; i < data.services.length; i++) {
+      const serviceInput = data.services[i]
+      const service = serviceMap.get(serviceInput.serviceId)
+
+      if (!service) {
+        throw new Error(`Service ${serviceInput.serviceId} introuvable`)
+      }
+
+      const serviceDuration = service.duration + salon.processingTime
+      const servicePrice = Number(service.price)
+      servicesDurationSum += service.duration
+      totalPrice += servicePrice
+
+      const serviceStartTime = new Date(currentStartTime)
+      const serviceEndTime = new Date(currentStartTime.getTime() + serviceDuration * 60000)
+
+      let staffId = serviceInput.staffId
+      if (!staffId || staffId === 'any') {
+        const availableStaff = await tx.staff.findFirst({
+          where: {
+            salonId: data.salonId,
+            isActive: true
+          }
+        })
+
+        if (!availableStaff) {
+          throw new Error('Aucun professionnel disponible pour ce service')
+        }
+
+        staffId = availableStaff.id
+      }
+
+      const staff = await tx.staff.findUnique({
+        where: { id: staffId }
+      })
+
+      if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
+        throw new Error(`Professionnel ${staffId} introuvable`)
+      }
+
+      bookingServicesData.push({
+        serviceId: service.id,
+        staffId: staff.id,
+        duration: serviceDuration,
+        price: servicePrice,
+        order: i + 1,
+        startTime: serviceStartTime,
+        endTime: serviceEndTime
+      })
+
+      currentStartTime = serviceEndTime
+    }
+
+    if (bookingServicesData.length > 0) {
+      const lastService = bookingServicesData[bookingServicesData.length - 1]
+      const endTimeWithBuffer = new Date(lastService.endTime.getTime() + salon.bufferAfter * 60000)
+      lastService.endTime = endTimeWithBuffer
+    }
+
+    const finalEndTime = new Date(currentStartTime)
+    finalEndTime.setMinutes(finalEndTime.getMinutes() + salon.bufferAfter)
+    const totalDuration =
+      salon.bufferBefore + servicesDurationSum + salon.processingTime * data.services.length + salon.bufferAfter
+
+    const actualStartTime = new Date(data.startTime)
+    actualStartTime.setMinutes(actualStartTime.getMinutes() - salon.bufferBefore)
+
+    const nameParts = data.clientName.trim().split(' ')
+    const firstName = nameParts[0] || 'Client'
+    const lastName = nameParts.slice(1).join(' ') || 'Inconnu'
+
+    let client = null
+    if (data.clientEmail) {
+      client = await tx.client.findUnique({
+        where: { email: data.clientEmail }
+      })
+    }
+
+    if (!client) {
+      client = await tx.client.create({
+        data: {
           salonId: data.salonId,
-          isActive: true
+          firstName,
+          lastName,
+          email: data.clientEmail || `client-${Date.now()}@temporary.com`,
+          phone: data.clientPhone || 'N/A',
+          notes: data.notes
+        }
+      })
+    }
+
+    const lockKeys = [`client:${client.id}`, ...bookingServicesData.map((bs) => `staff:${bs.staffId}`)]
+    await acquireBookingLocks(tx, lockKeys)
+
+    for (const serviceData of bookingServicesData) {
+      const overlapConditions = buildOverlapConditions(serviceData.startTime, serviceData.endTime)
+
+      const existingBooking = await tx.booking.findFirst({
+        where: {
+          staffId: serviceData.staffId,
+          OR: overlapConditions,
+          status: {
+            notIn: ['CANCELED', 'NO_SHOW']
+          }
         }
       })
 
-      if (!availableStaff) {
-        throw new Error('Aucun professionnel disponible pour ce service')
+      if (existingBooking) {
+        const staff = await tx.staff.findUnique({ where: { id: serviceData.staffId } })
+        throw new Error(
+          `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+        )
       }
 
-      staffId = availableStaff.id
-    }
-
-    // Vérifier que le staff existe
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId }
-    })
-
-    if (!staff) {
-      throw new Error(`Professionnel ${staffId} introuvable`)
-    }
-
-    bookingServicesData.push({
-      serviceId: service.id,
-      staffId: staff.id,
-      duration: serviceDuration,
-      price: servicePrice,
-      order: i + 1,
-      startTime: serviceStartTime,
-      endTime: serviceEndTime
-    })
-
-    // Préparer le début du prochain service
-    currentStartTime = serviceEndTime
-  }
-
-  // Ajouter le buffer APRÈS à la fin du dernier service
-  if (bookingServicesData.length > 0) {
-    const lastService = bookingServicesData[bookingServicesData.length - 1]
-    const endTimeWithBuffer = new Date(lastService.endTime.getTime() + salon.bufferAfter * 60000)
-    lastService.endTime = endTimeWithBuffer
-  }
-
-  const finalEndTime = new Date(currentStartTime)
-  finalEndTime.setMinutes(finalEndTime.getMinutes() + salon.bufferAfter)
-
-  // Calculer la durée totale incluant tous les buffers
-  const totalDuration = salon.bufferBefore + servicesDurationSum + (salon.processingTime * data.services.length) + salon.bufferAfter
-
-  // 6. Vérifier la disponibilité de chaque staff pour son créneau
-  for (const serviceData of bookingServicesData) {
-    // Vérifier les réservations simples
-    const existingBooking = await prisma.booking.findFirst({
-      where: {
-        staffId: serviceData.staffId,
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: serviceData.startTime } },
-              { endTime: { gt: serviceData.startTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { lt: serviceData.endTime } },
-              { endTime: { gte: serviceData.endTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { gte: serviceData.startTime } },
-              { endTime: { lte: serviceData.endTime } }
-            ]
+      const existingBookingService = await tx.bookingService.findFirst({
+        where: {
+          staffId: serviceData.staffId,
+          OR: overlapConditions,
+          booking: {
+            status: {
+              notIn: ['CANCELED', 'NO_SHOW']
+            }
           }
-        ],
+        }
+      })
+
+      if (existingBookingService) {
+        const staff = await tx.staff.findUnique({ where: { id: serviceData.staffId } })
+        throw new Error(
+          `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+        )
+      }
+    }
+
+    const sessionOverlapConditions = buildOverlapConditions(actualStartTime, finalEndTime)
+    const existingClientBooking = await tx.booking.findFirst({
+      where: {
+        clientId: client.id,
+        OR: sessionOverlapConditions,
         status: {
           notIn: ['CANCELED', 'NO_SHOW']
         }
       }
     })
 
-    if (existingBooking) {
-      const staff = await prisma.staff.findUnique({ where: { id: serviceData.staffId } })
-      throw new Error(
-        `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-      )
+    if (existingClientBooking) {
+      throw new Error('Ce client a déjà un rendez-vous prévu à cette heure')
     }
 
-    // Vérifier aussi les BookingService (pour les réservations multi-services)
-    const existingBookingService = await prisma.bookingService.findFirst({
-      where: {
-        staffId: serviceData.staffId,
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: serviceData.startTime } },
-              { endTime: { gt: serviceData.startTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { lt: serviceData.endTime } },
-              { endTime: { gte: serviceData.endTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { gte: serviceData.startTime } },
-              { endTime: { lte: serviceData.endTime } }
-            ]
-          }
-        ],
-        booking: {
-          status: {
-            notIn: ['CANCELED', 'NO_SHOW']
-          }
-        }
-      }
-    })
-
-    if (existingBookingService) {
-      const staff = await prisma.staff.findUnique({ where: { id: serviceData.staffId } })
-      throw new Error(
-        `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-      )
-    }
-  }
-
-  // 7. Créer ou trouver le client
-  const nameParts = data.clientName.trim().split(' ')
-  const firstName = nameParts[0] || 'Client'
-  const lastName = nameParts.slice(1).join(' ') || 'Inconnu'
-
-  let client = null
-  if (data.clientEmail) {
-    client = await prisma.client.findUnique({
-      where: { email: data.clientEmail }
-    })
-  }
-
-  if (!client) {
-    client = await prisma.client.create({
+    const booking = await tx.booking.create({
       data: {
         salonId: data.salonId,
-        firstName,
-        lastName,
-        email: data.clientEmail || `client-${Date.now()}@temporary.com`,
-        phone: data.clientPhone || 'N/A',
-        notes: data.notes
-      }
-    })
-  }
-
-  // 8. Vérifier que le client n'a pas déjà un rendez-vous qui chevauche
-  const existingClientBooking = await prisma.booking.findFirst({
-    where: {
-      clientId: client.id,
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: new Date(data.startTime) } },
-            { endTime: { gt: new Date(data.startTime) } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { lt: finalEndTime } },
-            { endTime: { gte: finalEndTime } }
-          ]
-        },
-        {
-          AND: [
-            { startTime: { gte: new Date(data.startTime) } },
-            { endTime: { lte: finalEndTime } }
-          ]
-        }
-      ],
-      status: {
-        notIn: ['CANCELED', 'NO_SHOW']
-      }
-    }
-  })
-
-  if (existingClientBooking) {
-    throw new Error('Ce client a déjà un rendez-vous prévu à cette heure')
-  }
-
-  // 9. Créer la réservation principale avec les BookingService en transaction
-  // Calculer le vrai startTime (incluant bufferBefore)
-  const actualStartTime = new Date(data.startTime)
-  actualStartTime.setMinutes(actualStartTime.getMinutes() - salon.bufferBefore)
-
-  const booking = await prisma.booking.create({
-    data: {
-      salonId: data.salonId,
-      clientId: client.id,
-      startTime: actualStartTime, // Heure réelle incluant bufferBefore
-      endTime: finalEndTime,
-      duration: totalDuration,
-      price: totalPrice,
-      status: data.status || 'CONFIRMED',
-      notes: data.notes,
-      isMultiService: true,
-      bookingServices: {
-        create: bookingServicesData.map(bs => ({
-          serviceId: bs.serviceId,
-          staffId: bs.staffId,
-          duration: bs.duration,
-          price: bs.price,
-          order: bs.order,
-          startTime: bs.startTime,
-          endTime: bs.endTime
-        }))
-      }
-    },
-    include: {
-      client: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true
+        clientId: client.id,
+        startTime: actualStartTime,
+        endTime: finalEndTime,
+        duration: totalDuration,
+        price: totalPrice,
+        status: data.status || 'CONFIRMED',
+        notes: data.notes,
+        isMultiService: true,
+        bookingServices: {
+          create: bookingServicesData.map((bs) => ({
+            serviceId: bs.serviceId,
+            staffId: bs.staffId,
+            duration: bs.duration,
+            price: bs.price,
+            order: bs.order,
+            startTime: bs.startTime,
+            endTime: bs.endTime
+          }))
         }
       },
-      salon: {
-        select: {
-          id: true,
-          name: true,
-          address: true,
-          phone: true
-        }
-      },
-      bookingServices: {
-        include: {
-          service: {
-            select: {
-              id: true,
-              name: true,
-              duration: true,
-              price: true,
-              category: true
-            }
-          },
-          staff: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true
-            }
+      include: {
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
           }
         },
-        orderBy: {
-          order: 'asc'
+        salon: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true
+          }
+        },
+        bookingServices: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                duration: true,
+                price: true,
+                category: true
+              }
+            },
+            staff: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
+          }
         }
       }
-    }
-  })
+    })
 
-  return booking
+    return booking
+  })
 }

@@ -1,7 +1,7 @@
 import { apiRequest } from './config';
 
 /**
- * Créer une réservation pour le client authentifié
+ * Creer une reservation pour le client authentifie
  */
 export async function createClientBooking(data: {
   salonId: string
@@ -23,7 +23,7 @@ export async function createClientBooking(data: {
 }
 
 /**
- * Obtenir toutes les réservations du client authentifié
+ * Obtenir toutes les reservations du client authentifie
  */
 export async function getClientBookings() {
   const response = await apiRequest<{
@@ -36,7 +36,7 @@ export async function getClientBookings() {
 }
 
 /**
- * Annuler une réservation
+ * Annuler une reservation
  */
 export async function cancelClientBooking(bookingId: string) {
   const response = await apiRequest<{
@@ -45,30 +45,6 @@ export async function cancelClientBooking(bookingId: string) {
     data: any
   }>(`/client-bookings/${bookingId}/cancel`, {
     method: 'POST',
-  });
-
-  return response;
-}
-
-/**
- * Créer une réservation multi-services pour le client authentifié
- */
-export async function createClientMultiServiceBooking(data: {
-  salonId: string
-  startTime: string  // ISO string
-  services: Array<{
-    serviceId: string
-    staffId?: string
-  }>
-  notes?: string
-}) {
-  const response = await apiRequest<{
-    success: boolean
-    message: string
-    data: any
-  }>('/client-bookings/multi-services', {
-    method: 'POST',
-    body: JSON.stringify(data),
   });
 
   return response;

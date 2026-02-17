@@ -32,16 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Vérifier si l'utilisateur est déjà connecté au chargement de l'app
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
       const storedUserType = localStorage.getItem('userType') as UserType | null;
 
-      if (token && storedUser && storedUserType) {
+      // Cleanup legacy token storage (migration to HttpOnly cookies)
+      localStorage.removeItem('token');
+
+      if (storedUserType) {
         try {
-          // Vérifier que le token est toujours valide selon le type d'utilisateur
           if (storedUserType === 'owner') {
             const response = await authService.getProfile();
             setUser(response.data);
@@ -51,19 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(response);
             setUserType('staff');
           }
-        } catch (error) {
-          // Token invalide ou expiré
-          localStorage.removeItem('token');
+        } catch {
           localStorage.removeItem('user');
           localStorage.removeItem('userType');
           setUser(null);
           setUserType(null);
         }
       }
+
       setIsLoading(false);
     };
 
-    checkAuth();
+    void checkAuth();
   }, []);
 
   const login = async (data: LoginData) => {
@@ -72,14 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await authService.login(data);
 
-      // Sauvegarder le token et l'utilisateur (Owner)
-      localStorage.setItem('token', response.data.token);
+      // Token is now managed by HttpOnly cookie.
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('userType', 'owner');
       setUser(response.data.user);
       setUserType('owner');
 
-      // Rediriger vers la page d'accueil
       navigate('/');
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Erreur de connexion';
@@ -96,17 +92,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await staffAuthService.login({
         email: data.email,
-        password: data.password
+        password: data.password,
       });
 
-      // Sauvegarder le token et l'utilisateur (Staff)
-      localStorage.setItem('token', response.token);
+      // Token is now managed by HttpOnly cookie.
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('userType', 'staff');
       setUser(response.user);
       setUserType('staff');
 
-      // Rediriger vers la page d'accueil
       navigate('/');
     } catch (error: any) {
       const errorMessage = error.message || 'Erreur de connexion';
@@ -123,17 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await authService.register(data);
 
-      // Sauvegarder le token et l'utilisateur (Owner)
-      localStorage.setItem('token', response.data.token);
+      // Token is now managed by HttpOnly cookie.
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('userType', 'owner');
       setUser(response.data.user);
       setUserType('owner');
 
-      // Rediriger vers la page d'accueil
       navigate('/');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur lors de l\'inscription';
+      const errorMessage = error.response?.data?.error || "Erreur lors de l'inscription";
       setError(errorMessage);
       throw error;
     } finally {
@@ -142,7 +134,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    if (userType === 'staff') {
+      void staffAuthService.logout().catch(() => undefined);
+    } else {
+      void authService.logout().catch(() => undefined);
+    }
+
     localStorage.removeItem('user');
     localStorage.removeItem('userType');
     setUser(null);
@@ -154,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
   };
 
-  // Helper pour vérifier le type d'utilisateur
   const isOwner = userType === 'owner';
   const isStaff = userType === 'staff';
   const isManager = isStaff && (user as StaffUser)?.role === 'MANAGER';
@@ -178,11 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Hook personnalisé pour utiliser le contexte d'authentification
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth doit être utilisé dans un AuthProvider');
+    throw new Error('useAuth doit etre utilise dans un AuthProvider');
   }
   return context;
 }

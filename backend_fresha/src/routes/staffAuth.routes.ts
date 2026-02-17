@@ -1,18 +1,20 @@
 import express from 'express'
 import * as staffAuthController from '../controllers/staffAuth.controller'
 import { authenticate } from '../middlewares/auth.middleware'
+import { requireOwnerOrManager, requireStaff } from '../middlewares/authorization.middleware'
 
 const router = express.Router()
 
-// Routes publiques
+// Public routes
 router.post('/login', staffAuthController.login)
-router.post('/first-login', staffAuthController.firstLogin) // Première connexion (création mot de passe)
+router.post('/first-login', staffAuthController.firstLogin)
+router.post('/logout', staffAuthController.logout)
 
-// Routes protégées (authentification staff requise)
-router.get('/me', authenticate, staffAuthController.getProfile)
-router.put('/password', authenticate, staffAuthController.updatePassword)
+// Staff-only routes
+router.get('/me', authenticate, requireStaff, staffAuthController.getProfile)
+router.put('/password', authenticate, requireStaff, staffAuthController.updatePassword)
 
-// Route protégée pour l'Owner (initialisation du mot de passe d'un staff)
-router.post('/:staffId/initialize-password', authenticate, staffAuthController.initializePassword)
+// Owner/manager-only route
+router.post('/:staffId/initialize-password', authenticate, requireOwnerOrManager, staffAuthController.initializePassword)
 
 export default router

@@ -35,12 +35,19 @@ app.use(httpLogger)
 app.use(helmet())
 
 // CORS Configuration - Dynamique selon l'environnement
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5173', 'http://localhost:3000']
+const allowedOrigins = getAllowedOrigins()
+const allowedOriginSet = new Set(allowedOrigins)
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true)
+      return
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin)
+    callback(null, Boolean(normalizedOrigin && allowedOriginSet.has(normalizedOrigin)))
+  },
   credentials: true
 }))
 
@@ -138,3 +145,36 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 })
 
 export default app
+
+function getAllowedOrigins(): string[] {
+  const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000']
+  const configuredOrigins = process.env.ALLOWED_ORIGINS
+
+  if (!configuredOrigins) {
+    return defaultOrigins
+  }
+
+  const normalizedOrigins = configuredOrigins
+    .split(',')
+    .map(origin => normalizeOrigin(origin))
+    .filter((origin): origin is string => Boolean(origin))
+
+  if (normalizedOrigins.length === 0) {
+    return defaultOrigins
+  }
+
+  return Array.from(new Set(normalizedOrigins))
+}
+
+function normalizeOrigin(origin: string): string | null {
+  const trimmedOrigin = origin.trim()
+  if (!trimmedOrigin) {
+    return null
+  }
+
+  try {
+    return new URL(trimmedOrigin).origin
+  } catch {
+    return null
+  }
+}

@@ -111,6 +111,7 @@ export async function setPasswordForExistingClient(data: SetPasswordData) {
   const token = generateToken({
     userId: updatedClient.id,
     email: updatedClient.email,
+    userType: 'client',
     type: 'client'
   })
 
@@ -179,6 +180,7 @@ export async function registerNewClient(data: RegisterClientData) {
   const token = generateToken({
     userId: client.id,
     email: client.email,
+    userType: 'client',
     type: 'client'
   })
 
@@ -226,6 +228,7 @@ export async function loginClient(data: LoginClientData) {
   const token = generateToken({
     userId: client.id,
     email: client.email,
+    userType: 'client',
     type: 'client'
   })
 

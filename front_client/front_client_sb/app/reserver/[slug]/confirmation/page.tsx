@@ -23,7 +23,7 @@ export default function ConfirmationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="max-w-2xl w-full bg-white border-2 border-black p-6 sm:p-8 md:p-10 lg:p-12 text-center">
+      <div className="max-w-2xl w-full bg-white border border-black p-6 sm:p-8 md:p-10 lg:p-12 text-center">
         {/* Success Icon */}
         <div className="mb-6 sm:mb-8 flex justify-center">
           <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-green-500 flex items-center justify-center">
@@ -55,7 +55,7 @@ export default function ConfirmationPage() {
 
         {/* Info */}
         {salon && (
-          <div className="bg-gray-50 border-2 border-gray-300 p-4 sm:p-6 mb-6 sm:mb-8 text-left">
+          <div className="bg-gray-50 border border-gray-300 p-4 sm:p-6 mb-6 sm:mb-8 text-left">
             <h2 className="font-archivo font-black text-base sm:text-lg text-black mb-3 sm:mb-4 uppercase">
               Details de votre reservation
             </h2>
@@ -73,7 +73,7 @@ export default function ConfirmationPage() {
                 </p>
               </div>
 
-              <div className="border-t-2 border-gray-300 pt-3">
+              <div className="border-t border-gray-300 pt-3">
                 <p className="font-archivo font-bold text-xs sm:text-sm text-gray-600 uppercase">
                   Contact
                 </p>
@@ -86,7 +86,7 @@ export default function ConfirmationPage() {
         )}
 
         {/* Email confirmation notice */}
-        <div className="bg-[#DE2788] bg-opacity-10 border-2 border-[#DE2788] p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="bg-[#DE2788] bg-opacity-10 border border-[#DE2788] p-4 sm:p-6 mb-6 sm:mb-8">
           <p className="font-archivo text-sm sm:text-base text-gray-800">
             Un email de confirmation vous a ete envoye avec tous les details de votre reservation.
           </p>

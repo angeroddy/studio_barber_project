@@ -31,7 +31,7 @@ function PrestationsPageContent() {
   const salonId = searchParams.get("salon") || "championnet";
   const salon = salonsData[salonId as keyof typeof salonsData];
 
-  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [servicesByCategory, setServicesByCategory] = useState<ServicesByCategory>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,28 +67,18 @@ function PrestationsPageContent() {
   }, [salonId]);
 
   const handleServiceSelect = (service: Service) => {
-    setSelectedServices(prev => {
-      const isAlreadySelected = prev.some(s => s.id === service.id);
-      if (isAlreadySelected) {
-        // Retirer le service
-        return prev.filter(s => s.id !== service.id);
-      } else {
-        // Ajouter le service
-        return [...prev, service];
-      }
-    });
+    setSelectedService(prev => (prev?.id === service.id ? null : service));
   };
 
   const handleContinue = () => {
-    if (selectedServices.length > 0) {
-      const serviceIds = selectedServices.map(s => s.id).join(',');
-      router.push(`/reserver/professionnel?salon=${salonId}&services=${serviceIds}`);
+    if (selectedService) {
+      router.push(`/reserver/professionnel?salon=${salonId}&service=${selectedService.id}`);
     }
   };
 
   // Calculer le total
-  const totalPrice = selectedServices.reduce((sum, service) => sum + Number(service.price), 0);
-  const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration, 0);
+  const totalPrice = selectedService ? Number(selectedService.price) : 0;
+  const totalDuration = selectedService ? selectedService.duration : 0;
 
   // Helper function to format duration
   const formatDuration = (minutes: number): string => {
@@ -146,7 +136,7 @@ function PrestationsPageContent() {
 
             {/* Error state */}
             {error && !loading && (
-              <div className="bg-yellow-50 border-2 border-yellow-300 p-4 mb-6">
+              <div className="bg-yellow-50 border border-yellow-300 p-4 mb-6">
                 <p className="font-archivo text-sm text-yellow-800">
                   Erreur lors du chargement des prestations. Veuillez réessayer.
                 </p>
@@ -163,8 +153,8 @@ function PrestationsPageContent() {
                   {categoryServices.map((service) => (
                   <div
                     key={service.id}
-                    className={`bg-white border-2 p-4 sm:p-6 transition-all cursor-pointer ${
-                      selectedServices.some(s => s.id === service.id)
+                    className={`bg-white border p-4 sm:p-6 transition-all cursor-pointer ${
+                      selectedService?.id === service.id
                         ? "border-[#DE2788]"
                         : "border-black hover:border-[#DE2788]"
                     }`}
@@ -188,13 +178,13 @@ function PrestationsPageContent() {
                       </div>
                       <button
                         onClick={() => handleServiceSelect(service)}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 border-2 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
-                          selectedServices.some(s => s.id === service.id)
+                        className={`w-10 h-10 sm:w-12 sm:h-12 border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
+                          selectedService?.id === service.id
                             ? "bg-[#DE2788] border-[#DE2788] text-white"
                             : "border-black text-black hover:bg-[#DE2788] hover:border-[#DE2788] hover:text-white"
                         }`}
                       >
-                        {selectedServices.some(s => s.id === service.id) ? (
+                        {selectedService?.id === service.id ? (
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="18"
@@ -246,15 +236,14 @@ function PrestationsPageContent() {
           <div className="lg:col-span-1">
             <BookingSummary
               salon={salon}
-              services={selectedServices.map(s => ({
-                name: s.name,
-                duration: formatDuration(s.duration),
-                price: s.price,
-              }))}
-              totalDuration={formatDuration(totalDuration)}
+              service={selectedService ? {
+                name: selectedService.name,
+                duration: formatDuration(selectedService.duration),
+                price: Number(selectedService.price),
+              } : undefined}
               total={totalPrice}
               onContinue={handleContinue}
-              continueDisabled={selectedServices.length === 0}
+              continueDisabled={!selectedService}
             />
           </div>
         </div>

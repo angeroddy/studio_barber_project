@@ -42,8 +42,7 @@ export default function SignInForm() {
         // Appel à l'API de première connexion
         const response = await import('../../services/staffAuth.service').then(m => m.default.firstLogin(email, password));
 
-        // Sauvegarder le token et l'utilisateur
-        localStorage.setItem('token', response.token);
+        // Sauvegarder l'utilisateur (token gere par cookie HttpOnly)
         localStorage.setItem('user', JSON.stringify(response.user));
         localStorage.setItem('userType', 'staff');
 

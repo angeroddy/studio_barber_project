@@ -21,17 +21,40 @@ interface UpdateClientData {
   password?: string
 }
 
+function buildSalonScope(accessibleSalonIds?: string[]) {
+  if (!accessibleSalonIds) {
+    return {}
+  }
+
+  if (accessibleSalonIds.length === 0) {
+    return {
+      salonId: {
+        in: ['__no_access__']
+      }
+    }
+  }
+
+  return {
+    salonId: {
+      in: accessibleSalonIds
+    }
+  }
+}
+
+function stripPassword<T extends { password?: string | null }>(item: T) {
+  const { password, ...rest } = item
+  return rest
+}
+
 export async function createClient(data: CreateClientData) {
-  // 1. Vérifier si un client avec le même email existe déjà
   const existingClient = await prisma.client.findUnique({
     where: { email: data.email }
   })
 
   if (existingClient) {
-    throw new Error('Un client avec cet email existe déjà')
+    throw new Error('Un client avec cet email existe deja')
   }
 
-  // 2. Si un salonId est fourni, vérifier que le salon existe
   if (data.salonId) {
     const salon = await prisma.salon.findUnique({
       where: { id: data.salonId }
@@ -42,13 +65,11 @@ export async function createClient(data: CreateClientData) {
     }
   }
 
-  // 3. Hasher le mot de passe si fourni
-  let hashedPassword = undefined
+  let hashedPassword: string | undefined
   if (data.password) {
     hashedPassword = await bcrypt.hash(data.password, 10)
   }
 
-  // 4. Créer le client
   const client = await prisma.client.create({
     data: {
       salonId: data.salonId,
@@ -71,15 +92,15 @@ export async function createClient(data: CreateClientData) {
     }
   })
 
-  // Retirer le mot de passe de la réponse
-  const { password, ...clientWithoutPassword } = client
-
-  return clientWithoutPassword
+  return stripPassword(client)
 }
 
-export async function getClientById(clientId: string) {
-  const client = await prisma.client.findUnique({
-    where: { id: clientId },
+export async function getClientById(clientId: string, accessibleSalonIds?: string[]) {
+  const client = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      ...buildSalonScope(accessibleSalonIds)
+    },
     include: {
       salon: {
         select: {
@@ -100,15 +121,15 @@ export async function getClientById(clientId: string) {
     throw new Error('Client introuvable')
   }
 
-  // Retirer le mot de passe de la réponse
-  const { password, ...clientWithoutPassword } = client
-
-  return clientWithoutPassword
+  return stripPassword(client)
 }
 
-export async function getClientByEmail(email: string) {
-  const client = await prisma.client.findUnique({
-    where: { email },
+export async function getClientByEmail(email: string, accessibleSalonIds?: string[]) {
+  const client = await prisma.client.findFirst({
+    where: {
+      email,
+      ...buildSalonScope(accessibleSalonIds)
+    },
     include: {
       salon: {
         select: {
@@ -129,15 +150,15 @@ export async function getClientByEmail(email: string) {
     throw new Error('Client introuvable')
   }
 
-  // Retirer le mot de passe de la réponse
-  const { password, ...clientWithoutPassword } = client
-
-  return clientWithoutPassword
+  return stripPassword(client)
 }
 
-export async function getClientsByPhone(phone: string) {
+export async function getClientsByPhone(phone: string, accessibleSalonIds?: string[]) {
   const clients = await prisma.client.findMany({
-    where: { phone },
+    where: {
+      phone,
+      ...buildSalonScope(accessibleSalonIds)
+    },
     include: {
       salon: {
         select: {
@@ -154,16 +175,17 @@ export async function getClientsByPhone(phone: string) {
     }
   })
 
-  // Retirer le mot de passe de la réponse
-  return clients.map(client => {
-    const { password, ...clientWithoutPassword } = client
-    return clientWithoutPassword
-  })
+  return clients.map(stripPassword)
 }
 
-export async function getClientsBySalon(salonId: string) {
+export async function getClientsBySalon(salonId: string, accessibleSalonIds?: string[]) {
+  const salonScope = buildSalonScope(accessibleSalonIds)
+
   const clients = await prisma.client.findMany({
-    where: { salonId },
+    where: {
+      salonId,
+      ...salonScope
+    },
     include: {
       _count: {
         select: {
@@ -176,20 +198,22 @@ export async function getClientsBySalon(salonId: string) {
     }
   })
 
-  // Retirer le mot de passe de la réponse
-  return clients.map(client => {
-    const { password, ...clientWithoutPassword } = client
-    return clientWithoutPassword
-  })
+  return clients.map(stripPassword)
 }
 
-export async function getAllClients(page: number = 1, limit: number = 20) {
+export async function getAllClients(
+  page: number = 1,
+  limit: number = 20,
+  accessibleSalonIds?: string[]
+) {
   const skip = (page - 1) * limit
+  const where = buildSalonScope(accessibleSalonIds)
 
   const [clients, total] = await Promise.all([
     prisma.client.findMany({
       skip,
       take: limit,
+      where,
       include: {
         salon: {
           select: {
@@ -208,17 +232,11 @@ export async function getAllClients(page: number = 1, limit: number = 20) {
         createdAt: 'desc'
       }
     }),
-    prisma.client.count()
+    prisma.client.count({ where })
   ])
 
-  // Retirer le mot de passe de la réponse
-  const clientsWithoutPassword = clients.map(client => {
-    const { password, ...clientWithoutPassword } = client
-    return clientWithoutPassword
-  })
-
   return {
-    clients: clientsWithoutPassword,
+    clients: clients.map(stripPassword),
     total,
     page,
     limit,
@@ -226,23 +244,18 @@ export async function getAllClients(page: number = 1, limit: number = 20) {
   }
 }
 
-export async function updateClient(clientId: string, data: UpdateClientData) {
-  // 1. Vérifier que le client existe
-  const existingClient = await prisma.client.findUnique({
-    where: { id: clientId }
-  })
+export async function updateClient(
+  clientId: string,
+  data: UpdateClientData,
+  accessibleSalonIds?: string[]
+) {
+  await getClientById(clientId, accessibleSalonIds)
 
-  if (!existingClient) {
-    throw new Error('Client introuvable')
-  }
-
-  // 2. Hasher le mot de passe si fourni
-  let hashedPassword = undefined
+  let hashedPassword: string | undefined
   if (data.password) {
     hashedPassword = await bcrypt.hash(data.password, 10)
   }
 
-  // 3. Mettre à jour le client
   const client = await prisma.client.update({
     where: { id: clientId },
     data: {
@@ -264,39 +277,27 @@ export async function updateClient(clientId: string, data: UpdateClientData) {
     }
   })
 
-  // Retirer le mot de passe de la réponse
-  const { password, ...clientWithoutPassword } = client
-
-  return clientWithoutPassword
+  return stripPassword(client)
 }
 
-export async function deleteClient(clientId: string) {
-  // 1. Vérifier que le client existe
-  const client = await prisma.client.findUnique({
-    where: { id: clientId }
-  })
+export async function deleteClient(clientId: string, accessibleSalonIds?: string[]) {
+  await getClientById(clientId, accessibleSalonIds)
 
-  if (!client) {
-    throw new Error('Client introuvable')
-  }
-
-  // 2. Supprimer le client (les bookings ne seront pas supprimés à cause de la relation)
   await prisma.client.delete({
     where: { id: clientId }
   })
 
-  return { message: 'Client supprimé avec succès' }
+  return { message: 'Client supprime avec succes' }
 }
 
 export async function searchClients(
   searchTerm: string,
   salonId?: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
+  accessibleSalonIds?: string[]
 ) {
   const skip = (page - 1) * limit
-
-  // Séparer le terme de recherche en mots
   const words = searchTerm.trim().split(/\s+/)
 
   const orConditions: any[] = [
@@ -306,18 +307,17 @@ export async function searchClients(
     { phone: { contains: searchTerm } }
   ]
 
-  // Si on a 2 mots ou plus, chercher prénom + nom
   if (words.length >= 2) {
     const firstName = words[0]
     const lastName = words.slice(1).join(' ')
 
-    // Chercher "Prénom Nom" ou "Nom Prénom"
     orConditions.push({
       AND: [
         { firstName: { contains: firstName, mode: 'insensitive' } },
         { lastName: { contains: lastName, mode: 'insensitive' } }
       ]
     })
+
     orConditions.push({
       AND: [
         { lastName: { contains: firstName, mode: 'insensitive' } },
@@ -327,7 +327,8 @@ export async function searchClients(
   }
 
   const whereClause: any = {
-    OR: orConditions
+    OR: orConditions,
+    ...buildSalonScope(accessibleSalonIds)
   }
 
   if (salonId) {
@@ -360,14 +361,8 @@ export async function searchClients(
     prisma.client.count({ where: whereClause })
   ])
 
-  // Retirer le mot de passe de la réponse
-  const clientsWithoutPassword = clients.map(client => {
-    const { password, ...clientWithoutPassword } = client
-    return clientWithoutPassword
-  })
-
   return {
-    clients: clientsWithoutPassword,
+    clients: clients.map(stripPassword),
     total,
     page,
     limit,

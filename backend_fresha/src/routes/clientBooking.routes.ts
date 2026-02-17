@@ -8,33 +8,35 @@ import {
   createMultiServiceBookingValidation
 } from '../controllers/clientBooking.controller'
 import { authMiddleware } from '../middlewares/auth.middleware'
+import { requireClient } from '../middlewares/authorization.middleware'
 
 const router = express.Router()
 
-// Toutes les routes nécessitent l'authentification
+// All routes require an authenticated client account.
+router.use(authMiddleware, requireClient)
 
 /**
  * POST /api/client-bookings
- * Créer une nouvelle réservation pour le client connecté
+ * Creer une nouvelle reservation pour le client connecte
  */
-router.post('/', authMiddleware, createBookingValidation, createBookingHandler)
+router.post('/', createBookingValidation, createBookingHandler)
 
 /**
  * POST /api/client-bookings/multi-services
- * Créer une réservation multi-services pour le client connecté
+ * Creer une reservation multi-services pour le client connecte
  */
-router.post('/multi-services', authMiddleware, createMultiServiceBookingValidation, createMultiServiceBookingHandler)
+router.post('/multi-services', createMultiServiceBookingValidation, createMultiServiceBookingHandler)
 
 /**
  * GET /api/client-bookings
- * Obtenir toutes les réservations du client connecté
+ * Obtenir toutes les reservations du client connecte
  */
-router.get('/', authMiddleware, getBookingsHandler)
+router.get('/', getBookingsHandler)
 
 /**
  * POST /api/client-bookings/:id/cancel
- * Annuler une réservation
+ * Annuler une reservation
  */
-router.post('/:id/cancel', authMiddleware, cancelBookingHandler)
+router.post('/:id/cancel', cancelBookingHandler)
 
 export default router

@@ -89,7 +89,7 @@ export default function ReserverPage() {
 
       {/* Error state */}
       {error && !loading && (
-        <div className="bg-yellow-50 border-2 border-yellow-300 p-4 mb-6">
+        <div className="bg-yellow-50 border border-yellow-300 p-4 mb-6">
           <p className="font-archivo text-sm text-yellow-800">
             ⚠️ Connexion au serveur impossible. Affichage des données de démonstration.
           </p>
@@ -102,7 +102,7 @@ export default function ReserverPage() {
           <div
             key={salon.id}
             onClick={() => handleSalonSelect(salon.id)}
-            className="bg-white border-2 border-black overflow-hidden hover:border-[#DE2788] transition-all duration-300 cursor-pointer"
+            className="bg-white border border-black overflow-hidden hover:border-[#DE2788] transition-all duration-300 cursor-pointer"
           >
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6">
               {/* Image */}

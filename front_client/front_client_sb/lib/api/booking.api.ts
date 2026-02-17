@@ -189,8 +189,7 @@ export const bookingApi = {
     salonId: string,
     staffId: string,
     serviceId: string,
-    date: string, // Format: YYYY-MM-DD
-    duration?: number // Durée personnalisée en minutes (pour multi-services)
+    date: string // Format: YYYY-MM-DD
   ): Promise<string[]> {
     const queryParams = new URLSearchParams({
       salonId,
@@ -199,14 +198,10 @@ export const bookingApi = {
       date,
     });
 
-    // Ajouter la durée personnalisée si fournie
-    if (duration) {
-      queryParams.append('duration', duration.toString());
-    }
-
     const response = await apiRequest<{ data: string[]; count: number; success: boolean }>(
       `/bookings/available-slots?${queryParams.toString()}`
     );
     return response.data || [];
   },
 };
+

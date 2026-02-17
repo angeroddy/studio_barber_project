@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import type { StaffRole } from '@prisma/client'
 
 // Validation stricte - pas de fallback
 if (!process.env.JWT_SECRET) {
@@ -7,18 +8,20 @@ if (!process.env.JWT_SECRET) {
 
 const JWT_SECRET = process.env.JWT_SECRET
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string
   email: string
   userType?: string
   type?: string
   salonId?: string
-  role?: string
+  role?: StaffRole
 }
 
 export function generateToken(payload: TokenPayload): string {
+  const expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn']
+
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any
+    expiresIn
   })
 }
 

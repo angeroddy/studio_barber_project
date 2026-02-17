@@ -8,6 +8,7 @@ import {
 } from '../services/clientAuth.service'
 import { body, validationResult } from 'express-validator'
 import logger from '../config/logger'
+import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 
 // Validation rules
 export const checkEmailValidation = [
@@ -90,6 +91,8 @@ export async function setPasswordHandler(req: Request, res: Response) {
 
     const result = await setPasswordForExistingClient({ email, password })
 
+    setAuthCookie(res, result.token)
+
     res.status(201).json({
       success: true,
       message: 'Mot de passe défini avec succès. Bienvenue !',
@@ -131,6 +134,8 @@ export async function registerHandler(req: Request, res: Response) {
       marketing
     })
 
+    setAuthCookie(res, result.token)
+
     res.status(201).json({
       success: true,
       message: 'Inscription réussie',
@@ -163,6 +168,8 @@ export async function loginHandler(req: Request, res: Response) {
     const { email, password } = req.body
 
     const result = await loginClient({ email, password })
+
+    setAuthCookie(res, result.token)
 
     res.json({
       success: true,
@@ -202,4 +209,16 @@ export async function getProfileHandler(req: Request, res: Response) {
       error: error.message
     })
   }
+}
+
+/**
+ * POST /api/client-auth/logout
+ * Déconnexion client (suppression cookie HttpOnly)
+ */
+export async function logoutHandler(req: Request, res: Response) {
+  clearAuthCookie(res)
+  return res.json({
+    success: true,
+    message: 'Déconnexion réussie'
+  })
 }

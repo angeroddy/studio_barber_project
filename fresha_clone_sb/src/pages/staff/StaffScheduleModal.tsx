@@ -35,11 +35,11 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedTargetDays, setSelectedTargetDays] = useState<Set<number>>(new Set());
 
-  // Génère des options d'heures (00:00 à 23:45 par intervalles de 15 min)
+  // Génère des options d'heures (00:00 à 23:40 par intervalles de 20 min)
   const generateTimeOptions = (): string[] => {
     const options: string[] = [];
     for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
+      for (let minute = 0; minute < 60; minute += 20) {
         const h = hour.toString().padStart(2, "0");
         const m = minute.toString().padStart(2, "0");
         options.push(`${h}:${m}`);
@@ -535,3 +535,4 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
 };
 
 export default StaffScheduleModal;
+

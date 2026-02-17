@@ -9,28 +9,14 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Intercepteur pour ajouter le token à chaque requête
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Intercepteur pour gérer les réponses
+// Intercepteur pour gerer les reponses
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Si le token est expiré ou invalide, déconnecter l'utilisateur
+    // Si la session est invalide, nettoyer l'etat local et rediriger
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('userType');
       window.location.href = '/signin';
     }
     return Promise.reject(error);

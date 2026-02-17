@@ -47,6 +47,7 @@ export async function checkEmail(email: string): Promise<CheckEmailResponse> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email }),
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -67,6 +68,7 @@ export async function setPassword(email: string, password: string): Promise<Auth
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, password }),
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -95,6 +97,7 @@ export async function register(data: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(data),
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -115,6 +118,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, password }),
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -128,11 +132,9 @@ export async function login(email: string, password: string): Promise<AuthRespon
 /**
  * Obtenir le profil du client connecté
  */
-export async function getProfile(token: string) {
+export async function getProfile() {
   const response = await fetch(`${API_URL}/client-auth/me`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -146,9 +148,9 @@ export async function getProfile(token: string) {
 /**
  * Sauvegarder le token dans le localStorage
  */
-export function saveToken(token: string) {
+export function saveToken(_token: string) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('authToken', token)
+    localStorage.removeItem('authToken')
   }
 }
 
@@ -156,9 +158,6 @@ export function saveToken(token: string) {
  * Récupérer le token du localStorage
  */
 export function getToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('authToken')
-  }
   return null
 }
 
@@ -166,6 +165,11 @@ export function getToken(): string | null {
  * Supprimer le token du localStorage
  */
 export function removeToken() {
+  void fetch(`${API_URL}/client-auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  }).catch(() => undefined)
+
   if (typeof window !== 'undefined') {
     localStorage.removeItem('authToken')
     localStorage.removeItem('authUser')
@@ -214,16 +218,5 @@ export function getUser(): {
  * Vérifier si l'utilisateur est connecté ET que le token n'est pas expiré
  */
 export function isAuthenticated(): boolean {
-  const token = getToken()
-  if (!token) return false
-
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    const payload = JSON.parse(atob(parts[1]))
-    const now = Math.floor(Date.now() / 1000)
-    return typeof payload.exp === 'number' && payload.exp > now
-  } catch {
-    return false
-  }
+  return !!getUser()
 }

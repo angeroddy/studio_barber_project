@@ -1,4 +1,4 @@
-import { apiRequest, setAuthToken, removeAuthToken, ApiResponse } from './config';
+import { apiRequest, removeAuthToken } from './config';
 
 // Types
 export interface RegisterData {
@@ -39,32 +39,20 @@ export const authApi = {
    * Register a new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await apiRequest<AuthResponse>('/auth/register', {
+    return apiRequest<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-
-    if (response.token) {
-      setAuthToken(response.token);
-    }
-
-    return response;
   },
 
   /**
    * Login user
    */
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await apiRequest<AuthResponse>('/auth/login', {
+    return apiRequest<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-
-    if (response.token) {
-      setAuthToken(response.token);
-    }
-
-    return response;
   },
 
   /**
@@ -78,6 +66,9 @@ export const authApi = {
    * Logout user
    */
   async logout(): Promise<void> {
+    await apiRequest('/auth/logout', {
+      method: 'POST',
+    });
     removeAuthToken();
   },
 };

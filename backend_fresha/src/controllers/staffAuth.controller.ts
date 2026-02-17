@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import * as staffAuthService from '../services/staffAuth.service'
+import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 
 export async function login(req: Request, res: Response) {
   try {
@@ -14,13 +15,15 @@ export async function login(req: Request, res: Response) {
 
     const result = await staffAuthService.staffLogin({ email, password })
 
-    res.json({
+    setAuthCookie(res, result.token)
+
+    return res.json({
       success: true,
-      message: 'Connexion réussie',
+      message: 'Connexion reussie',
       data: result
     })
   } catch (error: any) {
-    res.status(401).json({
+    return res.status(401).json({
       success: false,
       message: error.message || 'Erreur lors de la connexion'
     })
@@ -34,20 +37,20 @@ export async function getProfile(req: Request, res: Response) {
     if (!staffId) {
       return res.status(401).json({
         success: false,
-        message: 'Non authentifié'
+        message: 'Non authentifie'
       })
     }
 
     const profile = await staffAuthService.getStaffProfile(staffId)
 
-    res.json({
+    return res.json({
       success: true,
       data: profile
     })
   } catch (error: any) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      message: error.message || 'Erreur lors de la récupération du profil'
+      message: error.message || 'Erreur lors de la recuperation du profil'
     })
   }
 }
@@ -60,14 +63,14 @@ export async function updatePassword(req: Request, res: Response) {
     if (!staffId) {
       return res.status(401).json({
         success: false,
-        message: 'Non authentifié'
+        message: 'Non authentifie'
       })
     }
 
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'Le nouveau mot de passe doit contenir au moins 6 caractères'
+        message: 'Le nouveau mot de passe doit contenir au moins 6 caracteres'
       })
     }
 
@@ -77,14 +80,14 @@ export async function updatePassword(req: Request, res: Response) {
       newPassword
     })
 
-    res.json({
+    return res.json({
       success: true,
       message: result.message
     })
   } catch (error: any) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      message: error.message || 'Erreur lors de la mise à jour du mot de passe'
+      message: error.message || 'Erreur lors de la mise a jour du mot de passe'
     })
   }
 }
@@ -93,25 +96,37 @@ export async function initializePassword(req: Request, res: Response) {
   try {
     const { staffId } = req.params
     const { password } = req.body
-    const salonId = req.user?.salonId // Si l'Owner est connecté, on récupère son salonId
+    const actor = req.user
 
     if (!password || password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'Le mot de passe doit contenir au moins 6 caractères'
+        message: 'Le mot de passe doit contenir au moins 6 caracteres'
       })
     }
 
-    const result = await staffAuthService.initializeStaffPassword(staffId, password, salonId)
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        message: 'Non authentifie'
+      })
+    }
 
-    res.json({
+    const result = await staffAuthService.initializeStaffPassword(staffId, password, {
+      userId: actor.userId,
+      userType: actor.userType,
+      role: actor.role,
+      salonId: actor.salonId
+    })
+
+    return res.json({
       success: true,
       message: result.message
     })
   } catch (error: any) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      message: error.message || 'Erreur lors de l\'initialisation du mot de passe'
+      message: error.message || "Erreur lors de l'initialisation du mot de passe"
     })
   }
 }
@@ -130,21 +145,31 @@ export async function firstLogin(req: Request, res: Response) {
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'Le mot de passe doit contenir au moins 6 caractères'
+        message: 'Le mot de passe doit contenir au moins 6 caracteres'
       })
     }
 
     const result = await staffAuthService.firstLoginSetPassword(email, password)
 
-    res.json({
+    setAuthCookie(res, result.token)
+
+    return res.json({
       success: true,
-      message: 'Mot de passe créé avec succès. Vous êtes maintenant connecté.',
+      message: 'Mot de passe cree avec succes. Vous etes maintenant connecte.',
       data: result
     })
   } catch (error: any) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      message: error.message || 'Erreur lors de la création du mot de passe'
+      message: error.message || 'Erreur lors de la creation du mot de passe'
     })
   }
+}
+
+export async function logout(req: Request, res: Response) {
+  clearAuthCookie(res)
+  return res.json({
+    success: true,
+    message: 'Déconnexion réussie'
+  })
 }

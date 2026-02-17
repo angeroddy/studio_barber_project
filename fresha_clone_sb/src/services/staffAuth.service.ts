@@ -89,6 +89,10 @@ class StaffAuthService {
       throw new Error(response.data.message || 'Erreur lors de l\'initialisation du mot de passe')
     }
   }
+
+  async logout(): Promise<void> {
+    await api.post('/staff-auth/logout')
+  }
 }
 
 export default new StaffAuthService()

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getClientBookings, cancelClientBooking } from '@/lib/api/clientBooking';
-import { getProfile, isAuthenticated, removeToken } from '@/lib/api/auth';
+import { getProfile, removeToken } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/config';
 import Link from 'next/link';
 import Logo2 from '@/public/logoApp.png';
@@ -71,13 +71,6 @@ export default function DashboardPage() {
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Vérifier l'authentification
-    if (!isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-
-    // Charger les données
     loadDashboardData();
   }, [router]);
 
@@ -87,11 +80,8 @@ export default function DashboardPage() {
       setError(null);
 
       // Charger le profil utilisateur
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        const profileData = await getProfile(token);
-        setUser(profileData.data);
-      }
+      const profileData = await getProfile();
+      setUser(profileData.data);
 
       // Charger les réservations
       const bookingsData = await getClientBookings();

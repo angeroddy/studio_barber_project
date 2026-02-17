@@ -1,18 +1,19 @@
 import express from 'express'
 import * as staffBookingController from '../controllers/staffBooking.controller'
 import { authenticate } from '../middlewares/auth.middleware'
+import { requireStaff } from '../middlewares/authorization.middleware'
 
 const router = express.Router()
 
-// Toutes les routes nécessitent une authentification
-router.use(authenticate)
+// All routes require an authenticated staff account.
+router.use(authenticate, requireStaff)
 
-// Routes pour les rendez-vous de l'employé
+// Staff booking routes.
 router.get('/my-bookings', staffBookingController.getMyBookings)
 router.get('/salon-bookings', staffBookingController.getSalonBookings)
 router.get('/my-stats', staffBookingController.getMyBookingStats)
 
-// Routes pour gérer ses propres rendez-vous
+// Staff self-management routes.
 router.patch('/:id/status', staffBookingController.updateBookingStatus)
 router.patch('/:id/notes', staffBookingController.addInternalNotes)
 

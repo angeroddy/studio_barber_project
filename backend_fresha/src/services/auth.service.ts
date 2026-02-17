@@ -65,7 +65,8 @@ export async function register(data: RegisterData) {
   // 4. Générer le token JWT
   const token = generateToken({
     userId: owner.id,
-    email: owner.email
+    email: owner.email,
+    userType: 'owner'
   })
   
   return {
@@ -111,7 +112,8 @@ export async function login(data: LoginData) {
   // 3. Générer le token
   const token = generateToken({
     userId: owner.id,
-    email: owner.email
+    email: owner.email,
+    userType: 'owner'
   })
 
   // 4. Retourner l'owner (sans le password) et le token

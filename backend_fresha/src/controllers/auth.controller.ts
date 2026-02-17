@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { register, login, getProfile } from '../services/auth.service'
 import { body, validationResult } from 'express-validator'
 import logger from '../config/logger'
+import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 
 // Validation rules
 export const registerValidation = [
@@ -43,6 +44,8 @@ export async function registerHandler(req: Request, res: Response) {
       lastName,
       phone
     })
+
+    setAuthCookie(res, result.token)
     
     res.status(201).json({
       success: true,
@@ -75,6 +78,8 @@ export async function loginHandler(req: Request, res: Response) {
     const { email, password } = req.body
     
     const result = await login({ email, password })
+
+    setAuthCookie(res, result.token)
     
     res.json({
       success: true,
@@ -114,4 +119,16 @@ export async function getMeHandler(req: Request, res: Response) {
       error: error.message
     })
   }
+}
+
+/**
+ * POST /api/auth/logout
+ * Déconnexion (suppression cookie HttpOnly)
+ */
+export async function logoutHandler(req: Request, res: Response) {
+  clearAuthCookie(res)
+  return res.json({
+    success: true,
+    message: 'Déconnexion réussie'
+  })
 }

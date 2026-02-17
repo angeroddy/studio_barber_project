@@ -1,42 +1,95 @@
 import { Request, Response, NextFunction } from 'express'
-import { verifyToken } from '../utils/jwt.util'
+import { verifyToken, TokenPayload } from '../utils/jwt.util'
+import { getAuthCookieName } from '../config/authCookie'
+
+function normalizeUserType(decoded: TokenPayload): 'owner' | 'staff' | 'client' {
+  if (decoded.userType === 'owner' || decoded.userType === 'staff' || decoded.userType === 'client') {
+    return decoded.userType
+  }
+
+  if (decoded.type === 'client') {
+    return 'client'
+  }
+
+  // Legacy compatibility:
+  // - staff tokens historically include role/salonId
+  // - owner tokens historically only had userId/email
+  if (decoded.salonId || decoded.role) {
+    return 'staff'
+  }
+
+  return 'owner'
+}
 
 /**
- * Middleware pour protéger les routes
+ * Middleware pour proteger les routes.
  */
 export async function authMiddleware(
-  req: Request, 
-  res: Response, 
+  req: Request,
+  res: Response,
   next: NextFunction
 ) {
   try {
-    // 1. Récupérer le token du header Authorization
-    const authHeader = req.headers.authorization
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const cookieToken = getTokenFromCookie(req)
+    const authHeader = typeof req.headers.authorization === 'string' ? req.headers.authorization : null
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null
+    const token = cookieToken || headerToken
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'Token manquant'
       })
     }
-    
-    const token = authHeader.substring(7) // Enlever "Bearer "
-    
-    // 2. Vérifier le token
+
     const decoded = verifyToken(token)
-    
-    // 3. Ajouter les infos de l'user à la requête
-    ;(req as any).user = decoded
-    
+    const userType = normalizeUserType(decoded)
+
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      userType,
+      salonId: decoded.salonId,
+      role: decoded.role
+    }
+
     next()
-    
-  } catch (error: any) {
+  } catch (error) {
     return res.status(401).json({
       success: false,
-      error: 'Token invalide ou expiré'
+      error: 'Token invalide ou expire'
     })
   }
 }
 
-// Export alias for compatibility
+// Export alias for compatibility.
 export { authMiddleware as authenticate }
+
+function getTokenFromCookie(req: Request): string | null {
+  const cookieHeader = req.headers.cookie
+  if (!cookieHeader) {
+    return null
+  }
+
+  const cookieName = getAuthCookieName()
+  const cookies = cookieHeader.split(';')
+  for (const rawCookie of cookies) {
+    const cookie = rawCookie.trim()
+    if (!cookie.startsWith(`${cookieName}=`)) {
+      continue
+    }
+
+    const value = cookie.slice(cookieName.length + 1)
+    if (!value) {
+      return null
+    }
+
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
+  return null
+}

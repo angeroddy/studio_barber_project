@@ -12,14 +12,61 @@ import {
 } from '../services/client.service'
 import { validationResult } from 'express-validator'
 import logger from '../config/logger'
+import prisma from '../config/database'
+
+type AccessMode = 'read' | 'write'
+
+async function getAccessibleSalonIds(
+  req: Request,
+  mode: AccessMode = 'read'
+): Promise<string[] | undefined> {
+  const user = req.user
+
+  if (!user) {
+    throw new Error('Non authentifie')
+  }
+
+  if (user.userType === 'owner') {
+    if (mode === 'read') {
+      return undefined
+    }
+
+    const salons = await prisma.salon.findMany({
+      where: { ownerId: user.userId },
+      select: { id: true }
+    })
+    return salons.map((salon) => salon.id)
+  }
+
+  if (user.userType === 'staff') {
+    if (!user.salonId) {
+      throw new Error('Salon du staff introuvable')
+    }
+    return [user.salonId]
+  }
+
+  throw new Error('Acces refuse')
+}
+
+function canAccessSalon(accessibleSalonIds: string[] | undefined, salonId: string): boolean {
+  if (!accessibleSalonIds) {
+    return true
+  }
+
+  return accessibleSalonIds.includes(salonId)
+}
+
+function mapStatusForError(error: Error): number {
+  if (error.message === 'Non authentifie') return 401
+  if (error.message === 'Acces refuse') return 403
+  return 400
+}
 
 /**
  * POST /api/clients
- * Cr�er un nouveau client
  */
 export async function createClientHandler(req: Request, res: Response) {
   try {
-    // V�rifier les erreurs de validation
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -28,7 +75,22 @@ export async function createClientHandler(req: Request, res: Response) {
       })
     }
 
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'write')
     const { salonId, email, password, firstName, lastName, phone, notes, marketing } = req.body
+
+    if (!salonId) {
+      return res.status(400).json({
+        success: false,
+        error: 'salonId est obligatoire'
+      })
+    }
+
+    if (!canAccessSalon(accessibleSalonIds, salonId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acces refuse a ce salon'
+      })
+    }
 
     const client = await createClient({
       salonId,
@@ -41,15 +103,14 @@ export async function createClientHandler(req: Request, res: Response) {
       marketing
     })
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Client cr�� avec succ�s',
+      message: 'Client cree avec succes',
       data: client
     })
-
   } catch (error: any) {
-    logger.error('Erreur cr�ation client:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    logger.error('Erreur creation client:', { error: error.message, stack: error.stack })
+    return res.status(mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -58,22 +119,21 @@ export async function createClientHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/:id
- * R�cup�rer un client par son ID
  */
 export async function getClientByIdHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const { id } = req.params
 
-    const client = await getClientById(id)
+    const client = await getClientById(id, accessibleSalonIds)
 
-    res.json({
+    return res.json({
       success: true,
       data: client
     })
-
   } catch (error: any) {
-    logger.error('Erreur r�cup�ration client:', { error: error.message, stack: error.stack })
-    res.status(404).json({
+    logger.error('Erreur recuperation client:', { error: error.message, stack: error.stack })
+    return res.status(error.message === 'Client introuvable' ? 404 : mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -82,22 +142,21 @@ export async function getClientByIdHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/email/:email
- * R�cup�rer un client par son email
  */
 export async function getClientByEmailHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const { email } = req.params
 
-    const client = await getClientByEmail(email)
+    const client = await getClientByEmail(email, accessibleSalonIds)
 
-    res.json({
+    return res.json({
       success: true,
       data: client
     })
-
   } catch (error: any) {
-    logger.error('Erreur r�cup�ration client par email:', { error: error.message, stack: error.stack })
-    res.status(404).json({
+    logger.error('Erreur recuperation client par email:', { error: error.message, stack: error.stack })
+    return res.status(error.message === 'Client introuvable' ? 404 : mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -106,23 +165,22 @@ export async function getClientByEmailHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/phone/:phone
- * R�cup�rer les clients par num�ro de t�l�phone
  */
 export async function getClientsByPhoneHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const { phone } = req.params
 
-    const clients = await getClientsByPhone(phone)
+    const clients = await getClientsByPhone(phone, accessibleSalonIds)
 
-    res.json({
+    return res.json({
       success: true,
       data: clients,
       count: clients.length
     })
-
   } catch (error: any) {
-    logger.error('Erreur r�cup�ration clients par t�l�phone:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    logger.error('Erreur recuperation clients par telephone:', { error: error.message, stack: error.stack })
+    return res.status(mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -131,23 +189,29 @@ export async function getClientsByPhoneHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/salon/:salonId
- * R�cup�rer tous les clients d'un salon
  */
 export async function getClientsBySalonHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const { salonId } = req.params
 
-    const clients = await getClientsBySalon(salonId)
+    if (!canAccessSalon(accessibleSalonIds, salonId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acces refuse a ce salon'
+      })
+    }
 
-    res.json({
+    const clients = await getClientsBySalon(salonId, accessibleSalonIds)
+
+    return res.json({
       success: true,
       data: clients,
       count: clients.length
     })
-
   } catch (error: any) {
-    logger.error('Erreur r�cup�ration clients du salon:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    logger.error('Erreur recuperation clients du salon:', { error: error.message, stack: error.stack })
+    return res.status(mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -156,23 +220,22 @@ export async function getClientsBySalonHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients
- * R�cup�rer tous les clients avec pagination
  */
 export async function getAllClientsHandler(req: Request, res: Response) {
   try {
-    const page = parseInt(req.query.page as string) || 1
-    const limit = parseInt(req.query.limit as string) || 20
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
+    const page = parseInt(req.query.page as string, 10) || 1
+    const limit = parseInt(req.query.limit as string, 10) || 20
 
-    const result = await getAllClients(page, limit)
+    const result = await getAllClients(page, limit, accessibleSalonIds)
 
-    res.json({
+    return res.json({
       success: true,
       ...result
     })
-
   } catch (error: any) {
-    logger.error('Erreur r�cup�ration clients:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    logger.error('Erreur recuperation clients:', { error: error.message, stack: error.stack })
+    return res.status(mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -181,14 +244,14 @@ export async function getAllClientsHandler(req: Request, res: Response) {
 
 /**
  * GET /api/clients/search
- * Rechercher des clients
  */
 export async function searchClientsHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const searchTerm = req.query.q as string
     const salonId = req.query.salonId as string | undefined
-    const page = parseInt(req.query.page as string) || 1
-    const limit = parseInt(req.query.limit as string) || 20
+    const page = parseInt(req.query.page as string, 10) || 1
+    const limit = parseInt(req.query.limit as string, 10) || 20
 
     if (!searchTerm || searchTerm.trim() === '') {
       return res.status(400).json({
@@ -197,16 +260,22 @@ export async function searchClientsHandler(req: Request, res: Response) {
       })
     }
 
-    const result = await searchClients(searchTerm, salonId, page, limit)
+    if (salonId && !canAccessSalon(accessibleSalonIds, salonId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acces refuse a ce salon'
+      })
+    }
 
-    res.json({
+    const result = await searchClients(searchTerm, salonId, page, limit, accessibleSalonIds)
+
+    return res.json({
       success: true,
       ...result
     })
-
   } catch (error: any) {
     logger.error('Erreur recherche clients:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    return res.status(mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -215,11 +284,9 @@ export async function searchClientsHandler(req: Request, res: Response) {
 
 /**
  * PUT /api/clients/:id
- * Mettre � jour un client
  */
 export async function updateClientHandler(req: Request, res: Response) {
   try {
-    // V�rifier les erreurs de validation
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -228,27 +295,31 @@ export async function updateClientHandler(req: Request, res: Response) {
       })
     }
 
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'write')
     const { id } = req.params
     const { firstName, lastName, phone, notes, marketing, password } = req.body
 
-    const client = await updateClient(id, {
-      firstName,
-      lastName,
-      phone,
-      notes,
-      marketing,
-      password
-    })
+    const client = await updateClient(
+      id,
+      {
+        firstName,
+        lastName,
+        phone,
+        notes,
+        marketing,
+        password
+      },
+      accessibleSalonIds
+    )
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Client mis � jour avec succ�s',
+      message: 'Client mis a jour avec succes',
       data: client
     })
-
   } catch (error: any) {
-    logger.error('Erreur mise � jour client:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    logger.error('Erreur mise a jour client:', { error: error.message, stack: error.stack })
+    return res.status(error.message === 'Client introuvable' ? 404 : mapStatusForError(error)).json({
       success: false,
       error: error.message
     })
@@ -257,22 +328,21 @@ export async function updateClientHandler(req: Request, res: Response) {
 
 /**
  * DELETE /api/clients/:id
- * Supprimer un client
  */
 export async function deleteClientHandler(req: Request, res: Response) {
   try {
+    const accessibleSalonIds = await getAccessibleSalonIds(req, 'write')
     const { id } = req.params
 
-    const result = await deleteClient(id)
+    const result = await deleteClient(id, accessibleSalonIds)
 
-    res.json({
+    return res.json({
       success: true,
       message: result.message
     })
-
   } catch (error: any) {
     logger.error('Erreur suppression client:', { error: error.message, stack: error.stack })
-    res.status(400).json({
+    return res.status(error.message === 'Client introuvable' ? 404 : mapStatusForError(error)).json({
       success: false,
       error: error.message
     })

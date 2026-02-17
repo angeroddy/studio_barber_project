@@ -52,4 +52,9 @@ export const getProfile = async (): Promise<{ success: boolean; data: User }> =>
   return response.data;
 };
 
+// Service de deconnexion
+export const logout = async (): Promise<void> => {
+  await api.post('/auth/logout');
+};
+
 
