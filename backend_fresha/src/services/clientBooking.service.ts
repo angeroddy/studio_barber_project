@@ -1,4 +1,4 @@
-import prisma from '../config/database'
+﻿import prisma from '../config/database'
 import {
   acquireBookingLocks,
   buildOverlapConditions,
@@ -6,27 +6,29 @@ import {
 } from '../utils/booking-concurrency.util'
 
 interface CreateClientBookingData {
-  clientId: string  // ID du client authentifié
+  clientId: string  // ID du client authentifiÃ©
   salonId: string
-  staffId?: string  // Optionnel - peut être "any"
+  staffId?: string  // Optionnel - peut Ãªtre "any"
   serviceId: string
   startTime: string  // ISO string
   notes?: string
+  status?: 'PENDING' | 'CONFIRMED'
 }
 
 interface CreateClientMultiServiceBookingData {
-  clientId: string  // ID du client authentifié
+  clientId: string  // ID du client authentifiÃ©
   salonId: string
   startTime: string  // ISO string
   services: Array<{
     serviceId: string
-    staffId?: string  // Optionnel - peut être "any"
+    staffId?: string  // Optionnel - peut Ãªtre "any"
   }>
   notes?: string
+  status?: 'PENDING' | 'CONFIRMED'
 }
 
 /**
- * Créer une réservation pour un client authentifié
+ * CrÃ©er une rÃ©servation pour un client authentifiÃ©
  */
 export async function createClientBooking(data: CreateClientBookingData) {
   return withSerializableBookingTransaction(async (tx) => {
@@ -114,7 +116,7 @@ export async function createClientBooking(data: CreateClientBookingData) {
         minute: '2-digit'
       })
       throw new Error(
-        `Vous avez déjà une réservation en cours chez ${existingActiveBooking.salon.name} le ${bookingDate} à ${bookingTime}. Veuillez annuler ou attendre que cette réservation soit passée avant d'en créer une nouvelle.`
+        `Vous avez dÃ©jÃ  une rÃ©servation en cours chez ${existingActiveBooking.salon.name} le ${bookingDate} Ã  ${bookingTime}. Veuillez annuler ou attendre que cette rÃ©servation soit passÃ©e avant d'en crÃ©er une nouvelle.`
       )
     }
 
@@ -153,11 +155,11 @@ export async function createClientBooking(data: CreateClientBookingData) {
     ])
 
     if (existingStaffBooking || existingBookingService) {
-      throw new Error("Ce créneau n'est pas disponible pour ce professionnel")
+      throw new Error("Ce crÃ©neau n'est pas disponible pour ce professionnel")
     }
 
     if (existingClientBooking) {
-      throw new Error('Vous avez déjà un rendez-vous prévu à cette heure')
+      throw new Error('Vous avez dÃ©jÃ  un rendez-vous prÃ©vu Ã  cette heure')
     }
 
     const booking = await tx.booking.create({
@@ -170,7 +172,7 @@ export async function createClientBooking(data: CreateClientBookingData) {
         endTime,
         duration: totalDuration,
         price: service.price,
-        status: 'CONFIRMED',
+        status: data.status || 'CONFIRMED',
         notes: data.notes
       },
       include: {
@@ -276,10 +278,10 @@ export async function getClientBookings(clientId: string) {
 }
 
 /**
- * Annuler une réservation (client authentifié seulement)
+ * Annuler une rÃ©servation (client authentifiÃ© seulement)
  */
 export async function cancelClientBooking(bookingId: string, clientId: string) {
-  // Vérifier que la réservation appartient au client
+  // VÃ©rifier que la rÃ©servation appartient au client
   const booking = await prisma.booking.findFirst({
     where: {
       id: bookingId,
@@ -288,20 +290,20 @@ export async function cancelClientBooking(bookingId: string, clientId: string) {
   })
 
   if (!booking) {
-    throw new Error('Réservation introuvable')
+    throw new Error('RÃ©servation introuvable')
   }
 
-  // Vérifier que la réservation n'est pas déjà annulée
+  // VÃ©rifier que la rÃ©servation n'est pas dÃ©jÃ  annulÃ©e
   if (booking.status === 'CANCELED') {
-    throw new Error('Cette réservation est déjà annulée')
+    throw new Error('Cette rÃ©servation est dÃ©jÃ  annulÃ©e')
   }
 
-  // Vérifier que la réservation n'est pas déjà terminée
+  // VÃ©rifier que la rÃ©servation n'est pas dÃ©jÃ  terminÃ©e
   if (booking.status === 'COMPLETED') {
-    throw new Error('Impossible d\'annuler une réservation déjà terminée')
+    throw new Error('Impossible d\'annuler une rÃ©servation dÃ©jÃ  terminÃ©e')
   }
 
-  // Annuler la réservation
+  // Annuler la rÃ©servation
   const canceledBooking = await prisma.booking.update({
     where: { id: bookingId },
     data: {
@@ -339,11 +341,11 @@ export async function cancelClientBooking(bookingId: string, clientId: string) {
 }
 
 /**
- * Créer une réservation multi-services pour un client authentifié
+ * CrÃ©er une rÃ©servation multi-services pour un client authentifiÃ©
  */
 export async function createClientMultiServiceBooking(data: CreateClientMultiServiceBookingData) {
   if (!data.services || data.services.length === 0) {
-    throw new Error('Au moins un service doit être fourni')
+    throw new Error('Au moins un service doit Ãªtre fourni')
   }
 
   if (data.services.length === 1) {
@@ -353,7 +355,8 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
       staffId: data.services[0].staffId,
       serviceId: data.services[0].serviceId,
       startTime: data.startTime,
-      notes: data.notes
+      notes: data.notes,
+      status: data.status
     })
   }
 
@@ -498,7 +501,7 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
         minute: '2-digit'
       })
       throw new Error(
-        `Vous avez déjà une réservation en cours chez ${existingActiveBooking.salon.name} le ${bookingDate} à ${bookingTime}. Veuillez annuler ou attendre que cette réservation soit passée avant d'en créer une nouvelle.`
+        `Vous avez dÃ©jÃ  une rÃ©servation en cours chez ${existingActiveBooking.salon.name} le ${bookingDate} Ã  ${bookingTime}. Veuillez annuler ou attendre que cette rÃ©servation soit passÃ©e avant d'en crÃ©er une nouvelle.`
       )
     }
 
@@ -518,7 +521,7 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
       if (existingBooking) {
         const staff = await tx.staff.findUnique({ where: { id: serviceData.staffId } })
         throw new Error(
-          `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+          `${staff?.firstName} ${staff?.lastName} a dÃ©jÃ  un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
         )
       }
 
@@ -537,7 +540,7 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
       if (existingBookingService) {
         const staff = await tx.staff.findUnique({ where: { id: serviceData.staffId } })
         throw new Error(
-          `${staff?.firstName} ${staff?.lastName} a déjà un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+          `${staff?.firstName} ${staff?.lastName} a dÃ©jÃ  un rendez-vous entre ${serviceData.startTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} et ${serviceData.endTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
         )
       }
     }
@@ -554,7 +557,7 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
     })
 
     if (existingClientBooking) {
-      throw new Error('Vous avez déjà un rendez-vous prévu à cette heure')
+      throw new Error('Vous avez dÃ©jÃ  un rendez-vous prÃ©vu Ã  cette heure')
     }
 
     const booking = await tx.booking.create({
@@ -565,7 +568,7 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
         endTime: finalEndTime,
         duration: totalDuration,
         price: totalPrice,
-        status: 'CONFIRMED',
+        status: data.status || 'CONFIRMED',
         notes: data.notes,
         isMultiService: true,
         bookingServices: {

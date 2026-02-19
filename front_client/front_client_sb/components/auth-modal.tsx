@@ -8,7 +8,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { checkEmail, setPassword, register, login, saveToken, saveUser } from "@/lib/api/auth"
+import { checkEmail, setPassword, register, registerWithBooking, login, saveToken, saveUser } from "@/lib/api/auth"
 
 type AuthStep = 'email' | 'set-password' | 'full-registration' | 'login'
 type AuthMode = 'signup' | 'login'
@@ -26,15 +26,23 @@ interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  onVerificationPending?: (email: string) => void
   bookingDetails?: {
     serviceName: string
     professionalName: string
     date: string
     time: string
+    pendingBooking?: {
+      salonId: string
+      serviceId: string
+      staffId?: string
+      startTime: string
+      notes?: string
+    }
   }
 }
 
-export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, bookingDetails }: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>('signup')
   const [step, setStep] = useState<AuthStep>('email')
   const [email, setEmail] = useState('')
@@ -44,6 +52,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   // Form data
   const [formData, setFormData] = useState({
@@ -53,6 +62,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     password: '',
     confirmPassword: ''
   })
+  const isBookingSignupFlow = Boolean(bookingDetails?.pendingBooking)
 
   if (!isOpen) return null
 
@@ -63,6 +73,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     setEmail('')
     setExistingClient(null)
     setError('')
+    setSuccessMessage('')
     setFormData({
       firstName: '',
       lastName: '',
@@ -83,6 +94,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       const response = await checkEmail(email)
@@ -110,6 +122,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     const pwdError = validatePassword(formData.password)
     if (pwdError) {
@@ -125,6 +138,27 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     }
 
     try {
+      if (isBookingSignupFlow && bookingDetails?.pendingBooking) {
+        if (!formData.phone) {
+          setError('Le telephone est requis')
+          setLoading(false)
+          return
+        }
+
+        await registerWithBooking({
+          email,
+          password: formData.password,
+          firstName: existingClient?.firstName || '',
+          lastName: existingClient?.lastName || '',
+          phone: formData.phone,
+          ...bookingDetails.pendingBooking
+        })
+
+        onVerificationPending?.(email)
+        handleClose()
+        return
+      }
+
       const response = await setPassword(email, formData.password)
       saveToken(response.data.token)
       saveUser(response.data.user)
@@ -141,6 +175,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     if (!formData.firstName || !formData.lastName || !formData.phone) {
       setError('Tous les champs sont requis')
@@ -162,6 +197,21 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     }
 
     try {
+      if (isBookingSignupFlow && bookingDetails?.pendingBooking) {
+        await registerWithBooking({
+          email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          ...bookingDetails.pendingBooking
+        })
+
+        onVerificationPending?.(email)
+        handleClose()
+        return
+      }
+
       const response = await register({
         email,
         password: formData.password,
@@ -170,10 +220,17 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
         phone: formData.phone
       })
 
-      saveToken(response.data.token)
-      saveUser(response.data.user)
-      onSuccess()
-      handleClose()
+      setSuccessMessage(response.message || 'Un email de confirmation vous a ete envoye')
+      onVerificationPending?.(email)
+      setMode('login')
+      setStep('login')
+      setFormData({
+        firstName: '',
+        lastName: '',
+        phone: '',
+        password: '',
+        confirmPassword: ''
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'inscription')
     } finally {
@@ -187,6 +244,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     if (!email || !formData.password) {
       setError('Veuillez remplir tous les champs')
@@ -259,6 +317,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
                 setMode('signup')
                 setStep('email')
                 setError('')
+                setSuccessMessage('')
               }}
               className={`flex-1 py-3 font-archivo font-bold text-base uppercase transition-colors ${
                 mode === 'signup'
@@ -273,6 +332,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
                 setMode('login')
                 setStep('login')
                 setError('')
+                setSuccessMessage('')
               }}
               className={`flex-1 py-3 font-archivo font-bold text-base uppercase transition-colors ${
                 mode === 'login'
@@ -288,6 +348,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
           {error && (
             <div className="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-6 font-archivo">
               {error}
+            </div>
+          )}
+          {successMessage && (
+            <div className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-6 font-archivo">
+              {successMessage}
             </div>
           )}
 
@@ -333,6 +398,23 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
                 {/* Set password step */}
                 {step === 'set-password' && (
                   <>
+                    {isBookingSignupFlow && (
+                      <Field>
+                        <FieldLabel htmlFor="signup-phone" className="font-archivo font-bold text-black text-base uppercase">
+                          TÃ©lÃ©phone
+                        </FieldLabel>
+                        <Input
+                          id="signup-phone"
+                          type="tel"
+                          placeholder="06 XX XX XX XX"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          required
+                          disabled={loading}
+                          className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
+                        />
+                      </Field>
+                    )}
                     <Field>
                       <FieldLabel htmlFor="signup-password" className="font-archivo font-bold text-black text-base uppercase">
                         Mot de passe
@@ -464,6 +546,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, bookingDetails }: AuthMo
                     onClick={() => {
                       setStep('email')
                       setError('')
+                      setSuccessMessage('')
                       setFormData({
                         firstName: '',
                         lastName: '',

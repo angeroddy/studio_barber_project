@@ -15,10 +15,20 @@ interface LoginData {
   password: string
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
 export async function register(data: RegisterData) {
+  const normalizedEmail = normalizeEmail(data.email)
   // 1. Vérifier si l'email existe déjà
-  const existingOwner = await prisma.owner.findUnique({
-    where: { email: data.email }
+  const existingOwner = await prisma.owner.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: 'insensitive'
+      }
+    }
   })
   
   if (existingOwner) {
@@ -31,7 +41,7 @@ export async function register(data: RegisterData) {
   // 3. Créer l'owner
   const owner = await prisma.owner.create({
     data: {
-      email: data.email,
+      email: normalizedEmail,
       password: hashedPassword,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -76,9 +86,16 @@ export async function register(data: RegisterData) {
 }
 
 export async function login(data: LoginData) {
+  const normalizedEmail = normalizeEmail(data.email)
+
   // 1. Trouver l'owner par email avec ses salons
-  const owner = await prisma.owner.findUnique({
-    where: { email: data.email },
+  const owner = await prisma.owner.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: 'insensitive'
+      }
+    },
     include: {
       salons: {
         select: {

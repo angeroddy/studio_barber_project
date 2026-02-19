@@ -1,4 +1,5 @@
 import { apiRequest } from './config';
+import { resolveSalonId } from './salon-id.util';
 
 // Types
 export interface Service {
@@ -25,9 +26,10 @@ export const serviceApi = {
    * Get services by salon
    */
   async getServicesBySalon(salonId: string, activeOnly: boolean = true): Promise<Service[]> {
+    const resolvedSalonId = await resolveSalonId(salonId);
     const url = activeOnly
-      ? `/services/salon/${salonId}?activeOnly=true`
-      : `/services/salon/${salonId}`;
+      ? `/services/salon/${resolvedSalonId}?activeOnly=true`
+      : `/services/salon/${resolvedSalonId}`;
     const response = await apiRequest<{ data: Service[]; count: number; success: boolean }>(url);
     return response.data || [];
   },
@@ -58,7 +60,8 @@ export const serviceApi = {
    * Get service categories for a salon
    */
   async getServiceCategories(salonId: string): Promise<string[]> {
-    const response = await apiRequest<{ data: string[]; success: boolean }>(`/services/salon/${salonId}/categories`);
+    const resolvedSalonId = await resolveSalonId(salonId);
+    const response = await apiRequest<{ data: string[]; success: boolean }>(`/services/salon/${resolvedSalonId}/categories`);
     return response.data || [];
   },
 

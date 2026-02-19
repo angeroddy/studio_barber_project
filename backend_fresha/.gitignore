@@ -1,8 +1,22 @@
 node_modules
+
 # Keep environment variables out of version control
 .env
+.env.local
+.env.*.local
+!.env.example
 
 /generated/prisma
 
+# Build and coverage outputs
+dist
+coverage
+*.tsbuildinfo
+
 # Logs Winston (garder le dossier mais pas les fichiers)
-logs/*.log
+logs/*
+!logs/README.md
+
+# Accidental Windows reserved files
+nul
+prisma/nul

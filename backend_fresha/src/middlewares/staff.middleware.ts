@@ -161,11 +161,8 @@ export function validateCreateStaff(req: Request, res: Response, next: NextFunct
     }
   }
 
-  // Password optionnel mais doit être valide si fourni
-  if (password) {
-    if (typeof password !== 'string' || password.length < 6) {
-      errors.push('password doit contenir au moins 6 caractères')
-    }
+  if (password !== undefined && password !== null && String(password).trim() !== '') {
+    errors.push('Le mot de passe ne peut pas être défini à la création du compte employé')
   }
 
   if (!firstName || typeof firstName !== 'string' || firstName.trim().length < 2) {

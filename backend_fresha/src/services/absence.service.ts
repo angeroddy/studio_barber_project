@@ -309,7 +309,10 @@ export async function approveOrRejectAbsence(data: ApproveAbsenceData) {
   return updatedAbsence
 }
 
-export async function deleteAbsence(absenceId: string) {
+export async function deleteAbsence(
+  absenceId: string,
+  options?: { allowApproved?: boolean }
+) {
   // 1. Vérifier que l'absence existe
   const absence = await prisma.absence.findUnique({
     where: { id: absenceId }
@@ -320,7 +323,7 @@ export async function deleteAbsence(absenceId: string) {
   }
 
   // 2. Seules les absences PENDING ou REJECTED peuvent être supprimées
-  if (absence.status === 'APPROVED') {
+  if (absence.status === 'APPROVED' && !options?.allowApproved) {
     throw new Error('Impossible de supprimer une absence approuvée. Veuillez la rejeter d\'abord.')
   }
 

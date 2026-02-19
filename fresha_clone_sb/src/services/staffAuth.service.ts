@@ -59,6 +59,19 @@ class StaffAuthService {
     return response.data.data
   }
 
+  async completeInvitation(token: string, password: string): Promise<StaffAuthResponse> {
+    const response = await api.post('/staff-auth/complete-invitation', {
+      token,
+      password
+    })
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || "Erreur lors de l'activation du compte")
+    }
+
+    return response.data.data
+  }
+
   async getProfile(): Promise<StaffUser> {
     const response = await api.get('/staff-auth/me')
 

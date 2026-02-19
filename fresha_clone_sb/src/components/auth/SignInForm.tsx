@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import { useAuth } from "../../context/AuthContext";
+import staffAuthService from "../../services/staffAuth.service";
 
 
 export default function SignInForm() {
@@ -13,16 +14,29 @@ export default function SignInForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loginType, setLoginType] = useState<'owner' | 'staff'>('owner');
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [searchParams] = useSearchParams();
+  const inviteToken = (searchParams.get("staffInviteToken") || "").trim();
+  const isInvitationFlow = inviteToken.length > 0;
   const { login, staffLogin, isLoading, error, clearError } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isInvitationFlow) {
+      setLoginType("staff");
+      setIsFirstLogin(true);
+      clearError();
+      setLocalError(null);
+    }
+  }, [isInvitationFlow, clearError]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
     setLocalError(null);
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Validation des champs requis
-    if (!email || !password) {
+    if ((!isInvitationFlow && !normalizedEmail) || !password) {
       setLocalError("Veuillez remplir tous les champs requis");
       return;
     }
@@ -40,7 +54,9 @@ export default function SignInForm() {
 
       try {
         // Appel à l'API de première connexion
-        const response = await import('../../services/staffAuth.service').then(m => m.default.firstLogin(email, password));
+        const response = isInvitationFlow
+          ? await staffAuthService.completeInvitation(inviteToken, password)
+          : await staffAuthService.firstLogin(normalizedEmail, password);
 
         // Sauvegarder l'utilisateur (token gere par cookie HttpOnly)
         localStorage.setItem('user', JSON.stringify(response.user));
@@ -56,9 +72,9 @@ export default function SignInForm() {
 
     try {
       if (loginType === 'owner') {
-        await login({ email, password });
+        await login({ email: normalizedEmail, password });
       } else {
-        await staffLogin({ email, password });
+        await staffLogin({ email: normalizedEmail, password });
       }
       // La redirection est gérée dans le contexte
     } catch (error) {
@@ -83,7 +99,7 @@ export default function SignInForm() {
           <div>
 
             {/* Toggle pour choisir le type de connexion (masqué si première connexion) */}
-            {!isFirstLogin && (
+            {!isFirstLogin && !isInvitationFlow && (
               <div className="flex gap-2 p-1 mb-6 bg-gray-100 rounded-lg dark:bg-gray-800">
                 <button
                   type="button"
@@ -121,7 +137,9 @@ export default function SignInForm() {
             {/* Message si première connexion */}
             {isFirstLogin && (
               <div className="p-3 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-900 dark:text-blue-300">
-                Première connexion : créez votre mot de passe
+                {isInvitationFlow
+                  ? "Activation du compte : créez votre mot de passe"
+                  : "Première connexion : créez votre mot de passe"}
               </div>
             )}
 
@@ -133,17 +151,19 @@ export default function SignInForm() {
 
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
-                <div>
-                  <Label>
-                    Email <span className="text-error-500">*</span>{" "}
-                  </Label>
-                  <Input
-                    type="email"
-                    placeholder="info@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
+                {!isInvitationFlow && (
+                  <div>
+                    <Label>
+                      Email <span className="text-error-500">*</span>{" "}
+                    </Label>
+                    <Input
+                      type="email"
+                      placeholder="info@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                )}
                 <div>
                   <Label>
                     Mot de passe <span className="text-error-500">*</span>{" "}
@@ -196,7 +216,7 @@ export default function SignInForm() {
                 </div>
 
                 <div className="mt-5">
-                  {!isFirstLogin && loginType === 'owner' && (
+                  {!isFirstLogin && !isInvitationFlow && loginType === 'owner' && (
                     <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
                       Pas encore de compte?{" "}
                       <Link
@@ -207,7 +227,7 @@ export default function SignInForm() {
                       </Link>
                     </p>
                   )}
-                  {!isFirstLogin && loginType === 'staff' && (
+                  {!isFirstLogin && !isInvitationFlow && loginType === 'staff' && (
                     <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
                       Première connexion?{" "}
                       <button
@@ -225,7 +245,7 @@ export default function SignInForm() {
                       </button>
                     </p>
                   )}
-                  {isFirstLogin && (
+                  {isFirstLogin && !isInvitationFlow && (
                     <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
                       Déjà un mot de passe?{" "}
                       <button

@@ -35,7 +35,6 @@ export interface Staff {
 export interface CreateStaffData {
   salonId: string;
   email?: string;
-  password?: string;
   firstName: string;
   lastName: string;
   phone?: string;

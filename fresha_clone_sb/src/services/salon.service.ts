@@ -92,6 +92,14 @@ export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
 /**
  * R�cup�rer un salon par ID
  */
+export const getAllSalons = async (): Promise<Salon[]> => {
+  const response = await api.get<ApiResponse<Salon[]>>('/salons');
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || 'Erreur lors de la recuperation des salons');
+  }
+  return response.data.data;
+};
+
 export const getSalonById = async (id: string): Promise<Salon> => {
   const response = await api.get<ApiResponse<Salon>>(`/salons/${id}`);
   if (!response.data.success || !response.data.data) {
@@ -195,6 +203,7 @@ export const deleteSalon = async (id: string): Promise<void> => {
 
 // Backward-compatible grouped API used by React Query hooks
 export const salonService = {
+  getAllSalons,
   createSalon,
   getSalonById,
   getSalonBySlug,

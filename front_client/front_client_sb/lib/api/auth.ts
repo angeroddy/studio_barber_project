@@ -28,6 +28,15 @@ export interface AuthResponse {
   }
 }
 
+export interface RegisterWithVerificationResponse {
+  success: boolean
+  message: string
+  data: {
+    email: string
+    verificationExpiresAt: string
+  }
+}
+
 export interface ErrorResponse {
   success: false
   error: string
@@ -37,22 +46,37 @@ export interface ErrorResponse {
   }>
 }
 
+function getApiErrorMessage(error: ErrorResponse, fallback: string): string {
+  if (error?.error) {
+    return error.error
+  }
+  if (error?.errors?.length) {
+    return error.errors[0].msg || fallback
+  }
+  return fallback
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
 /**
  * Vérifier si un email existe dans la base de données
  */
 export async function checkEmail(email: string): Promise<CheckEmailResponse> {
+  const normalizedEmail = normalizeEmail(email)
   const response = await fetch(`${API_URL}/client-auth/check-email`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email: normalizedEmail }),
     credentials: 'include',
   })
 
   if (!response.ok) {
     const error: ErrorResponse = await response.json()
-    throw new Error(error.error || 'Erreur lors de la vérification de l\'email')
+    throw new Error(getApiErrorMessage(error, 'Erreur lors de la vérification de l\'email'))
   }
 
   return response.json()
@@ -62,18 +86,19 @@ export async function checkEmail(email: string): Promise<CheckEmailResponse> {
  * Définir le mot de passe pour un client existant (migré)
  */
 export async function setPassword(email: string, password: string): Promise<AuthResponse> {
+  const normalizedEmail = normalizeEmail(email)
   const response = await fetch(`${API_URL}/client-auth/set-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizedEmail, password }),
     credentials: 'include',
   })
 
   if (!response.ok) {
     const error: ErrorResponse = await response.json()
-    throw new Error(error.error || 'Erreur lors de la définition du mot de passe')
+    throw new Error(getApiErrorMessage(error, 'Erreur lors de la définition du mot de passe'))
   }
 
   return response.json()
@@ -90,19 +115,59 @@ export async function register(data: {
   phone: string
   salonId?: string
   marketing?: boolean
-}): Promise<AuthResponse> {
+}): Promise<RegisterWithVerificationResponse> {
+  const normalizedEmail = normalizeEmail(data.email)
   const response = await fetch(`${API_URL}/client-auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      email: normalizedEmail,
+    }),
     credentials: 'include',
   })
 
   if (!response.ok) {
     const error: ErrorResponse = await response.json()
-    throw new Error(error.error || 'Erreur lors de l\'inscription')
+    throw new Error(getApiErrorMessage(error, 'Erreur lors de l\'inscription'))
+  }
+
+  return response.json()
+}
+
+/**
+ * Inscription client + reservation en attente de verification email
+ */
+export async function registerWithBooking(data: {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  phone: string
+  salonId: string
+  serviceId: string
+  staffId?: string
+  startTime: string
+  notes?: string
+}): Promise<RegisterWithVerificationResponse> {
+  const normalizedEmail = normalizeEmail(data.email)
+  const response = await fetch(`${API_URL}/client-auth/register-with-booking`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ...data,
+      email: normalizedEmail,
+    }),
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(getApiErrorMessage(error, "Erreur lors de l'inscription"))
   }
 
   return response.json()
@@ -112,18 +177,19 @@ export async function register(data: {
  * Connexion d'un client
  */
 export async function login(email: string, password: string): Promise<AuthResponse> {
+  const normalizedEmail = normalizeEmail(email)
   const response = await fetch(`${API_URL}/client-auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizedEmail, password }),
     credentials: 'include',
   })
 
   if (!response.ok) {
     const error: ErrorResponse = await response.json()
-    throw new Error(error.error || 'Erreur lors de la connexion')
+    throw new Error(getApiErrorMessage(error, 'Erreur lors de la connexion'))
   }
 
   return response.json()
@@ -139,7 +205,7 @@ export async function getProfile() {
 
   if (!response.ok) {
     const error: ErrorResponse = await response.json()
-    throw new Error(error.error || 'Erreur lors de la récupération du profil')
+    throw new Error(getApiErrorMessage(error, 'Erreur lors de la récupération du profil'))
   }
 
   return response.json()

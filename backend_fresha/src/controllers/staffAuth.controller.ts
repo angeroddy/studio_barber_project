@@ -5,15 +5,16 @@ import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: 'Email et mot de passe requis'
       })
     }
 
-    const result = await staffAuthService.staffLogin({ email, password })
+    const result = await staffAuthService.staffLogin({ email: normalizedEmail, password })
 
     setAuthCookie(res, result.token)
 
@@ -134,8 +135,9 @@ export async function initializePassword(req: Request, res: Response) {
 export async function firstLogin(req: Request, res: Response) {
   try {
     const { email, password } = req.body
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: 'Email et mot de passe requis'
@@ -149,7 +151,7 @@ export async function firstLogin(req: Request, res: Response) {
       })
     }
 
-    const result = await staffAuthService.firstLoginSetPassword(email, password)
+    const result = await staffAuthService.firstLoginSetPassword(normalizedEmail, password)
 
     setAuthCookie(res, result.token)
 
@@ -162,6 +164,40 @@ export async function firstLogin(req: Request, res: Response) {
     return res.status(400).json({
       success: false,
       message: error.message || 'Erreur lors de la creation du mot de passe'
+    })
+  }
+}
+
+export async function completeInvitation(req: Request, res: Response) {
+  try {
+    const { token, password } = req.body
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: "Token d'activation requis"
+      })
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe doit contenir au moins 6 caracteres'
+      })
+    }
+
+    const result = await staffAuthService.completeStaffInvitation({ token, password })
+    setAuthCookie(res, result.token)
+
+    return res.json({
+      success: true,
+      message: 'Mot de passe cree avec succes. Vous etes maintenant connecte.',
+      data: result
+    })
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Erreur lors de l'activation du compte"
     })
   }
 }

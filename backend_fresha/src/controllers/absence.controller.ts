@@ -160,8 +160,11 @@ export async function approveOrRejectAbsence(req: Request, res: Response) {
 export async function deleteAbsence(req: Request, res: Response) {
   try {
     const { id } = req.params
+    const canDeleteApproved = req.user?.userType === 'owner'
 
-    const result = await absenceService.deleteAbsence(id)
+    const result = await absenceService.deleteAbsence(id, {
+      allowApproved: canDeleteApproved
+    })
 
     res.json({
       success: true,

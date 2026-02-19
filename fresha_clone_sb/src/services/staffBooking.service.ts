@@ -6,11 +6,12 @@ export interface StaffBooking {
   id: string
   salonId: string
   clientId: string
-  staffId: string
-  serviceId: string
+  staffId?: string | null
+  serviceId?: string | null
   startTime: string
   endTime: string
   duration: number
+  isMultiService?: boolean
   status: BookingStatus
   price: number
   paid: boolean
@@ -30,7 +31,7 @@ export interface StaffBooking {
     price: number
     category: string
     color?: string
-  }
+  } | null
   salon?: {
     id: string
     name: string
@@ -44,6 +45,31 @@ export interface StaffBooking {
     avatar?: string
     role: string
   }
+  bookingServices?: Array<{
+    id: string
+    bookingId: string
+    serviceId: string
+    staffId: string
+    duration: number
+    price: number
+    order: number
+    startTime: string
+    endTime: string
+    service: {
+      id: string
+      name: string
+      duration: number
+      price: number
+      category: string
+    }
+    staff: {
+      id: string
+      firstName: string
+      lastName: string
+      avatar?: string
+      role: string
+    }
+  }>
 }
 
 export interface BookingFilters {

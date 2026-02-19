@@ -1,4 +1,5 @@
 import { apiRequest } from './config';
+import { resolveSalonId } from './salon-id.util';
 
 // Types
 export interface Booking {
@@ -75,9 +76,13 @@ export const bookingApi = {
    * Create a new booking
    */
   async createBooking(data: CreateBookingData): Promise<Booking> {
+    const resolvedSalonId = await resolveSalonId(data.salonId);
     const response = await apiRequest<{ data: Booking; success: boolean }>('/bookings', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        salonId: resolvedSalonId,
+      }),
     });
     return response.data;
   },
@@ -99,6 +104,7 @@ export const bookingApi = {
     startDate?: string;
     endDate?: string;
   }): Promise<Booking[]> {
+    const resolvedSalonId = await resolveSalonId(salonId);
     const queryParams = new URLSearchParams();
     if (params?.date) queryParams.append('date', params.date);
     if (params?.status) queryParams.append('status', params.status);
@@ -106,7 +112,7 @@ export const bookingApi = {
     if (params?.endDate) queryParams.append('endDate', params.endDate);
 
     const queryString = queryParams.toString();
-    const endpoint = `/bookings/salon/${salonId}${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/bookings/salon/${resolvedSalonId}${queryString ? `?${queryString}` : ''}`;
 
     const response = await apiRequest<{ data: Booking[]; success: boolean; pagination?: any }>(endpoint);
     return response.data || [];
@@ -175,9 +181,13 @@ export const bookingApi = {
    * Check availability
    */
   async checkAvailability(data: CheckAvailabilityData): Promise<AvailabilitySlot[]> {
+    const resolvedSalonId = await resolveSalonId(data.salonId);
     const response = await apiRequest<{ data: AvailabilitySlot[]; success: boolean }>('/bookings/check-availability', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        salonId: resolvedSalonId,
+      }),
     });
     return response.data || [];
   },
@@ -191,8 +201,9 @@ export const bookingApi = {
     serviceId: string,
     date: string // Format: YYYY-MM-DD
   ): Promise<string[]> {
+    const resolvedSalonId = await resolveSalonId(salonId);
     const queryParams = new URLSearchParams({
-      salonId,
+      salonId: resolvedSalonId,
       staffId,
       serviceId,
       date,

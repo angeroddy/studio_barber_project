@@ -106,23 +106,28 @@ model Service {
 }
 
 model Client {
-  id        String    @id @default(uuid())
-  salonId   String?
-  email     String    @unique
-  password  String?
-  firstName String
-  lastName  String
-  phone     String
-  notes     String?
-  marketing Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  bookings  Booking[]
-  salon     Salon?    @relation(fields: [salonId], references: [id])
+  id                              String    @id @default(uuid())
+  salonId                         String?
+  email                           String    @unique
+  password                        String?
+  firstName                       String
+  lastName                        String
+  phone                           String
+  notes                           String?
+  marketing                       Boolean   @default(false)
+  emailVerificationRequired       Boolean   @default(false)
+  emailVerifiedAt                 DateTime?
+  emailVerificationTokenHash      String?   @unique
+  emailVerificationTokenExpiresAt DateTime?
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  bookings                        Booking[]
+  salon                           Salon?    @relation(fields: [salonId], references: [id])
 
   @@index([salonId])
   @@index([email])
   @@index([phone])
+  @@index([emailVerificationTokenExpiresAt])
 }
 
 model Booking {
@@ -185,6 +190,9 @@ model Staff {
   salonId         String
   email           String?          @unique
   password        String?
+  passwordSetupRequired         Boolean          @default(false)
+  passwordSetupTokenHash        String?          @unique
+  passwordSetupTokenExpiresAt   DateTime?
   firstName       String
   lastName        String
   phone           String?
@@ -203,6 +211,7 @@ model Staff {
 
   @@index([salonId])
   @@index([email])
+  @@index([passwordSetupTokenExpiresAt])
 }
 
 model StaffSchedule {

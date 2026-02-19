@@ -15,6 +15,19 @@ import { checkEmail, setPassword, register, saveToken, saveUser } from "@/lib/ap
 
 type SignupStep = 'email' | 'set-password' | 'full-registration'
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
+const PASSWORD_HINT = 'Au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special (@$!%*?&)'
+
+function validatePassword(password: string): string | null {
+  if (password.length < 8) {
+    return 'Mot de passe minimum 8 caracteres'
+  }
+  if (!PASSWORD_REGEX.test(password)) {
+    return PASSWORD_HINT
+  }
+  return null
+}
+
 export function SignupForm({
   className,
   ...props
@@ -28,6 +41,7 @@ export function SignupForm({
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   // Form data pour l'inscription complète
   const [formData, setFormData] = useState({
@@ -43,6 +57,7 @@ export function SignupForm({
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       const response = await checkEmail(email)
@@ -75,10 +90,12 @@ export function SignupForm({
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     // Validation
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères')
+    const pwdError = validatePassword(formData.password)
+    if (pwdError) {
+      setError(pwdError)
       setLoading(false)
       return
     }
@@ -110,6 +127,7 @@ export function SignupForm({
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     // Validation
     if (!formData.firstName || !formData.lastName || !formData.phone) {
@@ -118,8 +136,9 @@ export function SignupForm({
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères')
+    const pwdError = validatePassword(formData.password)
+    if (pwdError) {
+      setError(pwdError)
       setLoading(false)
       return
     }
@@ -138,13 +157,15 @@ export function SignupForm({
         lastName: formData.lastName,
         phone: formData.phone
       })
-
-      // Sauvegarder le token et les données utilisateur
-      saveToken(response.data.token)
-      saveUser(response.data.user)
-
-      // Rediriger vers le dashboard
-      router.push('/dashboard')
+      setSuccessMessage(response.message || 'Un email de confirmation vous a ete envoye')
+      setStep('email')
+      setFormData({
+        firstName: '',
+        lastName: '',
+        phone: '',
+        password: '',
+        confirmPassword: ''
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'inscription')
     } finally {
@@ -181,6 +202,11 @@ export function SignupForm({
             {error}
           </div>
         )}
+        {successMessage && (
+          <div className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-4 font-archivo">
+            {successMessage}
+          </div>
+        )}
 
         {/* Étape 1 : Email */}
         {step === 'email' && (
@@ -191,6 +217,7 @@ export function SignupForm({
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="votre@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -211,7 +238,8 @@ export function SignupForm({
               <Input
                 id="password"
                 type="password"
-                placeholder="Au moins 6 caractères"
+                autoComplete="new-password"
+                placeholder="Au moins 8 caracteres"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
@@ -226,6 +254,7 @@ export function SignupForm({
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
@@ -276,6 +305,7 @@ export function SignupForm({
               <Input
                 id="phone"
                 type="tel"
+                autoComplete="tel"
                 placeholder="06 XX XX XX XX"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -291,7 +321,8 @@ export function SignupForm({
               <Input
                 id="password"
                 type="password"
-                placeholder="Au moins 6 caractères"
+                autoComplete="new-password"
+                placeholder="Au moins 8 caracteres"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
@@ -306,6 +337,7 @@ export function SignupForm({
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
@@ -335,6 +367,7 @@ export function SignupForm({
             onClick={() => {
               setStep('email')
               setError('')
+              setSuccessMessage('')
               setFormData({
                 firstName: '',
                 lastName: '',
@@ -360,3 +393,4 @@ export function SignupForm({
     </form>
   )
 }
+

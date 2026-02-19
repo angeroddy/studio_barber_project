@@ -1,4 +1,5 @@
 import { apiRequest } from './config';
+import { resolveSalonId } from './salon-id.util';
 
 // Types
 export interface Staff {
@@ -30,9 +31,10 @@ export const staffApi = {
    * Get staff by salon
    */
   async getStaffBySalon(salonId: string, activeOnly: boolean = true): Promise<Staff[]> {
+    const resolvedSalonId = await resolveSalonId(salonId);
     const url = activeOnly
-      ? `/staff/salon/${salonId}?activeOnly=true`
-      : `/staff/salon/${salonId}`;
+      ? `/staff/salon/${resolvedSalonId}?activeOnly=true`
+      : `/staff/salon/${resolvedSalonId}`;
     const response = await apiRequest<{ data: Staff[]; count: number; success: boolean }>(url);
     return response.data || [];
   },
@@ -41,7 +43,8 @@ export const staffApi = {
    * Get staff by role
    */
   async getStaffByRole(salonId: string, role: string): Promise<Staff[]> {
-    const response = await apiRequest<{ data: Staff[]; count: number; success: boolean }>(`/staff/salon/${salonId}/role/${role}`);
+    const resolvedSalonId = await resolveSalonId(salonId);
+    const response = await apiRequest<{ data: Staff[]; count: number; success: boolean }>(`/staff/salon/${resolvedSalonId}/role/${role}`);
     return response.data || [];
   },
 
@@ -49,7 +52,8 @@ export const staffApi = {
    * Get staff specialties for a salon
    */
   async getStaffSpecialties(salonId: string): Promise<string[]> {
-    const response = await apiRequest<{ data: string[]; success: boolean }>(`/staff/salon/${salonId}/specialties`);
+    const resolvedSalonId = await resolveSalonId(salonId);
+    const response = await apiRequest<{ data: string[]; success: boolean }>(`/staff/salon/${resolvedSalonId}/specialties`);
     return response.data || [];
   },
 

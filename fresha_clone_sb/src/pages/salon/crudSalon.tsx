@@ -19,8 +19,27 @@ import {
 } from "../../services/salon.service";
 import ScheduleManagement from "../../components/salon/ScheduleManagement";
 import ClosedDayManagement from "../../components/salon/ClosedDayManagement";
+import OwnerAbsenceManagement from "../../components/absences/OwnerAbsenceManagement";
 
-type TabType = 'info' | 'schedules' | 'closedDays';
+type TabType = "info" | "schedules" | "closedDays" | "absences";
+
+type SalonFormData = {
+  name: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+};
+
+const EMPTY_SALON_FORM: SalonFormData = {
+  name: "",
+  address: "",
+  city: "",
+  zipCode: "",
+  phone: "",
+  email: "",
+};
 
 const CrudSalon = () => {
   // États
@@ -35,16 +54,11 @@ const CrudSalon = () => {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditingSelectedSalon, setIsEditingSelectedSalon] = useState(false);
 
   // États du formulaire
-  const [formData, setFormData] = useState({
-    name: "",
-    address: "",
-    city: "",
-    zipCode: "",
-    phone: "",
-    email: "",
-  });
+  const [formData, setFormData] = useState<SalonFormData>(EMPTY_SALON_FORM);
+  const [selectedSalonFormData, setSelectedSalonFormData] = useState<SalonFormData>(EMPTY_SALON_FORM);
 
   // Charger les salons au montage du composant
   useEffect(() => {
@@ -71,6 +85,28 @@ const CrudSalon = () => {
     loadSalons();
   }, []);
 
+  const mapSalonToFormData = (salon: Salon): SalonFormData => ({
+    name: salon.name,
+    address: salon.address,
+    city: salon.city,
+    zipCode: salon.zipCode,
+    phone: salon.phone,
+    email: salon.email,
+  });
+
+  const validateSalonFormData = (data: SalonFormData): string | null => {
+    if (!data.name || !data.address || !data.city || !data.zipCode || !data.phone || !data.email) {
+      return "Veuillez remplir tous les champs obligatoires";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      return "Veuillez entrer une adresse email valide";
+    }
+
+    return null;
+  };
+
   // Gestion des changements de formulaire
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -79,44 +115,40 @@ const CrudSalon = () => {
     }));
   };
 
+  const handleSelectedSalonInputChange = (field: keyof SalonFormData, value: string) => {
+    setSelectedSalonFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   // Ouvrir le modal pour ajouter un salon
   const handleAdd = () => {
     setCurrentSalon(null);
-    setFormData({
-      name: "",
-      address: "",
-      city: "",
-      zipCode: "",
-      phone: "",
-      email: "",
-    });
+    setFormData(EMPTY_SALON_FORM);
     setIsModalOpen(true);
   };
 
   // Ouvrir le modal pour modifier un salon
   const handleEdit = (salon: Salon) => {
     setCurrentSalon(salon);
-    setFormData({
-      name: salon.name,
-      address: salon.address,
-      city: salon.city,
-      zipCode: salon.zipCode,
-      phone: salon.phone,
-      email: salon.email,
-    });
+    setFormData(mapSalonToFormData(salon));
     setIsModalOpen(true);
   };
 
   // Gérer la sélection d'un salon
   const handleSelectSalon = (salon: Salon) => {
     setSelectedSalon(salon);
-    setActiveTab('info');
+    setSelectedSalonFormData(mapSalonToFormData(salon));
+    setIsEditingSelectedSalon(false);
+    setActiveTab("info");
   };
 
   // Retour à la liste
   const handleBackToList = () => {
     setSelectedSalon(null);
-    setActiveTab('info');
+    setIsEditingSelectedSalon(false);
+    setActiveTab("info");
   };
 
   // Sauvegarder (ajouter ou modifier)
@@ -125,18 +157,9 @@ const CrudSalon = () => {
     console.log('📝 FormData:', formData);
     console.log('🔄 Mode:', currentSalon ? 'Modification' : 'Ajout');
 
-    // Validation
-    if (!formData.name || !formData.address || !formData.city || !formData.zipCode || !formData.phone || !formData.email) {
-      setAlertMessage("Veuillez remplir tous les champs obligatoires");
-      setShowErrorAlert(true);
-      setTimeout(() => setShowErrorAlert(false), 3000);
-      return;
-    }
-
-    // Validation de l'email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setAlertMessage("Veuillez entrer une adresse email valide");
+    const validationError = validateSalonFormData(formData);
+    if (validationError) {
+      setAlertMessage(validationError);
       setShowErrorAlert(true);
       setTimeout(() => setShowErrorAlert(false), 3000);
       return;
@@ -197,6 +220,40 @@ const CrudSalon = () => {
           console.error('📋 Détails des erreurs:', axiosError.response.data.errors);
         }
       }
+      const errorMessage = error instanceof Error ? error.message : "Erreur lors de la sauvegarde du salon";
+      setAlertMessage(errorMessage);
+      setShowErrorAlert(true);
+      setTimeout(() => setShowErrorAlert(false), 5000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveSelectedSalon = async () => {
+    if (!selectedSalon) return;
+
+    const validationError = validateSalonFormData(selectedSalonFormData);
+    if (validationError) {
+      setAlertMessage(validationError);
+      setShowErrorAlert(true);
+      setTimeout(() => setShowErrorAlert(false), 3000);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const updatedSalon = await updateSalon(selectedSalon.id, selectedSalonFormData);
+
+      setSalons((prev) =>
+        prev.map((salon) => (salon.id === updatedSalon.id ? updatedSalon : salon))
+      );
+      setSelectedSalon(updatedSalon);
+      setSelectedSalonFormData(mapSalonToFormData(updatedSalon));
+      setIsEditingSelectedSalon(false);
+      setAlertMessage("Salon modifié avec succès");
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la sauvegarde du salon";
       setAlertMessage(errorMessage);
       setShowErrorAlert(true);
@@ -267,6 +324,18 @@ const CrudSalon = () => {
           </Button>
         </div>
 
+        {showSuccessAlert && (
+          <div className="mb-4">
+            <Alert variant="success" title="Succès" message={alertMessage} />
+          </div>
+        )}
+
+        {showErrorAlert && (
+          <div className="mb-4">
+            <Alert variant="error" title="Erreur" message={alertMessage} />
+          </div>
+        )}
+
         {/* En-tête avec nom du salon */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -310,6 +379,16 @@ const CrudSalon = () => {
             >
               Jours de fermeture
             </button>
+            <button
+              onClick={() => setActiveTab("absences")}
+              className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+                activeTab === "absences"
+                  ? "border-brand-500 text-brand-600 dark:text-brand-400"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400"
+              }`}
+            >
+              Absences
+            </button>
           </nav>
         </div>
 
@@ -320,12 +399,49 @@ const CrudSalon = () => {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Informations du salon
               </h2>
-           
+              {isEditingSelectedSalon ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={isLoading}
+                    onClick={() => {
+                      if (!selectedSalon) return;
+                      setSelectedSalonFormData(mapSalonToFormData(selectedSalon));
+                      setIsEditingSelectedSalon(false);
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={isLoading}
+                    onClick={handleSaveSelectedSalon}
+                  >
+                    {isLoading ? "Enregistrement..." : "Enregistrer"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={isLoading}
+                  onClick={() => setIsEditingSelectedSalon(true)}
+                >
+                  Modifier
+                </Button>
+              )}
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Nom</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.name}</p>
+                {isEditingSelectedSalon ? (
+                  <Input
+                    type="text"
+                    value={selectedSalonFormData.name}
+                    onChange={(e) => handleSelectedSalonInputChange("name", e.target.value)}
+                  />
+                ) : (
+                  <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.name}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Slug</p>
@@ -333,19 +449,58 @@ const CrudSalon = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Adresse</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.address}</p>
+                {isEditingSelectedSalon ? (
+                  <Input
+                    type="text"
+                    value={selectedSalonFormData.address}
+                    onChange={(e) => handleSelectedSalonInputChange("address", e.target.value)}
+                  />
+                ) : (
+                  <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.address}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Ville</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.city}, {selectedSalon.zipCode}</p>
+                {isEditingSelectedSalon ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Input
+                      type="text"
+                      value={selectedSalonFormData.city}
+                      onChange={(e) => handleSelectedSalonInputChange("city", e.target.value)}
+                    />
+                    <Input
+                      type="text"
+                      value={selectedSalonFormData.zipCode}
+                      onChange={(e) => handleSelectedSalonInputChange("zipCode", e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.city}, {selectedSalon.zipCode}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Téléphone</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.phone}</p>
+                {isEditingSelectedSalon ? (
+                  <Input
+                    type="tel"
+                    value={selectedSalonFormData.phone}
+                    onChange={(e) => handleSelectedSalonInputChange("phone", e.target.value)}
+                  />
+                ) : (
+                  <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.phone}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.email}</p>
+                {isEditingSelectedSalon ? (
+                  <Input
+                    type="email"
+                    value={selectedSalonFormData.email}
+                    onChange={(e) => handleSelectedSalonInputChange("email", e.target.value)}
+                  />
+                ) : (
+                  <p className="mt-1 text-base text-gray-900 dark:text-white">{selectedSalon.email}</p>
+                )}
               </div>
             </div>
           </div>
@@ -357,6 +512,10 @@ const CrudSalon = () => {
 
         {activeTab === 'closedDays' && (
           <ClosedDayManagement salonId={selectedSalon.id} salonName={selectedSalon.name} />
+        )}
+
+        {activeTab === "absences" && (
+          <OwnerAbsenceManagement salonId={selectedSalon.id} />
         )}
       </div>
     );

@@ -6,7 +6,7 @@ import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 
 // Validation rules
 export const registerValidation = [
-  body('email').isEmail().withMessage('Email invalide'),
+  body('email').trim().isEmail().withMessage('Email invalide').normalizeEmail(),
   body('password')
     .isLength({ min: 8 })
     .withMessage('Mot de passe minimum 8 caractères')
@@ -17,7 +17,7 @@ export const registerValidation = [
 ]
 
 export const loginValidation = [
-  body('email').isEmail().withMessage('Email invalide'),
+  body('email').trim().isEmail().withMessage('Email invalide').normalizeEmail(),
   body('password').notEmpty().withMessage('Mot de passe requis')
 ]
 
@@ -35,7 +35,8 @@ export async function registerHandler(req: Request, res: Response) {
       })
     }
     
-    const { email, password, firstName, lastName, phone } = req.body
+    const email = String(req.body.email || '').trim().toLowerCase()
+    const { password, firstName, lastName, phone } = req.body
     
     const result = await register({
       email,
@@ -75,7 +76,8 @@ export async function loginHandler(req: Request, res: Response) {
       })
     }
     
-    const { email, password } = req.body
+    const email = String(req.body.email || '').trim().toLowerCase()
+    const { password } = req.body
     
     const result = await login({ email, password })
 

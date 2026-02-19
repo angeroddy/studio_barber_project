@@ -61,9 +61,15 @@ interface CalendrierProps {
   readOnly?: boolean;
 }
 
+const CALENDAR_START_HOUR = 8;
+const CALENDAR_VISIBLE_HOURS = 12;
+const LUNCH_START_HOUR = 12;
+const LUNCH_END_HOUR = 13;
+
 const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   // Utiliser le contexte salon
   const { selectedSalon, isLoading: salonLoading } = useSalon();
+  const isCalendarReadOnly = readOnly;
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventTitle, setEventTitle] = useState("");
@@ -118,9 +124,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   const handleDrop = async (hairdresserId: string, hourIndex: number, date: Date = selectedDate) => {
-    if (readOnly || !draggedEvent) return;
+    if (isCalendarReadOnly || !draggedEvent) return;
 
-    const hour = hourIndex + 8;
+    const hour = hourIndex + CALENDAR_START_HOUR;
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -622,7 +628,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   }, [selectedDate]);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
-    if (readOnly) return; // Désactiver la sélection en mode lecture seule
+    if (isCalendarReadOnly) return; // Désactiver la sélection en mode lecture seule
     resetModalFields();
     setEventStartDate(selectInfo.startStr);
     setEventEndDate(selectInfo.endStr || selectInfo.startStr);
@@ -633,7 +639,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    if (readOnly) return; // Désactiver les clics sur les événements en mode lecture seule
+    if (isCalendarReadOnly) return; // Désactiver les clics sur les événements en mode lecture seule
     const event = clickInfo.event;
     setSelectedEvent(event as unknown as CalendarEvent);
     setEventTitle(event.title);
@@ -952,8 +958,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Gérer le clic sur une cellule vide pour créer un rendez-vous
   const handleCellClick = (hairdresserId: string, hourIndex: number) => {
-    if (readOnly) return; // Désactiver la création de RDV en mode lecture seule
-    const hour = hourIndex + 8; // Les heures commencent à 8h
+    if (isCalendarReadOnly) return; // Désactiver la création de RDV en mode lecture seule
+    const hour = hourIndex + CALENDAR_START_HOUR; // Les heures commencent à 8h
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
     const startDateTime = `${dateStr}T${String(hour).padStart(2, "0")}:00:00`;
     const endDateTime = `${dateStr}T${String(hour + 1).padStart(2, "0")}:00:00`;
@@ -975,8 +981,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Filtrer les événements pour la date sélectionnée (pour la vue grille jour)
   const getEventsForSelectedDate = () => {
-    const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
-    return events.filter((e) => e.start.startsWith(dateStr));
+    return events.filter((e) => {
+      const eventDate = new Date(e.start as string);
+      if (Number.isNaN(eventDate.getTime())) return false;
+      return (
+        eventDate.getFullYear() === selectedDate.getFullYear() &&
+        eventDate.getMonth() === selectedDate.getMonth() &&
+        eventDate.getDate() === selectedDate.getDate()
+      );
+    });
   };
 
   // Obtenir les dates de la semaine (Lundi à Dimanche)
@@ -997,8 +1010,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Filtrer les événements pour une date spécifique
   const getEventsForDate = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    return events.filter((e) => e.start.startsWith(dateStr));
+    return events.filter((e) => {
+      const eventDate = new Date(e.start as string);
+      if (Number.isNaN(eventDate.getTime())) return false;
+      return (
+        eventDate.getFullYear() === date.getFullYear() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getDate() === date.getDate()
+      );
+    });
   };
 
   // Navigation de date
@@ -1157,6 +1177,46 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   // Déterminer si on doit utiliser FullCalendar ou la grille personnalisée
   // La grille personnalisée est utilisée pour "jour" et "semaine" en mode "all"
   const useFullCalendar = viewMode === "single" || timeView === "month";
+
+  const isSunday = (date: Date) => date.getDay() === 0;
+
+  const isLunchHour = (hour: number) =>
+    hour >= LUNCH_START_HOUR && hour < LUNCH_END_HOUR;
+
+  const isBlockedCustomSlot = (date: Date, slotIndex: number) => {
+    const hour = CALENDAR_START_HOUR + slotIndex;
+    return isSunday(date) || isLunchHour(hour);
+  };
+
+  const isBlockedDateRange = (start: Date, end: Date) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (isSunday(startDate)) {
+      return true;
+    }
+
+    // Selection all-day (month view): only block Sundays.
+    if (startDate.getHours() === 0 && endDate.getHours() === 0) {
+      for (
+        const cursor = new Date(startDate);
+        cursor < endDate;
+        cursor.setDate(cursor.getDate() + 1)
+      ) {
+        if (isSunday(cursor)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    const lunchStart = new Date(startDate);
+    lunchStart.setHours(LUNCH_START_HOUR, 0, 0, 0);
+    const lunchEnd = new Date(startDate);
+    lunchEnd.setHours(LUNCH_END_HOUR, 0, 0, 0);
+
+    return startDate < lunchEnd && endDate > lunchStart;
+  };
 
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -1321,7 +1381,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           </div>
 
           {/* Bouton Add - masqué en mode lecture seule */}
-          {!readOnly && (
+          {!isCalendarReadOnly && (
             <div className="relative">
               <button
                 onClick={openModal}
@@ -1369,7 +1429,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               <div className="grid grid-cols-[80px_repeat(6,1fr)]">
                 {/* Colonne des heures */}
                 <div className="bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-                  {Array.from({ length: 12 }, (_, i) => i + 8).map((hour) => (
+                  {Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, i) => i + CALENDAR_START_HOUR).map((hour) => (
                     <div
                       key={hour}
                       className="h-32 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700"
@@ -1386,34 +1446,48 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                     className="relative border-r border-gray-200 dark:border-gray-700 last:border-r-0"
                   >
                     {/* Lignes de séparation des heures - Cliquables et Drop zones */}
-                    {Array.from({ length: 12 }).map((_, index) => (
-                      <div
-                        key={index}
-                        onClick={() => !isDragging && handleCellClick(hairdresser.id, index)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          handleDrop(hairdresser.id, index);
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                        }}
-                        onDragEnter={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
-                        }}
-                        onDragLeave={(e) => {
-                          e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
-                        }}
-                        className="h-32 border-b border-gray-200 dark:border-gray-700 cursor-pointer calendar-grid-cell transition-all duration-200 ease-in-out relative group"
-                      >
-                        <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity duration-200"></div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
+                    {Array.from({ length: CALENDAR_VISIBLE_HOURS }).map((_, index) => {
+                      const isBlockedSlot = isBlockedCustomSlot(selectedDate, index);
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            if (isDragging || isBlockedSlot) return;
+                            handleCellClick(hairdresser.id, index);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (isBlockedSlot) return;
+                            handleDrop(hairdresser.id, index);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                          }}
+                          onDragEnter={(e) => {
+                            e.preventDefault();
+                            if (isBlockedSlot) return;
+                            e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+                          }}
+                          onDragLeave={(e) => {
+                            if (isBlockedSlot) return;
+                            e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+                          }}
+                          className={`h-32 border-b border-gray-200 dark:border-gray-700 calendar-grid-cell transition-all duration-200 ease-in-out relative ${isBlockedSlot ? "calendar-cell-blocked cursor-not-allowed" : "cursor-pointer group"}`}
+                        >
+                          {!isBlockedSlot && (
+                            <>
+                              <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity duration-200"></div>
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Rendez-vous pour ce coiffeur */}
                     <div className="absolute top-0 left-0 right-0">
@@ -1427,7 +1501,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           const endHour = endTime.getHours();
                           const endMinute = endTime.getMinutes();
 
-                          const startMinutes = (startHour - 8) * 60 + startMinute;
+                          const startMinutes = (startHour - CALENDAR_START_HOUR) * 60 + startMinute;
                           const duration = (endHour - startHour) * 60 + (endMinute - startMinute);
 
                           const pixelPerMinute = 128 / 60;
@@ -1437,15 +1511,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           return (
                             <div
                               key={appointment.id}
-                              draggable={!readOnly}
+                              draggable={!isCalendarReadOnly}
                               onDragStart={(e) => {
-                                if (readOnly) return;
+                                if (isCalendarReadOnly) return;
                                 e.stopPropagation();
                                 handleDragStart(appointment);
                               }}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => {
-                                if (readOnly || isDragging) return;
+                                if (isCalendarReadOnly || isDragging) return;
                                 e.stopPropagation();
                                 const event = {
                                   ...appointment,
@@ -1507,11 +1581,12 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               </div>
               {getWeekDates().map((date, index) => {
                 const isToday = date.toDateString() === new Date().toDateString();
+                const isSundayColumn = isSunday(date);
                 return (
                   <div
                     key={index}
                     className={`p-3 border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isToday ? 'bg-brand-50 dark:bg-brand-900/20' : ''
-                      }`}
+                      } ${isSundayColumn ? 'calendar-weekday-blocked' : ''}`}
                   >
                     <div className="text-center">
                       <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -1548,7 +1623,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               <div className="grid grid-cols-[80px_repeat(7,1fr)]">
                 {/* Colonne des heures */}
                 <div className="bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-                  {Array.from({ length: 12 }, (_, i) => i + 8).map((hour) => (
+                  {Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, i) => i + CALENDAR_START_HOUR).map((hour) => (
                     <div
                       key={hour}
                       className="h-24 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700"
@@ -1563,22 +1638,25 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
                   const dayEvents = getEventsForDate(date);
                   const isToday = date.toDateString() === new Date().toDateString();
+                  const isSundayColumn = isSunday(date);
 
                   return (
                     <div
                       key={dayIndex}
                       className={`relative border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isToday ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''
-                        }`}
+                        } ${isSundayColumn ? 'calendar-weekday-blocked' : ''}`}
                     >
                       {/* Lignes de séparation des heures - Drop zones */}
-                      {Array.from({ length: 12 }).map((_, index) => (
+                      {Array.from({ length: CALENDAR_VISIBLE_HOURS }).map((_, index) => {
+                        const isBlockedSlot = isBlockedCustomSlot(date, index);
+                        return (
                         <div
                           key={index}
                           onClick={() => {
-                            if (isDragging) return;
+                            if (isDragging || isBlockedSlot) return;
                             // Sélectionner le premier staff disponible
                             if (hairdressers.length > 0) {
-                              const hour = index + 8;
+                              const hour = index + CALENDAR_START_HOUR;
                               const startDateTime = `${dateStr}T${String(hour).padStart(2, "0")}:00:00`;
                               const endDateTime = `${dateStr}T${String(hour + 1).padStart(2, "0")}:00:00`;
 
@@ -1591,6 +1669,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           }}
                           onDrop={(e) => {
                             e.preventDefault();
+                            if (isBlockedSlot) return;
                             if (hairdressers.length > 0) {
                               handleDrop(hairdressers[0].id, index, date);
                             }
@@ -1600,21 +1679,28 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           }}
                           onDragEnter={(e) => {
                             e.preventDefault();
+                            if (isBlockedSlot) return;
                             e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
                           }}
                           onDragLeave={(e) => {
+                            if (isBlockedSlot) return;
                             e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
                           }}
-                          className="h-24 border-b border-gray-200 dark:border-gray-700 cursor-pointer calendar-grid-cell transition-all duration-200 ease-in-out relative group"
+                          className={`h-24 border-b border-gray-200 dark:border-gray-700 calendar-grid-cell transition-all duration-200 ease-in-out relative ${isBlockedSlot ? "calendar-cell-blocked cursor-not-allowed" : "cursor-pointer group"}`}
                         >
-                          <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity duration-200"></div>
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </div>
+                          {!isBlockedSlot && (
+                            <>
+                              <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity duration-200"></div>
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Rendez-vous pour ce jour */}
                       <div className="absolute top-0 left-0 right-0 pointer-events-none">
@@ -1626,7 +1712,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           const endHour = endTime.getHours();
                           const endMinute = endTime.getMinutes();
 
-                          const startMinutes = (startHour - 8) * 60 + startMinute;
+                          const startMinutes = (startHour - CALENDAR_START_HOUR) * 60 + startMinute;
                           const duration = (endHour - startHour) * 60 + (endMinute - startMinute);
 
                           const pixelPerMinute = 96 / 60; // 96px hauteur de cellule
@@ -1638,15 +1724,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           return (
                             <div
                               key={appointment.id}
-                              draggable={!readOnly}
+                              draggable={!isCalendarReadOnly}
                               onDragStart={(e) => {
-                                if (readOnly) return;
+                                if (isCalendarReadOnly) return;
                                 e.stopPropagation();
                                 handleDragStart(appointment);
                               }}
                               onDragEnd={handleDragEnd}
                               onClick={(e) => {
-                                if (readOnly || isDragging) return;
+                                if (isCalendarReadOnly || isDragging) return;
                                 e.stopPropagation();
                                 const event = {
                                   ...appointment,
@@ -1721,18 +1807,32 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               }}
               initialDate={selectedDate}
               events={getFilteredEvents()}
-              selectable={!readOnly}
+              selectable={!isCalendarReadOnly}
+              selectAllow={(selectInfo) => !isBlockedDateRange(selectInfo.start, selectInfo.end)}
               select={handleDateSelect}
               eventClick={handleEventClick}
-              editable={!readOnly}
+              editable={!isCalendarReadOnly}
+              eventAllow={(dropInfo) => !isBlockedDateRange(dropInfo.start, dropInfo.end)}
               eventDrop={handleEventDrop}
               eventResize={handleEventResize}
-              eventDurationEditable={!readOnly}
+              eventDurationEditable={!isCalendarReadOnly}
               snapDuration="00:05:00"
               slotMinTime="08:00:00"
               slotMaxTime="20:00:00"
               slotDuration="00:20:00"
               slotLabelInterval="01:00:00"
+              dayHeaderClassNames={(arg) => (arg.date.getDay() === 0 ? ["fc-day-header-sunday-gray"] : [])}
+              dayCellClassNames={(arg) => (arg.date.getDay() === 0 ? ["fc-day-sunday-gray"] : [])}
+              slotLaneClassNames={(arg) => {
+                const classes: string[] = [];
+                if (arg.date.getDay() === 0) {
+                  classes.push("fc-slot-sunday-gray");
+                }
+                if (arg.date.getHours() === LUNCH_START_HOUR) {
+                  classes.push("fc-slot-lunch-gray");
+                }
+                return classes;
+              }}
               height="auto"
               contentHeight="auto"
               expandRows={true}
@@ -2006,7 +2106,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             </div>
           </div>
 
-          {!readOnly && (
+          {!isCalendarReadOnly && (
             <div className="flex items-center gap-3 mt-6 modal-footer sm:justify-between">
               <div>
                 {selectedEvent && (

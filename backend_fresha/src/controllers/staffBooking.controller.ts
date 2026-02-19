@@ -15,7 +15,18 @@ export async function getMyBookings(req: Request, res: Response) {
       })
     }
 
-    const where: any = { staffId }
+    const where: any = {
+      OR: [
+        { staffId },
+        {
+          bookingServices: {
+            some: {
+              staffId
+            }
+          }
+        }
+      ]
+    }
 
     // Filtrer par statut
     if (status) {
@@ -54,6 +65,40 @@ export async function getMyBookings(req: Request, res: Response) {
             price: true,
             category: true,
             color: true
+          }
+        },
+        staff: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            role: true
+          }
+        },
+        bookingServices: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                duration: true,
+                price: true,
+                category: true
+              }
+            },
+            staff: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                role: true
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
           }
         },
         salon: {
@@ -167,6 +212,31 @@ export async function getSalonBookings(req: Request, res: Response) {
             lastName: true,
             avatar: true,
             role: true
+          }
+        },
+        bookingServices: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                duration: true,
+                price: true,
+                category: true
+              }
+            },
+            staff: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                role: true
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
           }
         }
       },

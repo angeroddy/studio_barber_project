@@ -13,8 +13,20 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const requestUrl = String(error.config?.url || '');
+    const isAuthRequest =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/staff-auth/login') ||
+      requestUrl.includes('/staff-auth/first-login') ||
+      requestUrl.includes('/staff-auth/complete-invitation');
+
+    const isAuthPage =
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/signin' || window.location.pathname === '/signup');
+
     // Si la session est invalide, nettoyer l'etat local et rediriger
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isAuthRequest && !isAuthPage) {
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
       window.location.href = '/signin';

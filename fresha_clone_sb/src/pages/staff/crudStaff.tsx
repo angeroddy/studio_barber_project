@@ -44,7 +44,6 @@ const CrudStaff = () => {
   // �tats du formulaire
   const [formData, setFormData] = useState({
     email: "",
-    password: "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -120,7 +119,6 @@ const CrudStaff = () => {
     setCurrentStaff(null);
     setFormData({
       email: "",
-      password: "",
       firstName: "",
       lastName: "",
       phone: "",
@@ -137,7 +135,6 @@ const CrudStaff = () => {
     setCurrentStaff(staff);
     setFormData({
       email: staff.email,
-      password: "", // Ne pas pr�-remplir le mot de passe
       firstName: staff.firstName,
       lastName: staff.lastName,
       phone: staff.phone || "",
@@ -178,7 +175,6 @@ const CrudStaff = () => {
           specialties: string[];
           bio?: string;
           isActive: boolean;
-          password?: string;
         } = {
           email: formData.email || undefined,
           firstName: formData.firstName,
@@ -189,11 +185,6 @@ const CrudStaff = () => {
           bio: formData.bio || undefined,
           isActive: formData.isActive,
         };
-
-        // N'inclure le mot de passe que s'il est fourni
-        if (formData.password) {
-          updateData.password = formData.password;
-        }
 
         const updatedStaff = await updateStaff(currentStaff.id, updateData);
         console.log(' Membre mis à jour:', updatedStaff);
@@ -210,7 +201,6 @@ const CrudStaff = () => {
         const newStaff = await createStaff({
           salonId,
           email: formData.email || undefined,
-          password: formData.password || undefined,
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone || undefined,
@@ -222,7 +212,11 @@ const CrudStaff = () => {
         console.log(' Membre crée:', newStaff);
 
         setStaffList((prev) => [...prev, newStaff]);
-        setAlertMessage("Membre du personnel ajouté avec succès");
+        setAlertMessage(
+          formData.email
+            ? "Membre du personnel ajouté avec succès. Un email d'activation a été envoyé."
+            : "Membre du personnel ajouté avec succès"
+        );
       }
 
       setIsModalOpen(false);
@@ -574,8 +568,8 @@ const CrudStaff = () => {
         </div>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-          {/* Email et Mot de passe */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Email */}
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Email (optionnel)
@@ -586,17 +580,9 @@ const CrudStaff = () => {
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
               />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Mot de passe (optionnel)
-              </label>
-              <Input
-                type="password"
-                placeholder={currentStaff ? "Laisser vide pour ne pas changer" : "Optionnel - minimum 6 caractères"}
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-              />
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Si un email est renseigne, un lien d'activation sera envoye a l'employe pour choisir son mot de passe.
+              </p>
             </div>
           </div>
 

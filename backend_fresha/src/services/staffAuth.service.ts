@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import prisma from '../config/database'
 import { hashPassword, comparePassword } from '../utils/hash.util'
 import { generateToken } from '../utils/jwt.util'
@@ -21,9 +22,29 @@ interface PasswordInitializationActor {
   salonId?: string
 }
 
+interface CompleteStaffInvitationData {
+  token: string
+  password: string
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+function hashPasswordSetupToken(rawToken: string): string {
+  return createHash('sha256').update(rawToken).digest('hex')
+}
+
 export async function staffLogin(data: StaffLoginData) {
-  const staff = await prisma.staff.findUnique({
-    where: { email: data.email },
+  const normalizedEmail = normalizeEmail(data.email)
+
+  const staff = await prisma.staff.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: 'insensitive'
+      }
+    },
     include: {
       salon: {
         select: {
@@ -44,6 +65,9 @@ export async function staffLogin(data: StaffLoginData) {
   }
 
   if (!staff.password) {
+    if (staff.passwordSetupRequired) {
+      throw new Error("Compte non active. Utilisez le lien d'activation recu par email.")
+    }
     throw new Error('Aucun mot de passe configure pour ce compte. Veuillez contacter votre administrateur.')
   }
 
@@ -207,8 +231,15 @@ export async function initializeStaffPassword(
 }
 
 export async function firstLoginSetPassword(email: string, password: string) {
-  const staff = await prisma.staff.findUnique({
-    where: { email }
+  const normalizedEmail = normalizeEmail(email)
+
+  const staff = await prisma.staff.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: 'insensitive'
+      }
+    }
   })
 
   if (!staff) {
@@ -217,6 +248,10 @@ export async function firstLoginSetPassword(email: string, password: string) {
 
   if (staff.password) {
     throw new Error('Ce compte a deja un mot de passe. Utilisez la connexion normale.')
+  }
+
+  if (staff.passwordSetupRequired) {
+    throw new Error("Utilisez le lien d'activation recu par email pour definir votre mot de passe.")
   }
 
   if (!staff.isActive) {
@@ -228,6 +263,83 @@ export async function firstLoginSetPassword(email: string, password: string) {
   const updatedStaff = await prisma.staff.update({
     where: { id: staff.id },
     data: { password: hashedPassword },
+    include: {
+      salon: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          address: true,
+          city: true,
+          phone: true,
+          email: true
+        }
+      }
+    }
+  })
+
+  const token = generateToken({
+    userId: updatedStaff.id,
+    email: updatedStaff.email!,
+    userType: 'staff',
+    salonId: updatedStaff.salonId,
+    role: updatedStaff.role
+  })
+
+  const { password: _, ...staffWithoutPassword } = updatedStaff
+
+  return {
+    user: staffWithoutPassword,
+    token,
+    userType: 'staff' as const
+  }
+}
+
+export async function completeStaffInvitation(data: CompleteStaffInvitationData) {
+  const tokenHash = hashPasswordSetupToken(data.token)
+  const now = new Date()
+
+  const staff = await prisma.staff.findFirst({
+    where: {
+      passwordSetupTokenHash: tokenHash
+    },
+    include: {
+      salon: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          address: true,
+          city: true,
+          phone: true,
+          email: true
+        }
+      }
+    }
+  })
+
+  if (!staff || !staff.passwordSetupRequired) {
+    throw new Error("Lien d'activation invalide")
+  }
+
+  if (!staff.passwordSetupTokenExpiresAt || staff.passwordSetupTokenExpiresAt < now) {
+    throw new Error("Ce lien d'activation a expire")
+  }
+
+  if (!staff.isActive) {
+    throw new Error('Votre compte a ete desactive. Veuillez contacter votre administrateur.')
+  }
+
+  const hashedPassword = await hashPassword(data.password)
+
+  const updatedStaff = await prisma.staff.update({
+    where: { id: staff.id },
+    data: {
+      password: hashedPassword,
+      passwordSetupRequired: false,
+      passwordSetupTokenHash: null,
+      passwordSetupTokenExpiresAt: null
+    },
     include: {
       salon: {
         select: {

@@ -9,8 +9,11 @@ import {
 } from '../controllers/clientBooking.controller'
 import { authMiddleware } from '../middlewares/auth.middleware'
 import { requireClient } from '../middlewares/authorization.middleware'
+import { bookingExpirationMiddleware } from '../middlewares/bookingExpiration.middleware'
 
 const router = express.Router()
+
+router.use(bookingExpirationMiddleware)
 
 // All routes require an authenticated client account.
 router.use(authMiddleware, requireClient)

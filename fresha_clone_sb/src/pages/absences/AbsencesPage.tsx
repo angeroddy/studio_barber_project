@@ -1,37 +1,20 @@
-import PageMeta from "../../components/common/PageMeta";
-import AbsenceForm from "../../components/absences/AbsenceForm";
-import AbsenceList from "../../components/absences/AbsenceList";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AbsencesPage() {
-  return (
-    <>
-      <PageMeta
-        title="Mes Absences | Fresha Clone"
-        description="Gérer mes congés et absences"
-      />
-      <div className="space-y-6">
-        {/* En-tête */}
-        <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div className="px-6.5 py-4 border-b border-stroke dark:border-strokedark">
-            <h2 className="text-xl font-semibold text-black dark:text-white">
-              Gestion des Absences
-            </h2>
-            <p className="text-sm text-bodydark mt-1">
-              Déclarez vos congés et suivez l'état de vos demandes
-            </p>
-          </div>
-        </div>
+  const { isLoading, isOwner } = useAuth();
 
-        {/* Section Gestion des congés */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div>
-            <AbsenceForm />
-          </div>
-          <div>
-            <AbsenceList />
-          </div>
-        </div>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-16 h-16 border-4 border-t-4 border-gray-200 rounded-full border-t-[#EB549E] animate-spin"></div>
       </div>
-    </>
-  );
+    );
+  }
+
+  if (isOwner) {
+    return <Navigate to="/gestion-absences" replace />;
+  }
+
+  return <Navigate to="/calendar" replace />;
 }

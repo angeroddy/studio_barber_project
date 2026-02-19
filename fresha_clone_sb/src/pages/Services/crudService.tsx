@@ -20,6 +20,8 @@ import {
 } from "../../services/service.service";
 import { useSalon } from "../../context/SalonContext";
 
+const PRESET_CATEGORIES = ["La formule", "Coupes", "Barbe"] as const;
+
 // Fonction pour générer une couleur aléatoire
 const generateRandomColor = (): string => {
   const letters = '0123456789ABCDEF';
@@ -50,6 +52,7 @@ const CrudService = () => {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
 
   // États du formulaire
   const [formData, setFormData] = useState({
@@ -112,12 +115,16 @@ const CrudService = () => {
       category: "",
       isActive: true,
     });
+    setIsCustomCategory(false);
     setIsModalOpen(true);
   };
 
   // Ouvrir le modal pour modifier un service
   const handleEdit = (service: Service) => {
     setCurrentService(service);
+    const isPresetCategory = PRESET_CATEGORIES.includes(
+      service.category as (typeof PRESET_CATEGORIES)[number]
+    );
     setFormData({
       name: service.name,
       description: service.description || "",
@@ -126,6 +133,7 @@ const CrudService = () => {
       category: service.category,
       isActive: service.isActive,
     });
+    setIsCustomCategory(!isPresetCategory);
     setIsModalOpen(true);
   };
 
@@ -566,12 +574,47 @@ const CrudService = () => {
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Catégorie *
             </label>
-            <Input
-              type="text"
-              placeholder="Ex: Coupe, Coloration, Soin"
-              value={formData.category}
-              onChange={(e) => handleInputChange("category", e.target.value)}
-            />
+            <select
+              value={isCustomCategory ? "__custom__" : formData.category}
+              onChange={(e) => {
+                const selectedValue = e.target.value;
+
+                if (selectedValue === "__custom__") {
+                  setIsCustomCategory(true);
+                  if (
+                    PRESET_CATEGORIES.includes(
+                      formData.category as (typeof PRESET_CATEGORIES)[number]
+                    )
+                  ) {
+                    handleInputChange("category", "");
+                  }
+                  return;
+                }
+
+                setIsCustomCategory(false);
+                handleInputChange("category", selectedValue);
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            >
+              <option value="">Selectionner une categorie</option>
+              {PRESET_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+              <option value="__custom__">Autre (personnalise)</option>
+            </select>
+
+            {isCustomCategory && (
+              <div className="mt-3">
+                <Input
+                  type="text"
+                  placeholder="Entrer une categorie personnalisee"
+                  value={formData.category}
+                  onChange={(e) => handleInputChange("category", e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Statut */}

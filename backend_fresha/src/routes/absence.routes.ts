@@ -1,11 +1,13 @@
 import express from 'express'
 import * as absenceController from '../controllers/absence.controller'
 import { authenticate } from '../middlewares/auth.middleware'
+import { requireOwner } from '../middlewares/authorization.middleware'
 
 const router = express.Router()
 
 // Toutes les routes nécessitent une authentification
 router.use(authenticate)
+router.use(requireOwner)
 
 // Routes CRUD absences
 router.post('/', absenceController.createAbsence)

@@ -1,4 +1,5 @@
 import { apiRequest } from './config';
+import { resolveSalonId } from './salon-id.util';
 
 /**
  * Creer une reservation pour le client authentifie
@@ -10,13 +11,18 @@ export async function createClientBooking(data: {
   startTime: string  // ISO string
   notes?: string
 }) {
+  const resolvedSalonId = await resolveSalonId(data.salonId);
+
   const response = await apiRequest<{
     success: boolean
     message: string
     data: any
   }>('/client-bookings', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      salonId: resolvedSalonId,
+    }),
   });
 
   return response;

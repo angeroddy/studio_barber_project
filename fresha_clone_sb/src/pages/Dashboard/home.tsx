@@ -12,7 +12,7 @@ export default function Home() {
     const { selectedSalon } = useSalon();
     const isSimpleEmployee = isStaff && !isManager && !isOwner;
 
-    // Charger les métriques pour les propriétaires/managers
+    // Charger les metriques pour les proprietaires/managers
     const { metrics, loading, error } = useDashboardMetrics(
         selectedSalon?.id || ''
     );
@@ -20,8 +20,8 @@ export default function Home() {
     return (
         <>
             <PageMeta
-                title="Espace Employé | Fresha Clone"
-                description="Dashboard employé"
+                title="Espace Employe | Fresha Clone"
+                description="Dashboard employe"
             />
             <div className="space-y-6">
                 {/* Bienvenue */}
@@ -32,17 +32,17 @@ export default function Home() {
                         </h2>
                         <p className="text-bodydark">
                             {isSimpleEmployee
-                                ? "Consultez votre planning dans le calendrier et gérez vos congés."
+                                ? "Consultez votre planning dans le calendrier."
                                 : selectedSalon
                                 ? `Vue d'ensemble de ${selectedSalon.name}`
-                                : "Sélectionnez un salon pour voir les métriques."}
+                                : "Selectionnez un salon pour voir les metriques."}
                         </p>
                     </div>
                 </div>
 
-                {/* Dashboard pour employés simples */}
+                {/* Dashboard pour employes simples */}
                 {isSimpleEmployee && (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6">
                         <Link to="/calendrier" className="block">
                             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark hover:shadow-lg transition-shadow cursor-pointer">
                                 <div className="px-6.5 py-6 flex items-center gap-4">
@@ -63,41 +63,22 @@ export default function Home() {
                             </div>
                         </Link>
 
-                        <Link to="/absences" className="block">
-                            <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark hover:shadow-lg transition-shadow cursor-pointer">
-                                <div className="px-6.5 py-6 flex items-center gap-4">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success bg-opacity-10">
-                                        <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-black dark:text-white">
-                                            Mes Absences
-                                        </h3>
-                                        <p className="text-bodydark text-sm">
-                                            Déclarer et gérer mes congés
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </Link>
                     </div>
                 )}
 
-                {/* Dashboard pour propriétaires/managers */}
+                {/* Dashboard pour proprietaires/managers */}
                 {!isSimpleEmployee && selectedSalon && (
                     <div className="space-y-6">
                         {/* Message d'erreur */}
                         {error && (
                             <div className="rounded-sm border border-danger bg-danger bg-opacity-10 p-4">
                                 <p className="text-danger">
-                                    Erreur lors du chargement des métriques: {error}
+                                    Erreur lors du chargement des metriques: {error}
                                 </p>
                             </div>
                         )}
 
-                        {/* Métriques principales */}
+                        {/* Metriques principales */}
                         <EcommerceMetrics
                             newClientsWeek={metrics.newClientsWeek}
                             newClientsWeekChange={metrics.newClientsWeekChange}
@@ -118,12 +99,12 @@ export default function Home() {
                     </div>
                 )}
 
-                {/* Message si aucun salon sélectionné */}
+                {/* Message si aucun salon selectionne */}
                 {!isSimpleEmployee && !selectedSalon && (
                     <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                         <div className="px-6.5 py-6 text-center">
                             <p className="text-bodydark">
-                                Veuillez sélectionner un salon dans la sidebar pour voir les métriques.
+                                Veuillez selectionner un salon dans la sidebar pour voir les metriques.
                             </p>
                         </div>
                     </div>

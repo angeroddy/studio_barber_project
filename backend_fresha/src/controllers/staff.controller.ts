@@ -31,10 +31,13 @@ export async function createStaffController(req: Request, res: Response) {
     }
 
     const staff = await createStaff(data)
+    const hasEmail = typeof data.email === 'string' && data.email.trim().length > 0
 
     return res.status(201).json({
       success: true,
-      message: 'Membre du personnel créé avec succès',
+      message: hasEmail
+        ? "Membre du personnel créé avec succès. Un email d'activation a été envoyé."
+        : 'Membre du personnel créé avec succès',
       data: staff
     })
   } catch (error: any) {

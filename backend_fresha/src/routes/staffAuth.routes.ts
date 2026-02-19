@@ -8,6 +8,7 @@ const router = express.Router()
 // Public routes
 router.post('/login', staffAuthController.login)
 router.post('/first-login', staffAuthController.firstLogin)
+router.post('/complete-invitation', staffAuthController.completeInvitation)
 router.post('/logout', staffAuthController.logout)
 
 // Staff-only routes

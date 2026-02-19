@@ -66,6 +66,16 @@ export default function AbsenceForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
+    try {
+      if ("showPicker" in HTMLInputElement.prototype) {
+        event.currentTarget.showPicker();
+      }
+    } catch {
+      // No-op: fallback to native browser behavior.
+    }
+  };
+
   return (
     <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
       <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
@@ -113,6 +123,7 @@ export default function AbsenceForm() {
               name="startDate"
               value={formData.startDate}
               onChange={handleChange}
+              onClick={openDatePicker}
               required
               className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
             />
@@ -127,6 +138,7 @@ export default function AbsenceForm() {
               name="endDate"
               value={formData.endDate}
               onChange={handleChange}
+              onClick={openDatePicker}
               required
               className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
             />

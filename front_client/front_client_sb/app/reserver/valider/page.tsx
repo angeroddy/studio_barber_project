@@ -31,6 +31,27 @@ const monthNames = [
 
 const dayNames = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
+function shouldOpenAuthModal(error: unknown): boolean {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  if (error.status === 401) {
+    return true;
+  }
+
+  if (error.status !== 403) {
+    return false;
+  }
+
+  const combinedMessage = `${error.message || ""} ${error.data?.error || ""} ${error.data?.message || ""}`.toLowerCase();
+  return (
+    combinedMessage.includes("type de compte") ||
+    combinedMessage.includes("acces refuse") ||
+    combinedMessage.includes("utilisateur non authentifie")
+  );
+}
+
 function ValiderPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,6 +70,7 @@ function ValiderPageContent() {
   const [notes, setNotes] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [creatingBooking, setCreatingBooking] = useState(false);
+  const [verificationInfo, setVerificationInfo] = useState<string | null>(null);
 
   const selectedDate = dateParam ? new Date(dateParam) : null;
   const totalDuration = service?.duration || 0;
@@ -120,6 +142,17 @@ function ValiderPageContent() {
     ? `${professional.firstName} ${professional.lastName}`
     : "n'importe quel professionnel";
 
+  const getStartDateTimeIso = (): string | null => {
+    if (!selectedDate || !timeParam) {
+      return null;
+    }
+
+    const [hours, minutes] = timeParam.split(":");
+    const startDateTime = new Date(selectedDate);
+    startDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    return startDateTime.toISOString();
+  };
+
   const createBooking = async () => {
     if (!service || !selectedDate || !timeParam) {
       setError("Informations de reservation incompletes");
@@ -128,24 +161,27 @@ function ValiderPageContent() {
 
     setCreatingBooking(true);
     setError(null);
+    setVerificationInfo(null);
 
     try {
-      const [hours, minutes] = timeParam.split(":");
-      const startDateTime = new Date(selectedDate);
-      startDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      const startTimeIso = getStartDateTimeIso();
+      if (!startTimeIso) {
+        setError("Informations de reservation incompletes");
+        return;
+      }
 
       await createClientBooking({
         salonId,
         serviceId: service.id,
         staffId: professionalId === "any" ? undefined : professionalId,
-        startTime: startDateTime.toISOString(),
+        startTime: startTimeIso,
         notes: notes || undefined,
       });
 
       router.push(`/reserver/${salonId}/confirmation`);
     } catch (err) {
       console.error("Erreur lors de la creation de la reservation:", err);
-      if (err instanceof ApiError && err.status === 401) {
+      if (shouldOpenAuthModal(err)) {
         removeToken();
         setShowAuthModal(true);
         return;
@@ -157,6 +193,7 @@ function ValiderPageContent() {
   };
 
   const handleValidate = () => {
+    setVerificationInfo(null);
     if (isAuthenticated()) {
       void createBooking();
     } else {
@@ -166,6 +203,13 @@ function ValiderPageContent() {
 
   const handleAuthSuccess = () => {
     void createBooking();
+  };
+
+  const handleVerificationPending = (clientEmail: string) => {
+    setVerificationInfo(
+      `Un email de confirmation a ete envoye a ${clientEmail}. Votre creneau est reserve pendant 10 minutes.`
+    );
+    setShowAuthModal(false);
   };
 
   if (loading) {
@@ -269,6 +313,12 @@ function ValiderPageContent() {
                   {error}
                 </div>
               )}
+
+              {verificationInfo && (
+                <div className="bg-blue-50 border border-blue-400 text-blue-700 p-4 mb-4 font-archivo">
+                  {verificationInfo}
+                </div>
+              )}
             </div>
 
             <div className="lg:col-span-1">
@@ -369,6 +419,7 @@ function ValiderPageContent() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
+        onVerificationPending={handleVerificationPending}
         bookingDetails={
           service && selectedDate && timeParam
             ? {
@@ -376,6 +427,13 @@ function ValiderPageContent() {
                 professionalName,
                 date: formatDate(),
                 time: timeParam,
+                pendingBooking: {
+                  salonId,
+                  serviceId: service.id,
+                  staffId: professionalId === "any" ? undefined : professionalId,
+                  startTime: getStartDateTimeIso() || "",
+                  notes: notes || undefined,
+                },
               }
             : undefined
         }

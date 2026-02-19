@@ -167,6 +167,23 @@
 .calendar-grid-cell {
   position: relative;
   transition: background-color 0.15s ease-in-out;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(20% - 1px),
+    rgba(148, 163, 184, 0.35) calc(20% - 1px),
+    rgba(148, 163, 184, 0.35) 20%
+  );
+}
+
+.dark .calendar-grid-cell {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(20% - 1px),
+    rgba(75, 85, 99, 0.45) calc(20% - 1px),
+    rgba(75, 85, 99, 0.45) 20%
+  );
 }
 
 .calendar-grid-cell::before {
@@ -183,6 +200,27 @@
 
 .calendar-grid-cell:hover::before {
   opacity: 1;
+}
+
+.calendar-grid-cell.calendar-cell-blocked {
+  background-color: rgba(107, 114, 128, 0.18);
+}
+
+.dark .calendar-grid-cell.calendar-cell-blocked {
+  background-color: rgba(75, 85, 99, 0.32);
+}
+
+.calendar-grid-cell.calendar-cell-blocked::before,
+.calendar-grid-cell.calendar-cell-blocked:hover::before {
+  opacity: 0 !important;
+}
+
+.calendar-weekday-blocked {
+  background-color: rgba(107, 114, 128, 0.14);
+}
+
+.dark .calendar-weekday-blocked {
+  background-color: rgba(75, 85, 99, 0.24);
 }
 
 /* Success animation */
@@ -204,6 +242,38 @@
 .fc .fc-timegrid-slot {
   height: 3rem !important; /* Hauteur des cellules horaires très augmentée */
   min-height: 3rem !important;
+}
+
+.fc .fc-slot-lunch-gray {
+  background-color: rgba(107, 114, 128, 0.18) !important;
+}
+
+.dark .fc .fc-slot-lunch-gray {
+  background-color: rgba(75, 85, 99, 0.3) !important;
+}
+
+.fc .fc-slot-sunday-gray {
+  background-color: rgba(107, 114, 128, 0.22) !important;
+}
+
+.dark .fc .fc-slot-sunday-gray {
+  background-color: rgba(55, 65, 81, 0.4) !important;
+}
+
+.fc .fc-day-sunday-gray {
+  background-color: rgba(107, 114, 128, 0.15) !important;
+}
+
+.dark .fc .fc-day-sunday-gray {
+  background-color: rgba(55, 65, 81, 0.28) !important;
+}
+
+.fc .fc-day-header-sunday-gray {
+  background-color: rgba(107, 114, 128, 0.18) !important;
+}
+
+.dark .fc .fc-day-header-sunday-gray {
+  background-color: rgba(55, 65, 81, 0.32) !important;
 }
 
 .fc .fc-timegrid-slot-label {

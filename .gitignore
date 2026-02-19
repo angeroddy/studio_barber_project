@@ -1,0 +1,38 @@
+# Workspace-level ignores
+
+# Node dependencies
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/dist-ssr/
+**/.next/
+**/out/
+**/build/
+**/coverage/
+
+# Test artifacts
+**/playwright-report/
+**/test-results/
+
+# Logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/lerna-debug.log*
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+!**/.env.example
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Accidental Windows reserved files
+**/nul

@@ -1,7 +1,9 @@
 'use client';
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { getProfile, saveUser } from "@/lib/api/auth";
 
 const salonsData = {
   championnet: {
@@ -18,8 +20,29 @@ const salonsData = {
 
 export default function ConfirmationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const salonSlug = params.slug as string;
   const salon = salonsData[salonSlug as keyof typeof salonsData];
+  const isVerifiedRedirect = searchParams.get("verified") === "1";
+
+  useEffect(() => {
+    if (!isVerifiedRedirect) {
+      return;
+    }
+
+    async function syncSessionUser() {
+      try {
+        const profileResponse = await getProfile();
+        if (profileResponse?.data) {
+          saveUser(profileResponse.data);
+        }
+      } catch {
+        // Ignore sync failure and keep confirmation visible.
+      }
+    }
+
+    void syncSessionUser();
+  }, [isVerifiedRedirect]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">

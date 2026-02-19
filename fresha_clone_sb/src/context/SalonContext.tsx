@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useAuth } from './AuthContext';
 import type { Salon } from '../services/salon.service';
 import type { StaffUser } from '../services/staffAuth.service';
-import { getSalonById } from '../services/salon.service';
+import { getAllSalons, getSalonById } from '../services/salon.service';
 
 interface SalonContextType {
   selectedSalon: Salon | null;
@@ -17,104 +17,138 @@ const SalonContext = createContext<SalonContextType | undefined>(undefined);
 export function SalonProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isStaff } = useAuth();
   const [selectedSalon, setSelectedSalon] = useState<Salon | null>(null);
+  const [staffVisibleSalons, setStaffVisibleSalons] = useState<Salon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialiser le salon sélectionné au chargement ou quand l'utilisateur change
   useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setSelectedSalon(null);
-      setIsLoading(false);
-      return;
-    }
+    let isMounted = true;
 
-    // Pour les employés (StaffUser), utiliser directement le salon assigné
-    if (isStaff) {
-      const staffUser = user as StaffUser;
-      if (staffUser.salon) {
-        setSelectedSalon(staffUser.salon as unknown as Salon);
+    const initializeSalon = async () => {
+      if (!isAuthenticated || !user) {
+        if (!isMounted) return;
+        setSelectedSalon(null);
+        setStaffVisibleSalons([]);
         setIsLoading(false);
         return;
       }
-    }
 
-    // Pour les propriétaires (User), utiliser la liste des salons
-    const ownerUser = user as any;
-    if (!ownerUser.salons || ownerUser.salons.length === 0) {
-      setSelectedSalon(null);
-      setIsLoading(false);
-      return;
-    }
+      setIsLoading(true);
 
-    const userSalons = ownerUser.salons;
-    const storedSalonId = localStorage.getItem('selectedSalonId');
+      if (isStaff) {
+        const staffUser = user as StaffUser;
+        const fallbackSalon = staffUser.salon ? (staffUser.salon as unknown as Salon) : null;
+        const storedSalonId = localStorage.getItem('selectedSalonId');
 
-    // Vérifier si le salon stocké existe toujours dans les salons de l'utilisateur
-    if (storedSalonId) {
-      const storedSalon = userSalons.find((salon: Salon) => salon.id === storedSalonId);
-      if (storedSalon) {
-        setSelectedSalon(storedSalon);
+        try {
+          const allSalons = await getAllSalons();
+          if (!isMounted) return;
+
+          setStaffVisibleSalons(allSalons);
+
+          const selectedFromStorage = storedSalonId
+            ? allSalons.find((salon) => salon.id === storedSalonId)
+            : undefined;
+          const selectedFromStaff = fallbackSalon
+            ? allSalons.find((salon) => salon.id === fallbackSalon.id) || fallbackSalon
+            : undefined;
+          const selected = selectedFromStorage || selectedFromStaff || allSalons[0] || null;
+
+          setSelectedSalon(selected);
+
+          if (selected?.id) {
+            localStorage.setItem('selectedSalonId', selected.id);
+          } else {
+            localStorage.removeItem('selectedSalonId');
+          }
+        } catch {
+          if (!isMounted) return;
+          const fallbackList = fallbackSalon ? [fallbackSalon] : [];
+          setStaffVisibleSalons(fallbackList);
+          setSelectedSalon(fallbackSalon);
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+
+        return;
+      }
+
+      const ownerUser = user as any;
+      const ownerSalons: Salon[] = ownerUser.salons || [];
+
+      if (!isMounted) return;
+
+      if (ownerSalons.length === 0) {
+        setSelectedSalon(null);
         setIsLoading(false);
         return;
       }
-    }
 
-    // Si pas de salon stocké ou salon invalide, prendre le premier
-    setSelectedSalon(userSalons[0]);
-    localStorage.setItem('selectedSalonId', userSalons[0].id);
-    setIsLoading(false);
+      const storedSalonId = localStorage.getItem('selectedSalonId');
+      const selectedFromStorage = storedSalonId
+        ? ownerSalons.find((salon) => salon.id === storedSalonId)
+        : undefined;
+      const selected = selectedFromStorage || ownerSalons[0];
+
+      setSelectedSalon(selected);
+      localStorage.setItem('selectedSalonId', selected.id);
+      setIsLoading(false);
+    };
+
+    void initializeSalon();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user, isAuthenticated, isStaff]);
 
   const refreshSalon = async () => {
     if (!selectedSalon) return;
 
     try {
-      // Récupérer le salon mis à jour depuis l'API
       const updatedSalon = await getSalonById(selectedSalon.id);
+      const normalizedSalon = updatedSalon as unknown as Salon;
 
-      // Mettre à jour le salon sélectionné
-      setSelectedSalon(updatedSalon as unknown as Salon);
+      setSelectedSalon(normalizedSalon);
 
-      // Si c'est un propriétaire, mettre à jour aussi dans user.salons
+      if (isStaff) {
+        setStaffVisibleSalons((prev) =>
+          prev.map((salon) => (salon.id === normalizedSalon.id ? normalizedSalon : salon))
+        );
+      }
+
       if (!isStaff && user) {
         const ownerUser = user as any;
         if (ownerUser.salons) {
           const salonIndex = ownerUser.salons.findIndex((s: Salon) => s.id === selectedSalon.id);
           if (salonIndex !== -1) {
-            ownerUser.salons[salonIndex] = updatedSalon;
-            // Mettre à jour le localStorage
+            ownerUser.salons[salonIndex] = normalizedSalon;
             localStorage.setItem('user', JSON.stringify(ownerUser));
           }
         }
       }
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement du salon:', error);
+      console.error('Erreur lors du rafraichissement du salon:', error);
       throw error;
     }
   };
 
   const selectSalon = (salonId: string) => {
-    // Pour les employés, ils ne peuvent pas changer de salon
-    if (isStaff) return;
+    const availableSalons: Salon[] = isStaff
+      ? staffVisibleSalons
+      : (((user as any)?.salons || []) as Salon[]);
 
-    const ownerUser = user as any;
-    if (!ownerUser?.salons) return;
-
-    const salon = ownerUser.salons.find((s: Salon) => s.id === salonId);
+    const salon = availableSalons.find((s) => s.id === salonId);
     if (salon) {
       setSelectedSalon(salon);
       localStorage.setItem('selectedSalonId', salonId);
     }
   };
 
-  // Déterminer la liste des salons selon le type d'utilisateur
   const getSalons = (): Salon[] => {
     if (!user) return [];
-
-    if (isStaff) {
-      const staffUser = user as StaffUser;
-      return staffUser.salon ? [staffUser.salon as unknown as Salon] : [];
-    }
-
+    if (isStaff) return staffVisibleSalons;
     const ownerUser = user as any;
     return ownerUser?.salons || [];
   };
@@ -130,11 +164,10 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   return <SalonContext.Provider value={value}>{children}</SalonContext.Provider>;
 }
 
-// Hook personnalisé pour utiliser le contexte de salon
 export function useSalon() {
   const context = useContext(SalonContext);
   if (context === undefined) {
-    throw new Error('useSalon doit être utilisé dans un SalonProvider');
+    throw new Error('useSalon doit etre utilise dans un SalonProvider');
   }
   return context;
 }

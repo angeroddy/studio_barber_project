@@ -1,11 +1,13 @@
+import { createHash, randomBytes } from 'crypto'
 import prisma from '../config/database'
+import logger from '../config/logger'
 import { hashPassword } from '../utils/hash.util'
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
+import { sendStaffInvitationEmail } from './email.service'
 
 interface CreateStaff {
   salonId: string
   email?: string
-  password?: string
   firstName: string
   lastName: string
   phone?: string
@@ -31,9 +33,40 @@ interface UpdateStaff {
   isActive?: boolean
 }
 
+function normalizeOptionalEmail(email?: string | null): string | undefined {
+  if (!email) {
+    return undefined
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  return normalizedEmail || undefined
+}
+
+function getStaffInvitationTtlHours(): number {
+  const parsed = Number(process.env.STAFF_INVITATION_TTL_HOURS)
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed)
+  }
+  return 72
+}
+
+function createPasswordSetupToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
+function hashPasswordSetupToken(rawToken: string): string {
+  return createHash('sha256').update(rawToken).digest('hex')
+}
+
 // ============= CREATE =============
 export async function createStaff(data: CreateStaff) {
-  // 1. Vérifier que le salon existe
+  const normalizedEmail = normalizeOptionalEmail(data.email)
+  const rawPassword = (data as any).password
+
+  if (typeof rawPassword === 'string' && rawPassword.trim().length > 0) {
+    throw new Error("Le mot de passe ne peut pas etre defini a la creation. L'employe doit l'activer via email.")
+  }
+
   const salon = await prisma.salon.findUnique({
     where: { id: data.salonId }
   })
@@ -42,56 +75,83 @@ export async function createStaff(data: CreateStaff) {
     throw new Error('Salon introuvable')
   }
 
-  // 2. Vérifier que l'email n'est pas déjà utilisé (si fourni)
-  if (data.email) {
+  if (normalizedEmail) {
     const existingStaff = await prisma.staff.findUnique({
-      where: { email: data.email }
+      where: { email: normalizedEmail }
     })
 
     if (existingStaff) {
-      throw new Error('Cet email est déjà utilisé')
+      throw new Error('Cet email est deja utilise')
     }
   }
 
-  // 3. Hasher le mot de passe (si fourni)
-  let hashedPassword: string | null = null
-  if (data.password) {
-    hashedPassword = await hashPassword(data.password)
-  }
+  const invitationTtlHours = getStaffInvitationTtlHours()
+  const invitationTokenRaw = normalizedEmail ? createPasswordSetupToken() : null
+  const invitationTokenHash = invitationTokenRaw ? hashPasswordSetupToken(invitationTokenRaw) : null
+  const invitationExpiresAt = invitationTokenRaw ? new Date(Date.now() + invitationTtlHours * 60 * 60 * 1000) : null
 
-  // 4. Créer le membre du personnel
-  const staff = await prisma.staff.create({
-    data: {
-      salonId: data.salonId,
-      email: data.email || null,
-      password: hashedPassword,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone,
-      avatar: data.avatar,
-      role: data.role || 'EMPLOYEE',
-      specialties: data.specialties || [],
-      bio: data.bio,
-      isActive: data.isActive ?? true
-    },
-    select: {
-      id: true,
-      salonId: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      avatar: true,
-      role: true,
-      specialties: true,
-      bio: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true
+  let createdStaffId: string | null = null
+  try {
+    const staff = await prisma.staff.create({
+      data: {
+        salonId: data.salonId,
+        email: normalizedEmail || null,
+        password: null,
+        passwordSetupRequired: Boolean(invitationTokenHash),
+        passwordSetupTokenHash: invitationTokenHash,
+        passwordSetupTokenExpiresAt: invitationExpiresAt,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        avatar: data.avatar,
+        role: data.role || 'EMPLOYEE',
+        specialties: data.specialties || [],
+        bio: data.bio,
+        isActive: data.isActive ?? true
+      },
+      select: {
+        id: true,
+        salonId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        avatar: true,
+        role: true,
+        specialties: true,
+        bio: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    })
+
+    createdStaffId = staff.id
+
+    if (normalizedEmail && invitationTokenRaw && invitationExpiresAt) {
+      await sendStaffInvitationEmail({
+        to: normalizedEmail,
+        firstName: staff.firstName,
+        token: invitationTokenRaw,
+        expiresAt: invitationExpiresAt
+      })
     }
-  })
 
-  return staff
+    return staff
+  } catch (error) {
+    if (createdStaffId) {
+      try {
+        await prisma.staff.delete({ where: { id: createdStaffId } })
+      } catch (rollbackError: any) {
+        logger.error('Failed to rollback staff creation after invitation failure', {
+          staffId: createdStaffId,
+          error: rollbackError?.message
+        })
+      }
+    }
+
+    throw error
+  }
 }
 
 // ============= READ (un seul) =============
@@ -221,6 +281,7 @@ export async function getStaffByRole(salonId: string, role: 'MANAGER' | 'EMPLOYE
 
 // ============= UPDATE =============
 export async function updateStaff(data: UpdateStaff) {
+  const normalizedEmail = normalizeOptionalEmail(data.email)
   // 1. Vérifier que le membre du personnel existe
   const existingStaff = await prisma.staff.findUnique({
     where: { id: data.id }
@@ -231,9 +292,9 @@ export async function updateStaff(data: UpdateStaff) {
   }
 
   // 2. Si on change l'email, vérifier qu'il n'est pas déjà utilisé
-  if (data.email && data.email !== existingStaff.email) {
+  if (normalizedEmail && normalizedEmail !== existingStaff.email) {
     const emailExists = await prisma.staff.findUnique({
-      where: { email: data.email }
+      where: { email: normalizedEmail }
     })
 
     if (emailExists) {
@@ -253,7 +314,7 @@ export async function updateStaff(data: UpdateStaff) {
   }
 
   // 4. Préparer les données de mise à jour
-  const { id, password, ...updateData } = data
+  const { id, password, email, ...updateData } = data
 
   // Si le mot de passe est fourni, le hasher
   let hashedPassword: string | undefined
@@ -266,6 +327,7 @@ export async function updateStaff(data: UpdateStaff) {
     where: { id: id },
     data: {
       ...updateData,
+      ...(email !== undefined && { email: normalizedEmail ?? null }),
       ...(hashedPassword && { password: hashedPassword })
     },
     select: {
@@ -552,3 +614,4 @@ export async function deleteAndCreateSchedulesForDay(
 
   return await Promise.all(createPromises)
 }
+
