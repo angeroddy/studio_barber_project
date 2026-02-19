@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { Navbar01 } from '@/components/ui/shadcn-io/navbar-01';
 import { InfiniteMarquee } from '@/components/ui/infinite-marquee';
-import { InfiniteScrollTeam } from '@/components/ui/infinite-scroll-team';
 import { AnimatedSection } from '@/components/ui/animated-section';
 import { Footer2 } from '@/components/footer2';
 import Link from 'next/link';
@@ -52,8 +51,8 @@ export default function Home() {
         speed={1}
         className="font-archivo font-black text-[16px] sm:text-[20px] md:text-[24px] lg:text-[30px] text-white flex justify-center items-center bg-[#DE2788] h-[50px] sm:h-[55px] lg:h-[60px] w-full"
       >
-      
-      </InfiniteMarquee>+6
+        <span className="px-6">STUDIO BARBER • CHAMPIONNET • CLEMENCEAU •</span>
+      </InfiniteMarquee>
       <div className="other-section flex bg-white relative" >
         
         <div

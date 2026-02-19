@@ -103,11 +103,11 @@ export const useDashboardMetrics = (salonId: string) => {
         // Calculer le chiffre d'affaires du jour
         const revenueToday = bookingsToday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + (booking.service?.price || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.service?.price || 0), 0);
 
         const revenueYesterday = bookingsYesterday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + (booking.service?.price || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.service?.price || 0), 0);
 
         const revenueTodayChange = revenueYesterday > 0
           ? ((revenueToday - revenueYesterday) / revenueYesterday) * 100
@@ -117,7 +117,7 @@ export const useDashboardMetrics = (salonId: string) => {
         const totalAvailableMinutes = 480; // 8 heures * 60 minutes
         const totalBookedMinutes = bookingsToday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + (booking.service?.duration || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.service?.duration || 0), 0);
 
         const occupancyRateToday = totalAvailableMinutes > 0
           ? (totalBookedMinutes / totalAvailableMinutes) * 100
@@ -125,7 +125,7 @@ export const useDashboardMetrics = (salonId: string) => {
 
         const totalBookedMinutesYesterday = bookingsYesterday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + (booking.service?.duration || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.service?.duration || 0), 0);
 
         const occupancyRateYesterday = totalAvailableMinutes > 0
           ? (totalBookedMinutesYesterday / totalAvailableMinutes) * 100

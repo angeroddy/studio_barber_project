@@ -3,19 +3,29 @@ import { useAuth } from "../../context/AuthContext";
 import { useSalon } from "../../context/SalonContext";
 import { Link } from "react-router-dom";
 import EcommerceMetrics from "../../components/ecommerce/EcommerceMetrics";
+import BookingStatsCards from "../../components/ecommerce/BookingStatsCards";
+import RevenueTrendChart from "../../components/ecommerce/RevenueTrendChart";
+import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
+import PeakHoursChart from "../../components/ecommerce/PeakHoursChart";
+import BookingStatusChart from "../../components/ecommerce/BookingStatusChart";
 import TodayRdv from "../../components/custom/todayRdv";
 import ClassementCoif from "../../components/ecommerce/classementCoif";
+import RecentOrders from "../../components/ecommerce/RecentOrders";
 import { useDashboardMetrics } from "../../hooks/useDashboardMetrics";
+import { useBookingStats } from "../../hooks/useBookingStats";
+import { useRevenueTrend } from "../../hooks/useRevenueTrend";
 
 export default function Home() {
     const { isStaff, isManager, isOwner, user } = useAuth();
     const { selectedSalon } = useSalon();
     const isSimpleEmployee = isStaff && !isManager && !isOwner;
 
-    // Charger les metriques pour les proprietaires/managers
-    const { metrics, loading, error } = useDashboardMetrics(
-        selectedSalon?.id || ''
-    );
+    const salonId = selectedSalon?.id || '';
+
+    // Hooks metriques
+    const { metrics, loading, error } = useDashboardMetrics(salonId);
+    const { stats, loading: statsLoading } = useBookingStats(salonId);
+    const { trend, loading: trendLoading } = useRevenueTrend(salonId);
 
     return (
         <>
@@ -62,7 +72,6 @@ export default function Home() {
                                 </div>
                             </div>
                         </Link>
-
                     </div>
                 )}
 
@@ -78,7 +87,7 @@ export default function Home() {
                             </div>
                         )}
 
-                        {/* Metriques principales */}
+                        {/* Row 1 : 4 KPI existants */}
                         <EcommerceMetrics
                             newClientsWeek={metrics.newClientsWeek}
                             newClientsWeekChange={metrics.newClientsWeekChange}
@@ -91,10 +100,49 @@ export default function Home() {
                             loading={loading}
                         />
 
-                        {/* Rendez-vous du jour et Classement */}
+                        {/* Row 2 : 4 KPI supplementaires */}
+                        <BookingStatsCards
+                            cancelRate={stats.cancelRate}
+                            noShowRate={stats.noShowRate}
+                            averageBasketSize={stats.averageBasketSize}
+                            clientRetentionRate={stats.clientRetentionRate}
+                            loading={statsLoading}
+                        />
+
+                        {/* Row 3 : Evolution CA + Objectif mensuel */}
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-2">
+                                <RevenueTrendChart
+                                    monthlyRevenue={trend.monthlyRevenue}
+                                    monthlyBookings={trend.monthlyBookings}
+                                    loading={trendLoading}
+                                />
+                            </div>
+                            <MonthlyTarget
+                                currentRevenue={stats.currentMonthRevenue}
+                                targetRevenue={5000}
+                                todayRevenue={metrics.revenueToday}
+                                loading={statsLoading}
+                            />
+                        </div>
+
+                        {/* Row 4 : Heures de pointe + Repartition statuts */}
                         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                            <TodayRdv />
-                            <ClassementCoif />
+                            <PeakHoursChart
+                                hourlyDistribution={stats.hourlyDistribution}
+                                loading={statsLoading}
+                            />
+                            <BookingStatusChart
+                                statusCounts={stats.statusCounts}
+                                loading={statsLoading}
+                            />
+                        </div>
+
+                        {/* Row 5 : RDV du jour + Classement + Prestations populaires */}
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            <TodayRdv salonId={salonId} />
+                            <ClassementCoif salonId={salonId} />
+                            <RecentOrders salonId={salonId} />
                         </div>
                     </div>
                 )}

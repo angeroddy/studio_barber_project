@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "lint": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
@@ -12,7 +13,8 @@
     "hash-password": "tsx scripts/hashPassword.ts",
     "clean": "tsx scripts/clean.ts",
     "seed": "tsx scripts/seed.ts",
-    "seed:fresh": "npm run clean && npm run seed"
+    "seed:fresh": "npm run clean && npm run seed",
+    "update-schedules": "tsx scripts/update-all-salon-schedules.ts"
   },
   "keywords": [],
   "author": "",

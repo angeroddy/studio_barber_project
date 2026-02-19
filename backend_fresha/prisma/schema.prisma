@@ -146,6 +146,8 @@ model Booking {
   internalNotes   String?
   reminderSent    Boolean          @default(false)
   reminderSentAt  DateTime?
+  reminder24hSent Boolean          @default(false)
+  reminder24hSentAt DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   canceledAt      DateTime?

@@ -9,6 +9,7 @@ jest.mock('../config/database', () => ({
   __esModule: true,
   default: {
     owner: {
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
     },
@@ -31,7 +32,7 @@ describe('Auth API Tests', () => {
 
     it('should successfully register a new user', async () => {
       // Mock: email doesn't exist
-      (prisma.owner.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.owner.findFirst as jest.Mock).mockResolvedValue(null);
 
       // Mock: create user
       const mockOwner = {
@@ -59,7 +60,7 @@ describe('Auth API Tests', () => {
 
     it('should reject registration with existing email', async () => {
       // Mock: email already exists
-      (prisma.owner.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.owner.findFirst as jest.Mock).mockResolvedValue({
         id: '123',
         email: validRegisterData.email
       });
@@ -131,7 +132,7 @@ describe('Auth API Tests', () => {
         phone: '+33612345678',
         salons: []
       };
-      (prisma.owner.findUnique as jest.Mock).mockResolvedValue(mockOwner);
+      (prisma.owner.findFirst as jest.Mock).mockResolvedValue(mockOwner);
 
       // Mock password comparison (valid)
       jest.spyOn(hashUtil, 'comparePassword').mockResolvedValue(true);
@@ -151,7 +152,7 @@ describe('Auth API Tests', () => {
 
     it('should reject login with non-existent email', async () => {
       // Mock: user doesn't exist
-      (prisma.owner.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.owner.findFirst as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app)
         .post('/api/auth/login')
@@ -172,7 +173,7 @@ describe('Auth API Tests', () => {
         lastName: 'Doe',
         salons: []
       };
-      (prisma.owner.findUnique as jest.Mock).mockResolvedValue(mockOwner);
+      (prisma.owner.findFirst as jest.Mock).mockResolvedValue(mockOwner);
 
       // Mock password comparison (invalid)
       jest.spyOn(hashUtil, 'comparePassword').mockResolvedValue(false);

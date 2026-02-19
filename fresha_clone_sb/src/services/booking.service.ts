@@ -40,7 +40,7 @@ export interface Booking {
   endTime: string;
   duration: number;
   price: number;
-  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW';
   notes?: string;
   isMultiService?: boolean;
   createdAt?: Date;
@@ -77,7 +77,7 @@ export interface CreateBookingData {
   clientPhone?: string;
   startTime: string;
   endTime: string;
-  status?: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+  status?: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW';
   notes?: string;
 }
 
@@ -87,7 +87,7 @@ export interface UpdateBookingData {
   serviceId?: string;
   startTime?: string;
   endTime?: string;
-  status?: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+  status?: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW';
   notes?: string;
   duration?: number;
   price?: number;
@@ -199,7 +199,7 @@ export const deleteBooking = async (id: string): Promise<void> => {
  */
 export const updateBookingStatus = async (
   id: string,
-  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW'
 ): Promise<Booking> => {
   const response = await api.patch<ApiResponse<Booking>>(`/bookings/${id}/status`, {
     status,
