@@ -78,7 +78,7 @@ export default function MonthlyTarget({
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/[0.03] animate-pulse">
+      <div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/3 animate-pulse">
         <div className="px-5 pt-5 bg-white shadow-default rounded-2xl pb-11 dark:bg-gray-900 sm:px-6 sm:pt-6">
           <div className="space-y-2 mb-6">
             <div className="h-5 bg-gray-200 rounded dark:bg-gray-700 w-36" />
@@ -95,7 +95,7 @@ export default function MonthlyTarget({
   const isAboveTarget = percentage >= 100;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/3">
       <div className="px-5 pt-5 bg-white shadow-default rounded-2xl pb-11 dark:bg-gray-900 sm:px-6 sm:pt-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -125,8 +125,8 @@ export default function MonthlyTarget({
         </div>
         <p className="mx-auto mt-10 w-full max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
           {currentRevenue > 0
-            ? `Vous avez généré ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
-            : 'Aucun revenu enregistré ce mois-ci.'}
+            ? `Vous avez gÃ©nÃ©rÃ© ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
+            : 'Aucun revenu enregistrÃ© ce mois-ci.'}
         </p>
       </div>
 
@@ -165,3 +165,4 @@ export default function MonthlyTarget({
     </div>
   );
 }
+

@@ -29,7 +29,7 @@ export default function BookingStatsCards({
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 animate-pulse"
+            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6 animate-pulse"
           >
             <div className="w-12 h-12 bg-gray-200 rounded-xl dark:bg-gray-700" />
             <div className="mt-5 space-y-2">
@@ -45,7 +45,7 @@ export default function BookingStatsCards({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6">
       {/* Taux d'annulation */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-error-50 rounded-xl dark:bg-error-500/15">
           <CloseLineIcon className="text-error-600 size-6 dark:text-error-400" />
         </div>
@@ -66,7 +66,7 @@ export default function BookingStatsCards({
       </div>
 
       {/* Taux de no-show */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-warning-50 rounded-xl dark:bg-warning-500/15">
           <AlertIcon className="text-warning-600 size-6 dark:text-warning-400" />
         </div>
@@ -87,7 +87,7 @@ export default function BookingStatsCards({
       </div>
 
       {/* Panier moyen */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
           <DollarLineIcon className="text-gray-800 size-6 dark:text-white/90" />
         </div>
@@ -108,15 +108,15 @@ export default function BookingStatsCards({
         </div>
       </div>
 
-      {/* Taux de rétention */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      {/* Taux de rÃ©tention */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-success-50 rounded-xl dark:bg-success-500/15">
           <GroupIcon className="text-success-600 size-6 dark:text-success-400" />
         </div>
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Fidélisation clients
+              FidÃ©lisation clients
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {clientRetentionRate.toFixed(1)}%
@@ -131,3 +131,4 @@ export default function BookingStatsCards({
     </div>
   );
 }
+

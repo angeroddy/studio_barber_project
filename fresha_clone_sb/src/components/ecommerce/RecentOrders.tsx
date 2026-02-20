@@ -16,7 +16,7 @@ export default function RecentOrders({ salonId }: RecentOrdersProps) {
 
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 animate-pulse">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/3 sm:px-6 animate-pulse">
         <div className="mb-6">
           <div className="h-5 bg-gray-200 rounded dark:bg-gray-700 w-48" />
         </div>
@@ -34,7 +34,7 @@ export default function RecentOrders({ salonId }: RecentOrdersProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/3 sm:px-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
           Prestations les plus populaires
@@ -92,3 +92,4 @@ export default function RecentOrders({ salonId }: RecentOrdersProps) {
     </div>
   );
 }
+

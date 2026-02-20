@@ -51,7 +51,7 @@ function StaffRow({ staff, maxRevenue }: { staff: StaffRanking; maxRevenue: numb
             {staff.firstName} {staff.lastName}
           </span>
           <span className="text-sm font-semibold text-gray-800 dark:text-white/90 ml-2 shrink-0">
-            {staff.revenue.toLocaleString('fr-FR')} €
+            {staff.revenue.toLocaleString('fr-FR')} â‚¬
           </span>
         </div>
 
@@ -77,7 +77,7 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 animate-pulse">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6 animate-pulse">
         <div className="h-5 bg-gray-200 rounded dark:bg-gray-700 w-44 mb-5" />
         <div className="space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -96,7 +96,7 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
           Top collaborateurs
@@ -108,7 +108,7 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
 
       {rankings.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-          Aucune donnée ce mois-ci
+          Aucune donnÃ©e ce mois-ci
         </p>
       ) : (
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -120,3 +120,4 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
     </div>
   );
 }
+

@@ -21,7 +21,7 @@ export default function Home() {
       <div className="relative w-full">
         <Navbar01 onCtaClick={handleLoginClick} />
       </div>
-      <div className="main-section relative w-full min-h-[500px] sm:min-h-[600px] md:min-h-[700px] lg:h-200 overflow-hidden flex justify-center ">
+      <div className="main-section relative w-full min-h-125 sm:min-h-150 md:min-h-175 lg:h-200 overflow-hidden flex justify-center ">
         {/* Video Background */}
         <video
           autoPlay
@@ -40,7 +40,7 @@ export default function Home() {
         <div className="relative z-10 flex justify-center items-center flex-col leading-none px-4">
           <p className='font-archivo font-[1000] text-white m-0 text-[60px] sm:text-[80px] md:text-[120px] lg:text-[220px] leading-tight lg:leading-40 text-center lg:text-start tracking-tight lg:tracking-[-20]'>STUDIO <br></br> <span className='font-archivo font-black text-white m-0 text-[60px] sm:text-[80px] md:text-[120px] lg:text-[220px] tracking-tight lg:tracking-[-20]'>BARBER</span></p>
 
-          <p className='text-white font-archivo font-black font-[350] text-[18px] sm:text-[24px] md:text-[32px] lg:text-[45px] text-center lg:text-start mt-2 lg:mt-0 lg:mr-15'>PLUS QU&apos;UNE COUPE, UN RITUEL</p>
+          <p className='text-white font-archivo font-[350] text-[18px] sm:text-[24px] md:text-[32px] lg:text-[45px] text-center lg:text-start mt-2 lg:mt-0 lg:mr-15'>PLUS QU&apos;UNE COUPE, UN RITUEL</p>
           <Link href="/reserver">
             <Button variant="outline" className="cursor-pointer font-archivo font-black bg-[#DE2788] mt-4 text-white rounded-none border-none text-sm sm:text-base md:text-lg lg:text-xl px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 whitespace-nowrap">PRENDRE UN RENDEZ-VOUS </Button>
           </Link>
@@ -49,7 +49,7 @@ export default function Home() {
       </div>
       <InfiniteMarquee
         speed={1}
-        className="font-archivo font-black text-[16px] sm:text-[20px] md:text-[24px] lg:text-[30px] text-white flex justify-center items-center bg-[#DE2788] h-[50px] sm:h-[55px] lg:h-[60px] w-full"
+        className="font-archivo font-black text-[16px] sm:text-[20px] md:text-[24px] lg:text-[30px] text-white flex justify-center items-center bg-[#DE2788] h-12.5 sm:h-13.75 lg:h-15 w-full"
       >
         <span className="px-6">STUDIO BARBER • CHAMPIONNET • CLEMENCEAU •</span>
       </InfiniteMarquee>
@@ -166,7 +166,7 @@ export default function Home() {
                   backgroundPosition: 'center'
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
                   <div className="text-white transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-300">
                     <h3 className="font-archivo font-black text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2 uppercase">Coupe Signature</h3>
                     <p className="font-archivo text-sm sm:text-base opacity-90">Coiffure tendance et personnalisée</p>
@@ -189,7 +189,7 @@ export default function Home() {
                   backgroundPosition: 'center'
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
                   <div className="text-white transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-300">
                     <h3 className="font-archivo font-black text-lg sm:text-xl mb-1 uppercase">Coupe Moderne</h3>
                     <p className="font-archivo text-xs sm:text-sm opacity-90">Style urbain</p>
@@ -207,7 +207,7 @@ export default function Home() {
                   backgroundPosition: 'center'
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
                   <div className="text-white transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-300">
                     <h3 className="font-archivo font-black text-lg sm:text-xl mb-1 uppercase">Fade Dégradé</h3>
                     <p className="font-archivo text-xs sm:text-sm opacity-90">Dégradé parfait</p>
@@ -225,7 +225,7 @@ export default function Home() {
                   backgroundPosition: 'center'
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
                   <div className="text-white transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-300">
                     <h3 className="font-archivo font-black text-lg sm:text-xl mb-1 uppercase">Coloration</h3>
                     <p className="font-archivo text-xs sm:text-sm opacity-90">Couleur tendance</p>
@@ -243,7 +243,7 @@ export default function Home() {
                   backgroundPosition: 'center'
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent group-hover:from-[#DE2788]/90 group-hover:via-[#DE2788]/40 transition-all duration-300 flex items-end p-4 sm:p-6">
                   <div className="text-white transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-300">
                     <h3 className="font-archivo font-black text-lg sm:text-xl mb-1 uppercase">Rasage</h3>
                     <p className="font-archivo text-xs sm:text-sm opacity-90">À l&apos;ancienne</p>
@@ -392,7 +392,7 @@ export default function Home() {
 
                 <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   <div className="flex items-start gap-2 sm:gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1 sm:w-6 sm:h-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1 sm:w-6 sm:h-6">
                       <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
@@ -403,7 +403,7 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-start gap-2 sm:gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1 sm:w-6 sm:h-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1 sm:w-6 sm:h-6">
                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                     </svg>
                     <div>
@@ -439,7 +439,7 @@ export default function Home() {
 
                 <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   <div className="flex items-start gap-2 sm:gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1 sm:w-6 sm:h-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1 sm:w-6 sm:h-6">
                       <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
@@ -450,7 +450,7 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-start gap-2 sm:gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1 sm:w-6 sm:h-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1 sm:w-6 sm:h-6">
                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                     </svg>
                     <div>

@@ -72,21 +72,21 @@ export default function PeakHoursChart({
     },
     tooltip: {
       y: {
-        formatter: (val: number) => `${val} réservation${val > 1 ? 's' : ''}`,
+        formatter: (val: number) => `${val} rÃ©servation${val > 1 ? 's' : ''}`,
       },
     },
   };
 
   const series = [
     {
-      name: "Réservations",
+      name: "RÃ©servations",
       data: businessHours,
     },
   ];
 
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6 animate-pulse">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6 animate-pulse">
         <div className="h-5 bg-gray-200 rounded dark:bg-gray-700 w-36 mb-4" />
         <div className="h-[250px] bg-gray-100 rounded dark:bg-gray-800" />
       </div>
@@ -94,13 +94,13 @@ export default function PeakHoursChart({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
           Heures de pointe
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Réservations par créneau horaire ce mois
+          RÃ©servations par crÃ©neau horaire ce mois
         </p>
       </div>
 
@@ -112,3 +112,4 @@ export default function PeakHoursChart({
     </div>
   );
 }
+

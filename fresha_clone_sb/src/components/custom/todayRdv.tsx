@@ -3,7 +3,6 @@ import { useTodayBookings } from "../../hooks/useTodayBookings";
 interface TodayRdvProps {
   salonId: string;
 }
-
 const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 const MONTHS = ['Jan.', 'Fév.', 'Mar.', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sep.', 'Oct.', 'Nov.', 'Déc.'];
 
@@ -12,7 +11,7 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 animate-pulse">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6 animate-pulse">
         <div className="h-6 bg-gray-200 rounded dark:bg-gray-700 w-64 mb-4" />
         <div className="space-y-4 pt-4">
           {[1, 2, 3].map((i) => (
@@ -34,7 +33,7 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
       <h1 className="font-bold text-xl dark:text-white/90">Rendez-vous du jour</h1>
 
       {bookings.length === 0 ? (
@@ -60,7 +59,7 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
 
             return (
               <div key={booking.id} className="flex mt-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="left_date flex flex-col justify-center items-center min-w-[40px]">
+                <div className="left_date flex flex-col justify-center items-center min-w-10">
                   <span className="font-semibold text-[20px] text-gray-800 dark:text-white/90">{day}</span>
                   <span className="text-gray-500 dark:text-gray-400 text-sm">{month}</span>
                 </div>
@@ -79,3 +78,4 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
     </div>
   );
 }
+

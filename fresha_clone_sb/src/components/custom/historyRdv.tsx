@@ -1,7 +1,7 @@
 
 export default function HistoryRdv() {
     return (
-        <div className="rounded-2xl border border- gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+        <div className="rounded-2xl border border- gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
             <h1 className="font-bold text-xl">Historique des rendez-vous</h1>
             <div className="max-h-96 overflow-y-auto">
                 <div className="flex mt-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">

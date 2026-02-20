@@ -74,15 +74,15 @@ export default function RevenueTrendChart({
               maximumFractionDigits: 0,
             });
           }
-          return `${val} réservations`;
+          return `${val} rÃ©servations`;
         },
       },
     },
     xaxis: {
       type: "category",
       categories: [
-        "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
-        "Juil", "Août", "Sep", "Oct", "Nov", "Déc",
+        "Jan", "FÃ©v", "Mar", "Avr", "Mai", "Juin",
+        "Juil", "AoÃ»t", "Sep", "Oct", "Nov", "DÃ©c",
       ],
       axisBorder: {
         show: false,
@@ -124,14 +124,14 @@ export default function RevenueTrendChart({
       data: monthlyRevenue,
     },
     {
-      name: "Réservations",
+      name: "RÃ©servations",
       data: monthlyBookings,
     },
   ];
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6 animate-pulse">
+      <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6 animate-pulse">
         <div className="flex justify-between mb-6">
           <div className="space-y-2">
             <div className="h-5 bg-gray-200 rounded dark:bg-gray-700 w-52" />
@@ -144,14 +144,14 @@ export default function RevenueTrendChart({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Évolution du chiffre d'affaires
+            Ã‰volution du chiffre d'affaires
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            CA et réservations mois par mois
+            CA et rÃ©servations mois par mois
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">
@@ -167,3 +167,4 @@ export default function RevenueTrendChart({
     </div>
   );
 }
+

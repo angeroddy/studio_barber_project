@@ -26,7 +26,7 @@ export default function AbsenceMetricsCards({
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 animate-pulse"
+            className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6 animate-pulse"
           >
             <div className="w-12 h-12 bg-gray-200 rounded-xl dark:bg-gray-700" />
             <div className="mt-5 space-y-2">
@@ -43,7 +43,7 @@ export default function AbsenceMetricsCards({
     return (
       <div className="rounded-2xl border border-error-200 bg-error-50 p-5 dark:border-error-800 dark:bg-error-900/20 md:p-6">
         <p className="text-sm text-error-600 dark:text-error-400">
-          Erreur lors du chargement des métriques: {error}
+          Erreur lors du chargement des mÃ©triques: {error}
         </p>
       </div>
     );
@@ -52,7 +52,7 @@ export default function AbsenceMetricsCards({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6">
       {/* Total absences (Mois) */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
           <CalenderIcon className="text-gray-800 size-6 dark:text-white/90" />
         </div>
@@ -74,7 +74,7 @@ export default function AbsenceMetricsCards({
       </div>
 
       {/* Approbations en attente */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-warning-50 rounded-xl dark:bg-warning-500/15">
           <AlertIcon className="text-warning-600 size-6 dark:text-warning-400" />
         </div>
@@ -95,15 +95,15 @@ export default function AbsenceMetricsCards({
         </div>
       </div>
 
-      {/* Approuvées (Semaine) */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      {/* ApprouvÃ©es (Semaine) */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-success-50 rounded-xl dark:bg-success-500/15">
           <CheckCircleIcon className="text-success-600 size-6 dark:text-success-400" />
         </div>
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Approuvées (Semaine)
+              ApprouvÃ©es (Semaine)
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {metrics.approvedThisWeek.toLocaleString('fr-FR')}
@@ -116,15 +116,15 @@ export default function AbsenceMetricsCards({
         </div>
       </div>
 
-      {/* Moyenne jours/employé */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+      {/* Moyenne jours/employÃ© */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
           <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />
         </div>
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Moyenne jours/employé
+              Moyenne jours/employÃ©
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {metrics.avgDaysPerStaff.toFixed(1)}
@@ -138,3 +138,4 @@ export default function AbsenceMetricsCards({
     </div>
   );
 }
+

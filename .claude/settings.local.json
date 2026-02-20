@@ -9,7 +9,12 @@
       "Bash(npm test:*)",
       "Bash(npm run test)",
       "Bash(npx tsx:*)",
-      "Bash(xargs -I {} sh -c \"echo ''=== {} ==='' && head -50 {}\")"
+      "Bash(xargs -I {} sh -c \"echo ''=== {} ==='' && head -50 {}\")",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI:/c/Program Files \\(x86\\)/GitHub CLI\")",
+      "Bash(gh:*)",
+      "Bash(cmd.exe /c \"gh --version\")",
+      "Bash(node -e:*)",
+      "Bash(TMPDIR=\"$HOME/AppData/Local/Temp\")"
     ],
     "deny": [],
     "ask": []
