@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import prisma from '../config/database'
 import { hashPassword, comparePassword } from '../utils/hash.util'
 import { generateToken } from '../utils/jwt.util'
-import type { StaffRole } from '@prisma/client'
+import type { StaffRole } from '../types/domain.enums'
 
 interface StaffLoginData {
   email: string

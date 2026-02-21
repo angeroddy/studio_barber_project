@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client'
 import prisma from '../config/database'
 import logger from '../config/logger'
 import { sendBookingRecapEmail, sendBookingReminder24hEmail } from './email.service'
@@ -59,9 +58,20 @@ const bookingNotificationInclude = {
   }
 } as const
 
-type BookingForEmail = Prisma.BookingGetPayload<{
-  include: typeof bookingNotificationInclude
-}>
+interface BookingServiceForEmail {
+  service: { name: string }
+  staff: { firstName: string; lastName: string }
+}
+
+interface BookingForEmail {
+  id: string
+  startTime: Date
+  service: { name: string } | null
+  staff: { firstName: string; lastName: string } | null
+  client: { email: string; firstName: string }
+  salon: { name: string; address: string; city: string; phone: string | null; bufferBefore: number }
+  bookingServices: BookingServiceForEmail[]
+}
 
 function getBookingRecapDelayMinutes(): number {
   const configured = Number(process.env.CLIENT_BOOKING_RECAP_DELAY_MINUTES)
@@ -93,7 +103,9 @@ function isTemporaryEmail(email: string): boolean {
 
 function getServiceLabel(booking: Pick<BookingForEmail, 'service' | 'bookingServices'>): string {
   if (booking.bookingServices.length > 0) {
-    const uniqueNames = Array.from(new Set(booking.bookingServices.map((item) => item.service.name).filter(Boolean)))
+    const uniqueNames = Array.from(
+      new Set(booking.bookingServices.map((item: BookingServiceForEmail) => item.service.name).filter(Boolean))
+    )
     if (uniqueNames.length > 0) {
       return uniqueNames.join(' + ')
     }
@@ -106,7 +118,7 @@ function getStaffLabel(booking: Pick<BookingForEmail, 'staff' | 'bookingServices
     const uniqueNames = Array.from(
       new Set(
         booking.bookingServices
-          .map((item) => `${item.staff.firstName} ${item.staff.lastName}`.trim())
+          .map((item: BookingServiceForEmail) => `${item.staff.firstName} ${item.staff.lastName}`.trim())
           .filter(Boolean)
       )
     )

@@ -929,7 +929,7 @@ export async function getAvailableSlots(
   })
 
   // Créer un Set des IDs des coiffeurs en absence
-  const staffIdsOnAbsence = new Set(approvedAbsences.map(a => a.staffId))
+  const staffIdsOnAbsence = new Set(approvedAbsences.map((a: { staffId: string }) => a.staffId))
 
   // Filtrer les coiffeurs disponibles (pas en absence)
   staffMembers = staffMembers.filter(staff => !staffIdsOnAbsence.has(staff.id))
@@ -1132,6 +1132,22 @@ interface CreateMultiServiceBooking {
   status?: 'PENDING' | 'CONFIRMED'
 }
 
+interface ServiceForMultiBooking {
+  id: string
+  duration: number
+  price: unknown
+}
+
+interface PreparedBookingServiceData {
+  serviceId: string
+  staffId: string
+  duration: number
+  price: number
+  order: number
+  startTime: Date
+  endTime: Date
+}
+
 /**
  * Créer une réservation avec plusieurs services
  * Les services sont exécutés séquentiellement dans l'ordre fourni
@@ -1178,11 +1194,13 @@ export async function createMultiServiceBooking(data: CreateMultiServiceBooking)
       throw new Error('Un ou plusieurs services sont introuvables ou inactifs')
     }
 
-    const serviceMap = new Map(services.map((s) => [s.id, s]))
+    const serviceMap = new Map<string, ServiceForMultiBooking>(
+      services.map((s: ServiceForMultiBooking) => [s.id, s])
+    )
 
     let servicesDurationSum = 0
     let totalPrice = 0
-    const bookingServicesData = []
+    const bookingServicesData: PreparedBookingServiceData[] = []
 
     let currentStartTime = new Date(data.startTime)
     if (salon.bufferBefore > 0) {

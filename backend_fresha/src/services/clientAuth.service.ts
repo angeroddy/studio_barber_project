@@ -429,7 +429,7 @@ export async function verifyClientEmailAndFinalizeBooking(rawToken: string): Pro
     throw new Error('Ce lien de verification a expire')
   }
 
-  const finalized = await prisma.$transaction(async (tx) => {
+  const finalized = await prisma.$transaction(async (tx: any) => {
     const updatedClient = await tx.client.update({
       where: { id: client.id },
       data: {

@@ -1,5 +1,5 @@
 import prisma from '../config/database'
-import { AbsenceType, AbsenceStatus } from '@prisma/client'
+import { AbsenceType, AbsenceStatus } from '../types/domain.enums'
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination.util'
 
 interface CreateAbsenceData {
@@ -358,7 +358,7 @@ export async function getStaffAbsenceStats(staffId: string, year?: number) {
     OTHER: 0
   }
 
-  absences.forEach(absence => {
+  absences.forEach((absence: { endDate: Date; startDate: Date; type: keyof typeof statsByType }) => {
     const days = Math.ceil(
       (absence.endDate.getTime() - absence.startDate.getTime()) / (1000 * 60 * 60 * 24)
     ) + 1

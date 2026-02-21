@@ -1,10 +1,28 @@
-import { Prisma } from '@prisma/client'
 import prisma from '../config/database'
 
 const MAX_SERIALIZABLE_RETRIES = 3
+const SERIALIZABLE_ISOLATION_LEVEL = 'Serializable'
+
+type TransactionClient = any
+
+type TransactionCapableClient = {
+  $transaction?: <T>(
+    fn: (tx: TransactionClient) => Promise<T>,
+    options?: { isolationLevel?: string }
+  ) => Promise<T>
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const value = (error as { code?: unknown }).code
+  return typeof value === 'string' && value === code
+}
 
 function isRetryableSerializableError(error: unknown): boolean {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+  if (hasErrorCode(error, 'P2034')) {
     return true
   }
 
@@ -21,17 +39,12 @@ function isRetryableSerializableError(error: unknown): boolean {
 }
 
 export async function withSerializableBookingTransaction<T>(
-  operation: (tx: Prisma.TransactionClient) => Promise<T>
+  operation: (tx: TransactionClient) => Promise<T>
 ): Promise<T> {
-  const prismaClient = prisma as unknown as {
-    $transaction?: (
-      fn: (tx: Prisma.TransactionClient) => Promise<T>,
-      options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
-    ) => Promise<T>
-  }
+  const prismaClient = prisma as unknown as TransactionCapableClient
 
   if (typeof prismaClient.$transaction !== 'function') {
-    return operation(prisma as unknown as Prisma.TransactionClient)
+    return operation(prisma as unknown as TransactionClient)
   }
 
   let lastError: unknown
@@ -39,7 +52,7 @@ export async function withSerializableBookingTransaction<T>(
   for (let attempt = 1; attempt <= MAX_SERIALIZABLE_RETRIES; attempt++) {
     try {
       return await prismaClient.$transaction(operation, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        isolationLevel: SERIALIZABLE_ISOLATION_LEVEL
       })
     } catch (error) {
       lastError = error
@@ -54,7 +67,7 @@ export async function withSerializableBookingTransaction<T>(
 }
 
 export async function acquireBookingLocks(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   lockKeys: string[]
 ): Promise<void> {
   const txClient = tx as unknown as { $executeRaw?: unknown }

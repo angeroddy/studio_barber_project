@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import prisma from '../config/database'
-import { BookingStatus } from '@prisma/client'
+import { BookingStatus } from '../types/domain.enums'
 
 // Récupérer tous les rendez-vous d'un employé
 export async function getMyBookings(req: Request, res: Response) {
@@ -430,7 +430,7 @@ export async function getMyBookingStats(req: Request, res: Response) {
     })
 
     const totalRevenue = completedBookings.reduce(
-      (sum, booking) => sum + Number(booking.price),
+      (sum: number, booking: { price: unknown }) => sum + Number(booking.price),
       0
     )
 

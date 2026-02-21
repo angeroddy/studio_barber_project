@@ -35,7 +35,7 @@ async function getAccessibleSalonIds(
       where: { ownerId: user.userId },
       select: { id: true }
     })
-    return salons.map((salon) => salon.id)
+    return salons.map((salon: { id: string }) => salon.id)
   }
 
   if (user.userType === 'staff') {

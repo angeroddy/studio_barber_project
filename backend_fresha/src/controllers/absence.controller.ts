@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import * as absenceService from '../services/absence.service'
-import { AbsenceStatus, AbsenceType } from '@prisma/client'
+import { ABSENCE_TYPES, AbsenceStatus } from '../types/domain.enums'
 
 export async function createAbsence(req: Request, res: Response) {
   try {
@@ -15,7 +15,7 @@ export async function createAbsence(req: Request, res: Response) {
     }
 
     // Validation du type
-    if (!Object.values(AbsenceType).includes(type)) {
+    if (!ABSENCE_TYPES.includes(type)) {
       return res.status(400).json({
         success: false,
         message: 'Type d\'absence invalide'

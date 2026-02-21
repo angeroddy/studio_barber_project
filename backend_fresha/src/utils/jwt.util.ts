@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import type { StaffRole } from '@prisma/client'
+import type { StaffRole } from '../types/domain.enums'
 
 // Validation stricte - pas de fallback
 if (!process.env.JWT_SECRET) {

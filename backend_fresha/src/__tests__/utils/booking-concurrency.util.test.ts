@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client'
 import prisma from '../../config/database'
 import {
   acquireBookingLocks,
@@ -31,7 +30,7 @@ describe('booking-concurrency.util', () => {
 
       expect(result).toBe('ok')
       expect(mockedPrisma.$transaction).toHaveBeenCalledWith(operation, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        isolationLevel: 'Serializable'
       })
     })
 

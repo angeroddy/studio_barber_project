@@ -412,7 +412,7 @@ export async function getStaffSpecialties(salonId: string) {
   })
 
   // Extraire toutes les spécialités uniques
-  const allSpecialties = staff.flatMap(s => s.specialties)
+  const allSpecialties = staff.flatMap((s: { specialties: string[] }) => s.specialties)
   const uniqueSpecialties = [...new Set(allSpecialties)]
 
   return uniqueSpecialties
