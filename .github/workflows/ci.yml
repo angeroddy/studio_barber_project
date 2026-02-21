@@ -52,6 +52,12 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ matrix.project.lockfile }}
 
+      - name: Pin npm version
+        run: npm install -g npm@10.9.2
+
+      - name: Print npm version
+        run: npm --version
+
       - name: Install dependencies
         run: npm ci
 
