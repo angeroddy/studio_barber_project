@@ -1,4 +1,4 @@
-import { HelmetProvider, Helmet } from "react-helmet-async";
+import { HelmetProvider, Helmet } from "@vuer-ai/react-helmet-async";
 
 const PageMeta = ({
   title,
