@@ -52,5 +52,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   }
 }
