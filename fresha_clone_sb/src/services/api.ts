@@ -1,5 +1,7 @@
 import axios, { AxiosHeaders } from 'axios';
 
+const AUTH_TOKEN_KEY = 'authToken';
+
 // Configuration de base pour axios
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api', // URL du backend
@@ -16,6 +18,18 @@ api.interceptors.request.use((config) => {
       headers.set('Content-Type', 'application/json');
     }
     config.headers = headers;
+  }
+
+  // Fallback for browsers/environments where cross-site cookies are blocked.
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) {
+      const headers = AxiosHeaders.from(config.headers);
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      config.headers = headers;
+    }
   }
 
   return config;
@@ -41,6 +55,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isAuthRequest && !isAuthPage) {
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
+      localStorage.removeItem(AUTH_TOKEN_KEY);
       window.location.href = '/signin';
     }
     return Promise.reject(error);

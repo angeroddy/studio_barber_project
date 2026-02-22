@@ -6,6 +6,8 @@ import Input from "../form/input/InputField";
 import { useAuth } from "../../context/AuthContext";
 import staffAuthService from "../../services/staffAuth.service";
 
+const AUTH_TOKEN_KEY = 'authToken';
+
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +61,7 @@ export default function SignInForm() {
           : await staffAuthService.firstLogin(normalizedEmail, password);
 
         // Sauvegarder l'utilisateur (token gere par cookie HttpOnly)
+        localStorage.setItem(AUTH_TOKEN_KEY, response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         localStorage.setItem('userType', 'staff');
 

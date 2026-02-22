@@ -6,6 +6,7 @@ import type { User, LoginData, RegisterData } from '../services/auth.service';
 import type { StaffUser } from '../services/staffAuth.service';
 
 type UserType = 'owner' | 'staff';
+const AUTH_TOKEN_KEY = 'authToken';
 
 interface AuthContextType {
   user: User | StaffUser | null;
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           localStorage.removeItem('user');
           localStorage.removeItem('userType');
+          localStorage.removeItem(AUTH_TOKEN_KEY);
           setUser(null);
           setUserType(null);
         }
@@ -71,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.login(data);
 
       // Token is now managed by HttpOnly cookie.
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('userType', 'owner');
       setUser(response.data.user);
@@ -96,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       // Token is now managed by HttpOnly cookie.
+      localStorage.setItem(AUTH_TOKEN_KEY, response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       localStorage.setItem('userType', 'staff');
       setUser(response.user);
@@ -118,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.register(data);
 
       // Token is now managed by HttpOnly cookie.
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('userType', 'owner');
       setUser(response.data.user);
@@ -142,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.removeItem('user');
     localStorage.removeItem('userType');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     setUser(null);
     setUserType(null);
     navigate('/signin');
