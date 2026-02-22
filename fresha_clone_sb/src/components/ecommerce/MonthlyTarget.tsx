@@ -1,4 +1,4 @@
-import Chart from "react-apexcharts";
+ï»¿import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 interface MonthlyTargetProps {
@@ -125,8 +125,8 @@ export default function MonthlyTarget({
         </div>
         <p className="mx-auto mt-10 w-full max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
           {currentRevenue > 0
-            ? `Vous avez généré ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
-            : 'Aucun revenu enregistré ce mois-ci.'}
+            ? `Vous avez genere ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
+            : 'Aucun revenu enregistre ce mois-ci.'}
         </p>
       </div>
 

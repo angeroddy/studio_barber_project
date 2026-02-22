@@ -14,6 +14,7 @@ import RecentOrders from "../../components/ecommerce/RecentOrders";
 import { useDashboardMetrics } from "../../hooks/useDashboardMetrics";
 import { useBookingStats } from "../../hooks/useBookingStats";
 import { useRevenueTrend } from "../../hooks/useRevenueTrend";
+import { fixTextEncoding } from "../../utils/textEncoding";
 
 export default function Home() {
     const { isStaff, isManager, isOwner, user } = useAuth();
@@ -38,13 +39,13 @@ export default function Home() {
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                     <div className="px-6.5 py-6">
                         <h2 className="text-2xl font-semibold text-black dark:text-white mb-2">
-                            Bienvenue {user ? (user as any).firstName : ''}
+                            Bienvenue {user ? fixTextEncoding((user as any).firstName) : ''}
                         </h2>
                         <p className="text-bodydark">
                             {isSimpleEmployee
                                 ? "Consultez votre planning dans le calendrier."
                                 : selectedSalon
-                                ? `Vue d'ensemble de ${selectedSalon.name}`
+                                ? `Vue d'ensemble de ${fixTextEncoding(selectedSalon.name)}`
                                 : "Selectionnez un salon pour voir les metriques."}
                         </p>
                     </div>

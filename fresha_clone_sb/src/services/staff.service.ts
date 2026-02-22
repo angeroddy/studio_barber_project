@@ -31,7 +31,7 @@ export interface Staff {
   };
 }
 
-// Interface pour cr�er un staff
+// Interface pour créer un staff
 export interface CreateStaffData {
   salonId: string;
   email?: string;
@@ -45,7 +45,7 @@ export interface CreateStaffData {
   isActive?: boolean;
 }
 
-// Interface pour mettre � jour un staff
+// Interface pour mettre à jour un staff
 export interface UpdateStaffData {
   email?: string;
   password?: string;
@@ -59,7 +59,7 @@ export interface UpdateStaffData {
   isActive?: boolean;
 }
 
-// Interface pour la r�ponse API
+// Interface pour la réponse API
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -68,18 +68,18 @@ interface ApiResponse<T> {
 }
 
 /**
- * Cr�er un nouveau membre du personnel
+ * Créer un nouveau membre du personnel
  */
 export const createStaff = async (data: CreateStaffData): Promise<Staff> => {
   const response = await api.post<ApiResponse<Staff>>('/staff', data);
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Erreur lors de la cr�ation du membre du personnel');
+    throw new Error(response.data.message || 'Erreur lors de la création du membre du personnel');
   }
   return response.data.data;
 };
 
 /**
- * R�cup�rer un membre du personnel par ID
+ * Récupérer un membre du personnel par ID
  */
 export const getStaff = async (id: string): Promise<Staff> => {
   const response = await api.get<ApiResponse<Staff>>(`/staff/${id}`);
@@ -90,7 +90,7 @@ export const getStaff = async (id: string): Promise<Staff> => {
 };
 
 /**
- * R�cup�rer tout le personnel d'un salon
+ * Récupérer tout le personnel d'un salon
  */
 export const getStaffBySalon = async (
   salonId: string,
@@ -108,7 +108,7 @@ export const getStaffBySalon = async (
 };
 
 /**
- * R�cup�rer le personnel par r�le
+ * Récupérer le personnel par rôle
  */
 export const getStaffByRole = async (
   salonId: string,
@@ -124,20 +124,20 @@ export const getStaffByRole = async (
 };
 
 /**
- * R�cup�rer les sp�cialit�s d'un salon
+ * Récupérer les spécialités d'un salon
  */
 export const getStaffSpecialties = async (salonId: string): Promise<string[]> => {
   const response = await api.get<ApiResponse<string[]>>(
     `/staff/salon/${salonId}/specialties`
   );
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Erreur lors de la récupération des sp�cialit�s');
+    throw new Error(response.data.message || 'Erreur lors de la récupération des spécialités');
   }
   return response.data.data;
 };
 
 /**
- * R�cup�rer le personnel disponible pour une date
+ * Récupérer le personnel disponible pour une date
  */
 export const getAvailableStaff = async (
   salonId: string,
@@ -155,7 +155,7 @@ export const getAvailableStaff = async (
 };
 
 /**
- * Mettre � jour un membre du personnel
+ * Mettre à jour un membre du personnel
  */
 export const updateStaff = async (
   id: string,
@@ -170,7 +170,7 @@ export const updateStaff = async (
     console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Erreur lors de la mise � jour du membre du personnel');
+      throw new Error(response.data.message || 'Erreur lors de la mise à jour du membre du personnel');
     }
     return response.data.data;
   } catch (error) {
@@ -200,7 +200,7 @@ export const deleteStaff = async (id: string): Promise<void> => {
 };
 
 /**
- * Activer/D�sactiver un membre du personnel
+ * Activer/Désactiver un membre du personnel
  */
 export const toggleStaffStatus = async (
   id: string,

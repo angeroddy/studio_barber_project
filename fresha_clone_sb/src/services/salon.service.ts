@@ -30,7 +30,7 @@ export interface Salon {
   };
 }
 
-// Interface pour cr�er un salon
+// Interface pour créer un salon
 export interface CreateSalonData {
   name: string;
   address: string;
@@ -53,7 +53,7 @@ export interface UpdateSalonData {
   processingTime?: number;
 }
 
-// Interface pour la r�ponse API
+// Interface pour la réponse API
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -63,7 +63,7 @@ interface ApiResponse<T> {
 }
 
 /**
- * Cr�er un nouveau salon
+ * Créer un nouveau salon
  */
 export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
   console.log('=== salon.service.ts: createSalon ===');
@@ -74,7 +74,7 @@ export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
     console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Erreur lors de la cr�ation du salon');
+      throw new Error(response.data.message || 'Erreur lors de la création du salon');
     }
     return response.data.data;
   } catch (error) {
@@ -90,7 +90,7 @@ export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
 };
 
 /**
- * R�cup�rer un salon par ID
+ * Récupérer un salon par ID
  */
 export const getAllSalons = async (options?: { minimal?: boolean }): Promise<Salon[]> => {
   const response = await api.get<ApiResponse<Salon[]>>('/salons', {
@@ -113,7 +113,7 @@ export const getSalonById = async (id: string): Promise<Salon> => {
 };
 
 /**
- * R�cup�rer un salon par slug
+ * Récupérer un salon par slug
  */
 export const getSalonBySlug = async (slug: string): Promise<Salon> => {
   const response = await api.get<ApiResponse<Salon>>(`/salons/slug/${slug}`);
@@ -124,18 +124,18 @@ export const getSalonBySlug = async (slug: string): Promise<Salon> => {
 };
 
 /**
- * R�cup�rer tous les salons d'un propri�taire
+ * Récupérer tous les salons d'un propriétaire
  */
 export const getSalonsByOwner = async (ownerId: string): Promise<Salon[]> => {
   const response = await api.get<ApiResponse<Salon[]>>(`/salons/owner/${ownerId}`);
   if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Erreur lors de la r�cup�ration des salons');
+    throw new Error(response.data.message || 'Erreur lors de la récupération des salons');
   }
   return response.data.data;
 };
 
 /**
- * R�cup�rer tous les salons du propri�taire connect�
+ * Récupérer tous les salons du propriétaire connecté
  */
 export const getMySalons = async (): Promise<Salon[]> => {
   console.log('=== salon.service.ts: getMySalons ===');
@@ -145,7 +145,7 @@ export const getMySalons = async (): Promise<Salon[]> => {
     console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Erreur lors de la r�cup�ration de vos salons');
+      throw new Error(response.data.message || 'Erreur lors de la récupération de vos salons');
     }
     return response.data.data;
   } catch (error) {
@@ -155,7 +155,7 @@ export const getMySalons = async (): Promise<Salon[]> => {
 };
 
 /**
- * Mettre � jour un salon
+ * Mettre à jour un salon
  */
 export const updateSalon = async (
   id: string,
@@ -170,7 +170,7 @@ export const updateSalon = async (
     console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Erreur lors de la mise � jour du salon');
+      throw new Error(response.data.message || 'Erreur lors de la mise à jour du salon');
     }
     return response.data.data;
   } catch (error) {

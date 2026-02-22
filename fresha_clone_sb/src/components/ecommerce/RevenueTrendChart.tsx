@@ -1,4 +1,4 @@
-import Chart from "react-apexcharts";
+ï»¿import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 import ChartTab from "../common/ChartTab";
 
@@ -74,15 +74,15 @@ export default function RevenueTrendChart({
               maximumFractionDigits: 0,
             });
           }
-          return `${val} réservations`;
+          return `${val} reservations`;
         },
       },
     },
     xaxis: {
       type: "category",
       categories: [
-        "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
-        "Juil", "Août", "Sep", "Oct", "Nov", "Déc",
+        "Jan", "Fev", "Mar", "Avr", "Mai", "Juin",
+        "Juil", "Aout", "Sep", "Oct", "Nov", "Dec",
       ],
       axisBorder: {
         show: false,
@@ -124,7 +124,7 @@ export default function RevenueTrendChart({
       data: monthlyRevenue,
     },
     {
-      name: "Réservations",
+      name: "Reservations",
       data: monthlyBookings,
     },
   ];
@@ -148,10 +148,10 @@ export default function RevenueTrendChart({
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Évolution du chiffre d'affaires
+            Evolution du chiffre d'affaires
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            CA et réservations mois par mois
+            CA et reservations mois par mois
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">

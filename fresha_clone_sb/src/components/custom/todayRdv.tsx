@@ -1,10 +1,25 @@
 import { useTodayBookings } from "../../hooks/useTodayBookings";
+import { fixTextEncoding } from "../../utils/textEncoding";
 
 interface TodayRdvProps {
   salonId: string;
 }
-const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
-const MONTHS = ['Jan.', 'Fév.', 'Mar.', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sep.', 'Oct.', 'Nov.', 'Déc.'];
+
+const DAYS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+const MONTHS = [
+  "Jan.",
+  "Fev.",
+  "Mar.",
+  "Avr.",
+  "Mai",
+  "Juin",
+  "Juil.",
+  "Aout",
+  "Sep.",
+  "Oct.",
+  "Nov.",
+  "Dec.",
+];
 
 export default function TodayRdv({ salonId }: TodayRdvProps) {
   const { bookings, loading } = useTodayBookings(salonId);
@@ -47,15 +62,15 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
             const day = start.getDate();
             const month = MONTHS[start.getMonth()];
             const dayName = DAYS[start.getDay()];
-            const time = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const time = start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
             const serviceName = booking.isMultiService
-              ? booking.bookingServices?.map(bs => bs.service.name).join(', ') || 'Multi-services'
-              : booking.service?.name || 'Service';
+              ? fixTextEncoding(booking.bookingServices?.map((bs) => bs.service.name).join(", ")) || "Multi-services"
+              : fixTextEncoding(booking.service?.name) || "Service";
 
             const staffName = booking.staff
-              ? `${booking.staff.firstName} ${booking.staff.lastName}`
-              : 'Non assigné';
+              ? fixTextEncoding(`${booking.staff.firstName} ${booking.staff.lastName}`)
+              : "Non assigne";
 
             return (
               <div key={booking.id} className="flex mt-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -78,4 +93,3 @@ export default function TodayRdv({ salonId }: TodayRdvProps) {
     </div>
   );
 }
-

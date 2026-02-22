@@ -30,7 +30,7 @@ const CrudStaff = () => {
   console.log('🏪 Salon sélectionné:', selectedSalon);
   console.log('🔑 Salon ID:', salonId);
 
-  // �tats
+  // États
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -41,7 +41,7 @@ const CrudStaff = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // �tats du formulaire
+  // États du formulaire
   const [formData, setFormData] = useState({
     email: "",
     firstName: "",
@@ -53,24 +53,24 @@ const CrudStaff = () => {
     isActive: true,
   });
 
-  // �tat pour g�rer l'ajout de sp�cialit�s
+  // État pour gérer l'ajout de spécialités
   const [newSpecialty, setNewSpecialty] = useState("");
 
   // Charger le personnel au montage du composant et quand le salon change
   useEffect(() => {
     // Ne pas charger si pas de salonId
     if (!salonId) {
-      console.log('� Aucun salonId disponible - en attente...');
+      console.log('Aucun salonId disponible - en attente...');
       return;
     }
 
     const loadStaff = async () => {
       try {
-        console.log('= Chargement du personnel pour le salon:', salonId);
+        console.log('= Chargement du personnel pour le salon:', salonId);
         setIsLoading(true);
         const data = await getStaffBySalon(salonId);
-        console.log(' Personnel charg�:', data);
-        console.log('=� Nombre de membres:', data.length);
+        console.log(' Personnel chargé:', data);
+        console.log('Nombre de membres:', data.length);
         setStaffList(data);
       } catch (error: unknown) {
         console.error('L Erreur lors du chargement du personnel:', error);
@@ -95,7 +95,7 @@ const CrudStaff = () => {
     }));
   };
 
-  // Ajouter une sp�cialit�
+  // Ajouter une spécialité
   const handleAddSpecialty = () => {
     if (newSpecialty.trim() && !formData.specialties.includes(newSpecialty.trim())) {
       setFormData((prev) => ({
@@ -106,7 +106,7 @@ const CrudStaff = () => {
     }
   };
 
-  // Supprimer une sp�cialit�
+  // Supprimer une spécialité
   const handleRemoveSpecialty = (specialty: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -148,9 +148,9 @@ const CrudStaff = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    console.log('=� handleSave appelé');
-    console.log('=� FormData:', formData);
-    console.log('= Mode:', currentStaff ? 'Modification' : 'Ajout');
+    console.log('handleSave appelé');
+    console.log('FormData:', formData);
+    console.log('= Mode:', currentStaff ? 'Modification' : 'Ajout');
 
     // Validation
     if (!formData.firstName || !formData.lastName) {
@@ -165,7 +165,7 @@ const CrudStaff = () => {
 
       if (currentStaff) {
         // Modification
-        console.log('= Appel updateStaff avec ID:', currentStaff.id);
+        console.log('= Appel updateStaff avec ID:', currentStaff.id);
         const updateData: {
           email?: string;
           firstName: string;
@@ -187,7 +187,7 @@ const CrudStaff = () => {
         };
 
         const updatedStaff = await updateStaff(currentStaff.id, updateData);
-        console.log(' Membre mis à jour:', updatedStaff);
+        console.log(' Membre mis à jour:', updatedStaff);
 
         setStaffList((prev) =>
           prev.map((staff) =>
@@ -197,7 +197,7 @@ const CrudStaff = () => {
         setAlertMessage("Membre du personnel modifié avec succès");
       } else {
         // Ajout
-        console.log('� Appel createStaff avec salonId:', salonId);
+        console.log('Appel createStaff avec salonId:', salonId);
         const newStaff = await createStaff({
           salonId,
           email: formData.email || undefined,
@@ -209,7 +209,7 @@ const CrudStaff = () => {
           bio: formData.bio || undefined,
           isActive: formData.isActive,
         });
-        console.log(' Membre crée:', newStaff);
+        console.log(' Membre crée:', newStaff);
 
         setStaffList((prev) => [...prev, newStaff]);
         setAlertMessage(
@@ -226,9 +226,9 @@ const CrudStaff = () => {
       console.error('L Erreur dans handleSave:', error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { errors?: string[] } } };
-        console.error('=� Réponse de l\'API:', axiosError.response?.data);
+        console.error('Réponse de l\'API:', axiosError.response?.data);
         if (axiosError.response?.data?.errors) {
-          console.error('=� Détails des erreurs:', axiosError.response.data.errors);
+          console.error('Détails des erreurs:', axiosError.response.data.errors);
         }
       }
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la sauvegarde du membre";
@@ -248,17 +248,17 @@ const CrudStaff = () => {
 
   // Confirmer la suppression
   const handleDeleteConfirm = async () => {
-    console.log('=� handleDeleteConfirm appel�');
-    console.log('<� ID du membre � supprimer:', staffToDelete);
+    console.log('handleDeleteConfirm appelé');
+    console.log('ID du membre à supprimer:', staffToDelete);
 
     if (!staffToDelete) return;
 
     try {
       setIsLoading(true);
 
-      console.log('= Appel deleteStaff avec ID:', staffToDelete);
+      console.log('= Appel deleteStaff avec ID:', staffToDelete);
       await deleteStaff(staffToDelete);
-      console.log(' Membre supprimé avec succès');
+      console.log(' Membre supprimé avec succès');
 
       setStaffList((prev) =>
         prev.filter((staff) => staff.id !== staffToDelete)
@@ -270,7 +270,7 @@ const CrudStaff = () => {
       console.error('L Erreur dans handleDeleteConfirm:', error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: unknown } };
-        console.error('=� R�ponse de l\'API:', axiosError.response?.data);
+        console.error('Réponse de l\'API:', axiosError.response?.data);
       }
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de la suppression du membre";
       setAlertMessage(errorMessage);
@@ -304,10 +304,10 @@ const CrudStaff = () => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Aucun salon trouv�
+            Aucun salon trouvé
           </h2>
           <p className="text-gray-500 dark:text-gray-400">
-            Vous devez �tre associ� � un salon pour g�rer le personnel.
+            Vous devez être associé à un salon pour gérer le personnel.
           </p>
         </div>
       </div>
@@ -316,14 +316,14 @@ const CrudStaff = () => {
 
   return (
     <div className="p-6">
-      {/* En-t�te */}
+      {/* En-tête */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Gestion du Personnel
           </h1>
           <p className="mt-2 text-xl text-gray-500 dark:text-gray-400">
-            G�rez les membres de votre �quipe
+            Gérez les membres de votre équipe
           </p>
         </div>
         <Button onClick={handleAdd} variant="primary" disabled={isLoading}>
@@ -344,12 +344,12 @@ const CrudStaff = () => {
         </Button>
       </div>
 
-      {/* Alert de succ�s */}
+      {/* Alert de succès */}
       {showSuccessAlert && (
         <div className="mb-4">
           <Alert
             variant="success"
-            title="Succ�s"
+            title="Succès"
             message={alertMessage}
           />
         </div>
@@ -379,7 +379,7 @@ const CrudStaff = () => {
       ) : staffList.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 dark:text-gray-400">
-            Aucun membre du personnel trouv�. Cliquez sur "Ajouter un membre" pour commencer.
+            Aucun membre du personnel trouvé. Cliquez sur "Ajouter un membre" pour commencer.
           </p>
         </div>
       ) : null}
@@ -586,7 +586,7 @@ const CrudStaff = () => {
             </div>
           </div>
 
-          {/* Pr�nom et Nom */}
+          {/* Prénom et Nom */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -612,7 +612,7 @@ const CrudStaff = () => {
             </div>
           </div>
 
-          {/* T�l�phone */}
+          {/* Téléphone */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Téléphone
@@ -625,7 +625,7 @@ const CrudStaff = () => {
             />
           </div>
 
-          {/* R�le */}
+          {/* Rôle */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Rôle*
@@ -640,7 +640,7 @@ const CrudStaff = () => {
             </select>
           </div>
 
-          {/* Sp�cialit�s */}
+          {/* Spécialités */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Spécialités

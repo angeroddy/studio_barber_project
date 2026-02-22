@@ -6,6 +6,7 @@ import {
   TableRow,
 } from "../ui/table";
 import { usePopularServices } from "../../hooks/usePopularServices";
+import { fixTextEncoding } from "../../utils/textEncoding";
 
 interface RecentOrdersProps {
   salonId: string;
@@ -75,7 +76,7 @@ export default function RecentOrders({ salonId }: RecentOrdersProps) {
               {services.map((service) => (
                 <TableRow key={service.id}>
                   <TableCell className="py-4 text-gray-800 text-theme-sm dark:text-white/90">
-                    {service.name}
+                    {fixTextEncoding(service.name)}
                   </TableCell>
                   <TableCell className="py-4 text-gray-800 text-center text-theme-sm dark:text-white/90">
                     {service.currentMonth}

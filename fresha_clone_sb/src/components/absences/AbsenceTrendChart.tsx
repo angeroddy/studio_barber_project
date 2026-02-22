@@ -1,4 +1,4 @@
-import Chart from "react-apexcharts";
+ï»¿import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 interface AbsenceTrendChartProps {
@@ -166,13 +166,13 @@ export default function AbsenceTrendChart({
           Tendance des absences (12 mois)
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Évolution du nombre et de la durée des absences
+          ï¿½volution du nombre et de la durï¿½e des absences
         </p>
       </div>
 
       {!hasData ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-12 text-center">
-          Aucune donnée sur les 12 derniers mois
+          Aucune donnï¿½e sur les 12 derniers mois
         </p>
       ) : (
         <div className="max-w-full overflow-x-auto custom-scrollbar">

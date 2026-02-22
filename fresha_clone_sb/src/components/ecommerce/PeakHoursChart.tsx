@@ -1,4 +1,4 @@
-import Chart from "react-apexcharts";
+ï»¿import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 interface PeakHoursChartProps {
@@ -72,14 +72,14 @@ export default function PeakHoursChart({
     },
     tooltip: {
       y: {
-        formatter: (val: number) => `${val} réservation${val > 1 ? 's' : ''}`,
+        formatter: (val: number) => `${val} reservation${val > 1 ? 's' : ''}`,
       },
     },
   };
 
   const series = [
     {
-      name: "Réservations",
+      name: "Reservations",
       data: businessHours,
     },
   ];
@@ -100,7 +100,7 @@ export default function PeakHoursChart({
           Heures de pointe
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Réservations par créneau horaire ce mois
+          Reservations par creneau horaire ce mois
         </p>
       </div>
 

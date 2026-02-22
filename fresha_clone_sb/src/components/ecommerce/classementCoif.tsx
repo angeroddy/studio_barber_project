@@ -1,4 +1,5 @@
 import { useStaffRanking, StaffRanking } from "../../hooks/useStaffRanking";
+import { fixTextEncoding } from "../../utils/textEncoding";
 
 interface ClassementCoifProps {
   salonId: string;
@@ -34,7 +35,9 @@ function MedalIcon({ rank }: { rank: number }) {
 }
 
 function StaffRow({ staff, maxRevenue }: { staff: StaffRanking; maxRevenue: number }) {
-  const initials = `${staff.firstName.charAt(0)}${staff.lastName.charAt(0)}`.toUpperCase();
+  const firstName = fixTextEncoding(staff.firstName);
+  const lastName = fixTextEncoding(staff.lastName);
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   const revenuePercent = maxRevenue > 0 ? (staff.revenue / maxRevenue) * 100 : 0;
 
   return (
@@ -48,10 +51,10 @@ function StaffRow({ staff, maxRevenue }: { staff: StaffRanking; maxRevenue: numb
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <span className="font-medium text-sm text-gray-800 dark:text-white/90 truncate">
-            {staff.firstName} {staff.lastName}
+            {firstName} {lastName}
           </span>
           <span className="text-sm font-semibold text-gray-800 dark:text-white/90 ml-2 shrink-0">
-            {staff.revenue.toLocaleString('fr-FR')} €
+            {staff.revenue.toLocaleString('fr-FR')} EUR
           </span>
         </div>
 
@@ -108,7 +111,7 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
 
       {rankings.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-          Aucune donnée ce mois-ci
+          Aucune donnee ce mois-ci
         </p>
       ) : (
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -120,4 +123,3 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
     </div>
   );
 }
-
