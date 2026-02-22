@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "prisma:generate": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:deploy:retry": "node scripts/migrate-deploy-with-retry.js",
     "postinstall": "prisma generate",
     "lint": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "build:render": "npm run migrate:deploy:retry && npm run build",
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
