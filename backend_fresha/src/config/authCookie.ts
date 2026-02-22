@@ -13,7 +13,9 @@ function getSameSite(): CookieOptions['sameSite'] {
   if (configured === 'lax' || configured === 'strict' || configured === 'none') {
     return configured
   }
-  return 'lax'
+  // In production, admin and API are usually served from different origins.
+  // sameSite='none' allows auth cookies on XHR/fetch with credentials: true.
+  return process.env.NODE_ENV === 'production' ? 'none' : 'lax'
 }
 
 function getSecureFlag(sameSite: CookieOptions['sameSite']): boolean {

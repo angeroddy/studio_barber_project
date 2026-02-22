@@ -42,6 +42,29 @@ describe('authCookie config', () => {
     )
   })
 
+  it('uses production-friendly defaults for cross-origin auth cookies', () => {
+    delete process.env.AUTH_COOKIE_NAME
+    delete process.env.AUTH_COOKIE_SAME_SITE
+    delete process.env.AUTH_COOKIE_SECURE
+    delete process.env.AUTH_COOKIE_MAX_AGE_MS
+    process.env.NODE_ENV = 'production'
+
+    const res = createResponseMock()
+    setAuthCookie(res, 'token-prod')
+
+    expect((res.cookie as jest.Mock)).toHaveBeenCalledWith(
+      'auth_token',
+      'token-prod',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'none',
+        secure: true,
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      })
+    )
+  })
+
   it('respects cookie environment overrides', () => {
     process.env.AUTH_COOKIE_NAME = 'session_auth'
     process.env.AUTH_COOKIE_SAME_SITE = 'none'
