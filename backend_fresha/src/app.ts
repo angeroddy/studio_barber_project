@@ -18,80 +18,78 @@ import clientAuthRoutes from './routes/clientAuth.routes'
 import clientBookingRoutes from './routes/clientBooking.routes'
 
 dotenv.config()
-
-// Initialiser Sentry en PREMIER (avant Express)
 initSentry()
 
 const app = express()
 
-// Sentry Request Handler - Doit être le premier middleware (uniquement si Sentry est activé)
-// Note: In Sentry v10+, request/tracing handlers are integrated differently
-// The error handler setup at the end handles instrumentation
+// Render/Proxy support so req.ip is the real client IP for rate limiting.
+const trustProxy = Number(process.env.TRUST_PROXY || 0)
+if (Number.isFinite(trustProxy) && trustProxy > 0) {
+  app.set('trust proxy', trustProxy)
+}
 
-// HTTP Request Logging - À activer en premier pour capturer toutes les requêtes
+const globalRateLimitWindowMs = Number(process.env.GLOBAL_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000)
+const globalRateLimitMax = Number(process.env.GLOBAL_RATE_LIMIT_MAX || 100)
+const authRateLimitWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000)
+const authRateLimitMax = Number(process.env.AUTH_RATE_LIMIT_MAX || 5)
+
 app.use(httpLogger)
-
-// Security Headers - Helmet
 app.use(helmet())
 
-// CORS Configuration - Dynamique selon l'environnement
 const allowedOrigins = getAllowedOrigins()
 const allowedOriginSet = new Set(allowedOrigins)
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      callback(null, true)
-      return
-    }
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true)
+        return
+      }
 
-    const normalizedOrigin = normalizeOrigin(origin)
-    callback(null, Boolean(normalizedOrigin && allowedOriginSet.has(normalizedOrigin)))
-  },
-  credentials: true
-}))
+      const normalizedOrigin = normalizeOrigin(origin)
+      callback(null, Boolean(normalizedOrigin && allowedOriginSet.has(normalizedOrigin)))
+    },
+    credentials: true
+  })
+)
 
-// Rate Limiting Global - Protection contre les attaques DDoS
-// Désactivé en test et développement pour faciliter les tests
-const globalLimiter = (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development')
-  ? (req: any, res: any, next: any) => next()
-  : rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // 100 requêtes en production
-      message: {
-        success: false,
-        error: 'Trop de requêtes, veuillez réessayer plus tard.'
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-    })
+const globalLimiter =
+  process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development'
+    ? (req: any, res: any, next: any) => next()
+    : rateLimit({
+        windowMs: globalRateLimitWindowMs,
+        max: globalRateLimitMax,
+        message: {
+          success: false,
+          error: 'Trop de requetes, veuillez reessayer plus tard.'
+        },
+        standardHeaders: true,
+        legacyHeaders: false
+      })
 
-// Rate Limiting Strict pour les routes d'authentification
-// Désactivé en test et développement pour faciliter les tests
-const authLimiter = (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development')
-  ? (req: any, res: any, next: any) => next()
-  : rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 5, // 5 tentatives en production
-      message: {
-        success: false,
-        error: 'Trop de tentatives de connexion, veuillez réessayer dans 15 minutes.'
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-    })
+const authLimiter =
+  process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development'
+    ? (req: any, res: any, next: any) => next()
+    : rateLimit({
+        windowMs: authRateLimitWindowMs,
+        max: authRateLimitMax,
+        skipSuccessfulRequests: true,
+        message: {
+          success: false,
+          error: 'Trop de tentatives de connexion, veuillez reessayer dans 15 minutes.'
+        },
+        standardHeaders: true,
+        legacyHeaders: false
+      })
 
-// Body parsers avec limite de payload (protection DoS)
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// Routes avec rate limiting
-// Routes d'authentification avec limite stricte (5 tentatives/15min)
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/staff-auth', authLimiter, staffAuthRoutes)
 app.use('/api/client-auth', authLimiter, clientAuthRoutes)
 
-// Autres routes avec limite globale (100 requêtes/15min)
 app.use('/api/staff-bookings', globalLimiter, staffBookingRoutes)
 app.use('/api/absences', globalLimiter, absenceRoutes)
 app.use('/api/client-bookings', globalLimiter, clientBookingRoutes)
@@ -101,7 +99,6 @@ app.use('/api/staff', globalLimiter, staffRoutes)
 app.use('/api/bookings', globalLimiter, bookingRoutes)
 app.use('/api/clients', globalLimiter, clientRoutes)
 
-// Health Check Endpoint - Pour monitoring (Render, Kubernetes, etc.)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -112,32 +109,27 @@ app.get('/health', (req, res) => {
   })
 })
 
-// Sentry Error Handler - Doit être AVANT les autres error handlers (uniquement si Sentry est activé)
 if (isSentryEnabled()) {
   Sentry.setupExpressErrorHandler(app)
 }
 
-// Gestion des erreurs 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Route non trouvée'
+    error: 'Route non trouvee'
   })
 })
 
-// Gestion des erreurs globales
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // Import logger localement pour éviter les dépendances circulaires
   const logger = require('./config/logger').default
 
   logger.error('Erreur serveur', {
     error: err.message,
     stack: err.stack,
     url: req.url,
-    method: req.method,
+    method: req.method
   })
 
-  // L'erreur a déjà été envoyée à Sentry par le middleware Sentry.Handlers.errorHandler()
   res.status(500).json({
     success: false,
     error: 'Erreur serveur interne'
@@ -156,7 +148,7 @@ function getAllowedOrigins(): string[] {
 
   const normalizedOrigins = configuredOrigins
     .split(',')
-    .map(origin => normalizeOrigin(origin))
+    .map((origin) => normalizeOrigin(origin))
     .filter((origin): origin is string => Boolean(origin))
 
   if (normalizedOrigins.length === 0) {
