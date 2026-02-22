@@ -19,8 +19,13 @@ export async function getAllSalonsHandler(req: Request, res: Response) {
   try {
     const page = req.query.page ? parseInt(req.query.page as string) : undefined
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
+    const includeSchedules = req.query.includeSchedules === 'true'
+    const minimal = req.query.minimal === 'true'
 
-    const result = await getAllSalons(page, limit)
+    const result = await getAllSalons(page, limit, {
+      includeSchedules,
+      minimal
+    })
 
     res.json({
       success: true,

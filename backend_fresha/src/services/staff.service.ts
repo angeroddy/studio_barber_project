@@ -186,7 +186,13 @@ export async function getStaff(staffId: string) {
 }
 
 // ============= READ (liste par salon) =============
-export async function getStaffBySalon(salonId: string, activeOnly: boolean = false, page?: number, limit?: number) {
+export async function getStaffBySalon(
+  salonId: string,
+  activeOnly: boolean = false,
+  page?: number,
+  limit?: number,
+  lite: boolean = false
+) {
   const pagination = getPaginationParams(page, limit)
 
   const where = {
@@ -195,48 +201,70 @@ export async function getStaffBySalon(salonId: string, activeOnly: boolean = fal
   }
 
   const [staff, total] = await Promise.all([
-    prisma.staff.findMany({
-      where,
-      select: {
-        id: true,
-        salonId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        avatar: true,
-        role: true,
-        specialties: true,
-        bio: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        schedules: {
+    lite
+      ? prisma.staff.findMany({
+          where,
           select: {
             id: true,
-            staffId: true,
-            dayOfWeek: true,
-            startTime: true,
-            endTime: true,
-            isAvailable: true
+            salonId: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            role: true,
+            specialties: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true
           },
-          orderBy: {
-            dayOfWeek: 'asc'
-          }
-        },
-        _count: {
+          orderBy: [
+            { role: 'desc' },
+            { firstName: 'asc' }
+          ],
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      : prisma.staff.findMany({
+          where,
           select: {
-            bookings: true
-          }
-        }
-      },
-      orderBy: [
-        { role: 'desc' }, // MANAGER avant EMPLOYEE
-        { firstName: 'asc' }
-      ],
-      skip: pagination.skip,
-      take: pagination.take
-    }),
+            id: true,
+            salonId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            avatar: true,
+            role: true,
+            specialties: true,
+            bio: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            schedules: {
+              select: {
+                id: true,
+                staffId: true,
+                dayOfWeek: true,
+                startTime: true,
+                endTime: true,
+                isAvailable: true
+              },
+              orderBy: {
+                dayOfWeek: 'asc'
+              }
+            },
+            _count: {
+              select: {
+                bookings: true
+              }
+            }
+          },
+          orderBy: [
+            { role: 'desc' }, // MANAGER avant EMPLOYEE
+            { firstName: 'asc' }
+          ],
+          skip: pagination.skip,
+          take: pagination.take
+        }),
     prisma.staff.count({ where })
   ])
 

@@ -6,7 +6,7 @@ export interface Staff {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone?: string;
   salonId: string;
   role: string;
@@ -30,10 +30,23 @@ export const staffApi = {
   /**
    * Get staff by salon
    */
-  async getStaffBySalon(salonId: string, activeOnly: boolean = true): Promise<Staff[]> {
+  async getStaffBySalon(
+    salonId: string,
+    activeOnly: boolean = true,
+    lite: boolean = false
+  ): Promise<Staff[]> {
     const resolvedSalonId = await resolveSalonId(salonId);
-    const url = activeOnly
-      ? `/staff/salon/${resolvedSalonId}?activeOnly=true`
+    const queryParams = new URLSearchParams();
+    if (activeOnly) {
+      queryParams.set('activeOnly', 'true');
+    }
+    if (lite) {
+      queryParams.set('lite', 'true');
+    }
+
+    const query = queryParams.toString();
+    const url = query
+      ? `/staff/salon/${resolvedSalonId}?${query}`
       : `/staff/salon/${resolvedSalonId}`;
     const response = await apiRequest<{ data: Staff[]; count: number; success: boolean }>(url);
     return response.data || [];

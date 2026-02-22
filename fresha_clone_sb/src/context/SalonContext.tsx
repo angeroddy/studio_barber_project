@@ -40,7 +40,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         const storedSalonId = localStorage.getItem('selectedSalonId');
 
         try {
-          const allSalons = await getAllSalons();
+          const allSalons = await getAllSalons({ minimal: true });
           if (!isMounted) return;
 
           setStaffVisibleSalons(allSalons);

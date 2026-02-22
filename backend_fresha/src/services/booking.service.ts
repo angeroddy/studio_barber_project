@@ -252,6 +252,7 @@ export async function getBookingsBySalon(
     status?: string
     page?: number
     limit?: number
+    lite?: boolean
   }
 ) {
   const where: any = {
@@ -275,6 +276,38 @@ export async function getBookingsBySalon(
 
   // Pagination
   const { page, limit, skip, take } = getPaginationParams(filters?.page, filters?.limit)
+
+  if (filters?.lite) {
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          salonId: true,
+          staffId: true,
+          serviceId: true,
+          clientId: true,
+          startTime: true,
+          endTime: true,
+          duration: true,
+          price: true,
+          status: true,
+          notes: true,
+          isMultiService: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: {
+          startTime: 'asc'
+        },
+        skip,
+        take
+      }),
+      prisma.booking.count({ where })
+    ])
+
+    return createPaginatedResponse(bookings, total, page, limit)
+  }
 
   // Requête avec pagination
   const [bookings, total] = await Promise.all([
@@ -353,6 +386,7 @@ export async function getBookingsByStaff(
     status?: string
     page?: number
     limit?: number
+    lite?: boolean
   }
 ) {
   const where: any = {
@@ -383,6 +417,38 @@ export async function getBookingsByStaff(
 
   // Pagination
   const { page, limit, skip, take } = getPaginationParams(filters?.page, filters?.limit)
+
+  if (filters?.lite) {
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          salonId: true,
+          staffId: true,
+          serviceId: true,
+          clientId: true,
+          startTime: true,
+          endTime: true,
+          duration: true,
+          price: true,
+          status: true,
+          notes: true,
+          isMultiService: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: {
+          startTime: 'asc'
+        },
+        skip,
+        take
+      }),
+      prisma.booking.count({ where })
+    ])
+
+    return createPaginatedResponse(bookings, total, page, limit)
+  }
 
   // Requête avec pagination
   const [bookings, total] = await Promise.all([

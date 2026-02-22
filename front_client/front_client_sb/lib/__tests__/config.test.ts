@@ -12,8 +12,17 @@ describe('lib/api/config', () => {
     vi.stubGlobal('fetch', vi.fn())
   })
 
-  it('returns default JSON headers', () => {
-    expect(getDefaultHeaders()).toEqual({
+  it('does not force JSON content-type for body-less requests', () => {
+    expect(getDefaultHeaders()).toEqual({})
+  })
+
+  it('returns default JSON content-type for requests with a JSON body', () => {
+    expect(
+      getDefaultHeaders({
+        method: 'POST',
+        body: JSON.stringify({ hello: 'world' })
+      })
+    ).toEqual({
       'Content-Type': 'application/json'
     })
   })

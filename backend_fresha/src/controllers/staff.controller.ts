@@ -72,10 +72,11 @@ export async function getStaffBySalonController(req: Request, res: Response) {
   try {
     const { salonId } = req.params
     const activeOnly = req.query.activeOnly === 'true'
+    const lite = req.query.lite === 'true'
     const page = req.query.page ? parseInt(req.query.page as string) : undefined
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined
 
-    const result = await getStaffBySalon(salonId, activeOnly, page, limit)
+    const result = await getStaffBySalon(salonId, activeOnly, page, limit, lite)
 
     return res.status(200).json({
       success: true,

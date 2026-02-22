@@ -194,6 +194,7 @@ export async function getClientsBySalonHandler(req: Request, res: Response) {
   try {
     const accessibleSalonIds = await getAccessibleSalonIds(req, 'read')
     const { salonId } = req.params
+    const minimal = req.query.minimal === 'true'
 
     if (!canAccessSalon(accessibleSalonIds, salonId)) {
       return res.status(403).json({
@@ -202,7 +203,7 @@ export async function getClientsBySalonHandler(req: Request, res: Response) {
       })
     }
 
-    const clients = await getClientsBySalon(salonId, accessibleSalonIds)
+    const clients = await getClientsBySalon(salonId, accessibleSalonIds, { minimal })
 
     return res.json({
       success: true,

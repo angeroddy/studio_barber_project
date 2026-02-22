@@ -99,36 +99,83 @@ export async function createSalon(data: CreateSalonData) {
   return salon
 }
 
-export async function getAllSalons(page?: number, limit?: number) {
+export async function getAllSalons(
+  page?: number,
+  limit?: number,
+  options?: {
+    includeSchedules?: boolean
+    minimal?: boolean
+  }
+) {
   // Pagination
   const pagination = getPaginationParams(page, limit)
+  const includeSchedules = Boolean(options?.includeSchedules)
+  const minimal = Boolean(options?.minimal)
 
-  const [salons, total] = await Promise.all([
-    prisma.salon.findMany({
+  const bookingSelect: any = {
+    id: true,
+    name: true,
+    slug: true,
+    address: true,
+    city: true,
+    zipCode: true,
+    phone: true,
+    email: true,
+    ownerId: true,
+    createdAt: true,
+    updatedAt: true
+  }
+
+  if (includeSchedules) {
+    bookingSelect.schedules = {
       include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        },
-        _count: {
-          select: {
-            services: true,
-            staff: true,
-            clients: true,
-            bookings: true
+        timeSlots: {
+          orderBy: {
+            order: 'asc'
           }
         }
       },
       orderBy: {
-        createdAt: 'desc'
-      },
-      skip: pagination.skip,
-      take: pagination.take
-    }),
+        dayOfWeek: 'asc'
+      }
+    }
+  }
+
+  const [salons, total]: [any[], number] = await Promise.all([
+    minimal
+      ? prisma.salon.findMany({
+          select: bookingSelect,
+          orderBy: {
+            createdAt: 'desc'
+          },
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      : prisma.salon.findMany({
+          include: {
+            owner: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            _count: {
+              select: {
+                services: true,
+                staff: true,
+                clients: true,
+                bookings: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          skip: pagination.skip,
+          take: pagination.take
+        }),
     prisma.salon.count()
   ])
 

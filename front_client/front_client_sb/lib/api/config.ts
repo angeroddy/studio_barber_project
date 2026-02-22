@@ -22,11 +22,45 @@ export const removeAuthToken = (): void => {
 };
 
 // Default headers for API requests
-export const getDefaultHeaders = (): HeadersInit => {
-  return {
-    'Content-Type': 'application/json',
-  };
+export const getDefaultHeaders = (options: RequestInit = {}): HeadersInit => {
+  const headers: Record<string, string> = {};
+  const method = (options.method || 'GET').toUpperCase();
+  const hasBody = options.body !== undefined && options.body !== null;
+  const contentTypeAlreadySet = hasHeader(options.headers, 'Content-Type');
+  const isFormData =
+    typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+  // Keep CORS requests simple: do not force JSON content-type on body-less GET/HEAD.
+  if (
+    hasBody &&
+    method !== 'GET' &&
+    method !== 'HEAD' &&
+    !contentTypeAlreadySet &&
+    !isFormData
+  ) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  return headers;
 };
+
+function hasHeader(headers: HeadersInit | undefined, headerName: string): boolean {
+  if (!headers) return false;
+
+  const normalizedHeaderName = headerName.toLowerCase();
+
+  if (headers instanceof Headers) {
+    return headers.has(headerName);
+  }
+
+  if (Array.isArray(headers)) {
+    return headers.some(([key]) => key.toLowerCase() === normalizedHeaderName);
+  }
+
+  return Object.keys(headers).some(
+    (key) => key.toLowerCase() === normalizedHeaderName
+  );
+}
 
 // API Response type
 export interface ApiResponse<T = any> {
@@ -58,7 +92,7 @@ export async function apiRequest<T = any>(
   const config: RequestInit = {
     ...options,
     headers: {
-      ...getDefaultHeaders(),
+      ...getDefaultHeaders(options),
       ...options.headers,
     },
     credentials: 'include',

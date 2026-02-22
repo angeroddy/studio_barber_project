@@ -72,7 +72,7 @@ function ProfessionnelPageContent() {
     async function fetchStaff() {
       try {
         setLoadingStaff(true);
-        const staffData = await api.staff.getStaffBySalon(salonId);
+        const staffData = await api.staff.getStaffBySalon(salonId, true, true);
         setStaff(staffData);
       } catch (err) {
         console.error("Erreur lors du chargement du staff:", err);

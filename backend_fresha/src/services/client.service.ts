@@ -178,8 +178,33 @@ export async function getClientsByPhone(phone: string, accessibleSalonIds?: stri
   return clients.map(stripPassword)
 }
 
-export async function getClientsBySalon(salonId: string, accessibleSalonIds?: string[]) {
+export async function getClientsBySalon(
+  salonId: string,
+  accessibleSalonIds?: string[],
+  options?: { minimal?: boolean }
+) {
   const salonScope = buildSalonScope(accessibleSalonIds)
+
+  if (options?.minimal) {
+    return prisma.client.findMany({
+      where: {
+        salonId,
+        ...salonScope
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        _count: {
+          select: {
+            bookings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+  }
 
   const clients = await prisma.client.findMany({
     where: {

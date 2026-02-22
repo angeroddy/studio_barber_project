@@ -94,11 +94,12 @@ export const getStaff = async (id: string): Promise<Staff> => {
  */
 export const getStaffBySalon = async (
   salonId: string,
-  activeOnly: boolean = false
+  activeOnly: boolean = false,
+  lite: boolean = false
 ): Promise<Staff[]> => {
   const response = await api.get<ApiResponse<Staff[]>>(
     `/staff/salon/${salonId}`,
-    { params: { activeOnly } }
+    { params: { activeOnly, lite: lite ? 'true' : undefined } }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération du personnel');

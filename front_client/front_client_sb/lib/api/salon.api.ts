@@ -15,15 +15,25 @@ export interface Salon {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  schedules?: Schedule[];
+}
+
+export interface TimeSlot {
+  id: string;
+  scheduleId: string;
+  startTime: string;
+  endTime: string;
+  order: number;
 }
 
 export interface Schedule {
   id: string;
   salonId: string;
   dayOfWeek: number;
-  startTime: string;
-  endTime: string;
+  startTime?: string;
+  endTime?: string;
   isClosed: boolean;
+  timeSlots?: TimeSlot[];
 }
 
 export interface ClosedDay {
@@ -38,8 +48,22 @@ export const salonApi = {
   /**
    * Get all salons
    */
-  async getAllSalons(): Promise<Salon[]> {
-    const response = await apiRequest<{ data: Salon[]; success: boolean; pagination?: any }>('/salons');
+  async getAllSalons(options?: {
+    includeSchedules?: boolean;
+    minimal?: boolean;
+  }): Promise<Salon[]> {
+    const queryParams = new URLSearchParams();
+    if (options?.includeSchedules) {
+      queryParams.set('includeSchedules', 'true');
+    }
+    if (options?.minimal) {
+      queryParams.set('minimal', 'true');
+    }
+
+    const query = queryParams.toString();
+    const endpoint = query ? `/salons?${query}` : '/salons';
+
+    const response = await apiRequest<{ data: Salon[]; success: boolean; pagination?: any }>(endpoint);
     return response.data || [];
   },
 

@@ -38,7 +38,6 @@ export const useDashboardMetrics = (salonId: string) => {
         setLoading(true);
         setError(null);
 
-        // Dates de référence
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -56,22 +55,20 @@ export const useDashboardMetrics = (salonId: string) => {
         const lastWeekEnd = new Date(weekStart);
         lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
 
-        // Récupérer les rendez-vous
-        const [bookingsToday, bookingsYesterday] = await Promise.all([
+        const [bookingsToday, bookingsYesterday, clients] = await Promise.all([
           getBookingsBySalon(salonId, {
             startDate: todayStart.toISOString(),
             endDate: todayEnd.toISOString(),
+            lite: true,
           }),
           getBookingsBySalon(salonId, {
             startDate: yesterdayStart.toISOString(),
             endDate: yesterdayEnd.toISOString(),
+            lite: true,
           }),
+          getClientsBySalon(salonId, true),
         ]);
 
-        // Récupérer les clients
-        const clients = await getClientsBySalon(salonId);
-
-        // Calculer les nouveaux clients de la semaine
         const newClientsWeek = clients.filter(client => {
           if (!client.createdAt) return false;
           const createdDate = new Date(client.createdAt);
@@ -88,7 +85,6 @@ export const useDashboardMetrics = (salonId: string) => {
           ? ((newClientsWeek - newClientsLastWeek) / newClientsLastWeek) * 100
           : newClientsWeek > 0 ? 100 : 0;
 
-        // Calculer les réservations du jour
         const bookingsTodayCount = bookingsToday.filter(
           b => b.status !== 'CANCELED'
         ).length;
@@ -100,24 +96,22 @@ export const useDashboardMetrics = (salonId: string) => {
           ? ((bookingsTodayCount - bookingsYesterdayCount) / bookingsYesterdayCount) * 100
           : bookingsTodayCount > 0 ? 100 : 0;
 
-        // Calculer le chiffre d'affaires du jour
         const revenueToday = bookingsToday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + Number(booking.service?.price || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.price || 0), 0);
 
         const revenueYesterday = bookingsYesterday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + Number(booking.service?.price || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.price || 0), 0);
 
         const revenueTodayChange = revenueYesterday > 0
           ? ((revenueToday - revenueYesterday) / revenueYesterday) * 100
           : revenueToday > 0 ? 100 : 0;
 
-        // Calculer le taux d'occupation (hypothèse : 8h de travail par jour, 60 min par heure = 480 min)
-        const totalAvailableMinutes = 480; // 8 heures * 60 minutes
+        const totalAvailableMinutes = 480;
         const totalBookedMinutes = bookingsToday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + Number(booking.service?.duration || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.duration || 0), 0);
 
         const occupancyRateToday = totalAvailableMinutes > 0
           ? (totalBookedMinutes / totalAvailableMinutes) * 100
@@ -125,7 +119,7 @@ export const useDashboardMetrics = (salonId: string) => {
 
         const totalBookedMinutesYesterday = bookingsYesterday
           .filter(b => b.status !== 'CANCELED')
-          .reduce((sum, booking) => sum + Number(booking.service?.duration || 0), 0);
+          .reduce((sum, booking) => sum + Number(booking.duration || 0), 0);
 
         const occupancyRateYesterday = totalAvailableMinutes > 0
           ? (totalBookedMinutesYesterday / totalAvailableMinutes) * 100
@@ -146,7 +140,7 @@ export const useDashboardMetrics = (salonId: string) => {
           occupancyRateTodayChange,
         });
       } catch (err) {
-        console.error('Erreur lors de la récupération des métriques:', err);
+        console.error('Erreur lors de la recuperation des metriques:', err);
         setError(err instanceof Error ? err.message : 'Une erreur est survenue');
       } finally {
         setLoading(false);
@@ -158,4 +152,3 @@ export const useDashboardMetrics = (salonId: string) => {
 
   return { metrics, loading, error };
 };
-

@@ -230,7 +230,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       try {
         // Charger le personnel
         console.log("👥 [Calendrier] Chargement du personnel pour salon:", selectedSalon.name);
-        const staffData = await getStaffBySalon(selectedSalon.id, true);
+        const [staffData, servicesData, schedulesData] = await Promise.all([getStaffBySalon(selectedSalon.id, true, true), getServicesBySalon(selectedSalon.id), getSchedulesBySalon(selectedSalon.id)]);
         console.log("✅ [Calendrier] Personnel chargé:", staffData);
         console.log("📊 [Calendrier] Nombre de membres du personnel:", staffData.length);
 
@@ -244,13 +244,12 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
         // Charger les services
         console.log("🔧 [Calendrier] Chargement des services...");
-        const servicesData = await getServicesBySalon(selectedSalon.id);
         console.log("✅ [Calendrier] Services chargés:", servicesData);
         setServices(servicesData);
 
         // Charger les horaires du salon
         console.log("⏰ [Calendrier] Chargement des horaires du salon...");
-        const schedulesData = await getSchedulesBySalon(selectedSalon.id);
+        // Deja charge en parallele avec les services
         console.log("✅ [Calendrier] Horaires chargés:", schedulesData);
         setSchedules(schedulesData);
 
@@ -2147,4 +2146,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 };
 
 export default Calendrier;
+
+
+
 

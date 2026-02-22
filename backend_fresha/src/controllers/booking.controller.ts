@@ -42,7 +42,7 @@ export async function getBooking(req: Request, res: Response) {
 export async function getBookingsBySalon(req: Request, res: Response) {
   try {
     const { salonId } = req.params
-    const { startDate, endDate, staffId, status, page, limit } = req.query
+    const { startDate, endDate, staffId, status, page, limit, lite } = req.query
 
     const result = await bookingService.getBookingsBySalon(salonId, {
       startDate: startDate as string,
@@ -50,7 +50,8 @@ export async function getBookingsBySalon(req: Request, res: Response) {
       staffId: staffId as string,
       status: status as string,
       page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined
+      limit: limit ? parseInt(limit as string) : undefined,
+      lite: lite === 'true'
     })
 
     res.json({
@@ -70,14 +71,15 @@ export async function getBookingsBySalon(req: Request, res: Response) {
 export async function getBookingsByStaff(req: Request, res: Response) {
   try {
     const { staffId } = req.params
-    const { startDate, endDate, status, page, limit } = req.query
+    const { startDate, endDate, status, page, limit, lite } = req.query
 
     const result = await bookingService.getBookingsByStaff(staffId, {
       startDate: startDate as string,
       endDate: endDate as string,
       status: status as string,
       page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined
+      limit: limit ? parseInt(limit as string) : undefined,
+      lite: lite === 'true'
     })
 
     res.json({

@@ -68,7 +68,9 @@ interface BrandedEmailParams {
 }
 
 function getBackendPublicUrl(): string {
-  const configured = process.env.BACKEND_PUBLIC_URL?.trim()
+  const configured =
+    process.env.BACKEND_PUBLIC_URL?.trim() ||
+    process.env.RENDER_EXTERNAL_URL?.trim()
   if (configured) {
     return configured.replace(/\/+$/, '')
   }

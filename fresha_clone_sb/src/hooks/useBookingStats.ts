@@ -50,8 +50,9 @@ export const useBookingStats = (salonId: string) => {
           getBookingsBySalon(salonId, {
             startDate: monthStart.toISOString(),
             endDate: monthEnd.toISOString(),
+            lite: true,
           }),
-          getClientsBySalon(salonId),
+          getClientsBySalon(salonId, true),
         ]);
 
         const totalBookings = bookings.length;

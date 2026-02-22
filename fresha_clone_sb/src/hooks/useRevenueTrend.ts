@@ -33,6 +33,7 @@ export const useRevenueTrend = (salonId: string) => {
           startDate: yearStart.toISOString(),
           endDate: yearEnd.toISOString(),
           limit: 10000,
+          lite: true,
         });
 
         const validBookings = bookings.filter(

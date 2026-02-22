@@ -92,8 +92,12 @@ export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
 /**
  * R�cup�rer un salon par ID
  */
-export const getAllSalons = async (): Promise<Salon[]> => {
-  const response = await api.get<ApiResponse<Salon[]>>('/salons');
+export const getAllSalons = async (options?: { minimal?: boolean }): Promise<Salon[]> => {
+  const response = await api.get<ApiResponse<Salon[]>>('/salons', {
+    params: {
+      minimal: options?.minimal ? 'true' : undefined,
+    },
+  });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la recuperation des salons');
   }

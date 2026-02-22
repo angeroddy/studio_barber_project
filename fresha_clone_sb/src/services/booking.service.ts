@@ -135,11 +135,18 @@ export const getBookingsBySalon = async (
     status?: string;
     page?: number;
     limit?: number;
+    lite?: boolean;
   }
 ): Promise<Booking[]> => {
   const response = await api.get<ApiResponse<Booking[]>>(
     `/bookings/salon/${salonId}`,
-    { params: { ...filters, limit: filters?.limit || 1000 } }
+    {
+      params: {
+        ...filters,
+        limit: filters?.limit || 1000,
+        lite: filters?.lite ? 'true' : undefined,
+      }
+    }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération des rendez-vous');
@@ -158,11 +165,18 @@ export const getBookingsByStaff = async (
     status?: string;
     page?: number;
     limit?: number;
+    lite?: boolean;
   }
 ): Promise<Booking[]> => {
   const response = await api.get<ApiResponse<Booking[]>>(
     `/bookings/staff/${staffId}`,
-    { params: { ...filters, limit: filters?.limit || 1000 } }
+    {
+      params: {
+        ...filters,
+        limit: filters?.limit || 1000,
+        lite: filters?.lite ? 'true' : undefined,
+      }
+    }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération des rendez-vous');

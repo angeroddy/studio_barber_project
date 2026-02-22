@@ -104,8 +104,15 @@ export const getClientsByPhone = async (phone: string): Promise<Client[]> => {
 /**
  * Récupérer tous les clients d'un salon
  */
-export const getClientsBySalon = async (salonId: string): Promise<Client[]> => {
-  const response = await api.get<ApiResponse<Client[]>>(`/clients/salon/${salonId}`);
+export const getClientsBySalon = async (
+  salonId: string,
+  minimal: boolean = false
+): Promise<Client[]> => {
+  const response = await api.get<ApiResponse<Client[]>>(`/clients/salon/${salonId}`, {
+    params: {
+      minimal: minimal ? 'true' : undefined,
+    },
+  });
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la récupération des clients');
   }
