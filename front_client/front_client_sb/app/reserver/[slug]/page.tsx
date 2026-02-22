@@ -1,17 +1,10 @@
-'use client';
+import { redirect } from "next/navigation";
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-
-export default function ReserverSlugPage() {
-  const router = useRouter();
-  const params = useParams<{ slug: string }>();
-
-  useEffect(() => {
-    const slug = params?.slug;
-    if (!slug) return;
-    router.replace(`/reserver/prestations?salon=${slug}`);
-  }, [params, router]);
-
-  return null;
+export default async function ReserverSlugPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/reserver/prestations?salon=${encodeURIComponent(slug)}`);
 }

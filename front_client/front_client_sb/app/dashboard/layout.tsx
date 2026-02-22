@@ -7,14 +7,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ReserverLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {children}
-    </div>
-  );
+  return children;
 }

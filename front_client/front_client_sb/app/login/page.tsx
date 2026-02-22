@@ -19,7 +19,7 @@ export default function LoginPage() {
                 src={Logo2}
                 width={500}
                 height={500}
-                alt="Picture of the author"
+                alt="Logo Studio Barber"
               />
             </div>
           </Link>

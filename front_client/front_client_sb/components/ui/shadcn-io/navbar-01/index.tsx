@@ -7,7 +7,6 @@ import { useEffect, useState, useRef } from 'react';
 import {
   NavigationMenu,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
 } from '@/components/ui/navigation-menu';
 import {
@@ -18,7 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import Logo2 from '@/public/logoApp.png';
 import { isAuthenticated } from '@/lib/api/auth';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 
 // Simple logo component for the navbar
@@ -90,10 +89,10 @@ export interface Navbar01Props extends React.HTMLAttributes<HTMLElement> {
   navigationLinks?: Navbar01NavLink[];
   signInText?: string;
   Accueil? : string;
+  homeHref?: string;
   signInHref?: string;
   ctaText?: string;
   ctaHref?: string;
-  onSignInClick?: () => void;
   onCtaClick?: () => void;
 }
 
@@ -107,14 +106,14 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
     {
       className,
       logo =  <Image src={Logo2} alt="Logo" height={80} width={80} />,
-      logoHref = '#',
+      logoHref = '/',
       navigationLinks = defaultNavigationLinks,
       signInText = 'SALONS',
-       Accueil = 'ACCUEIL',
-      signInHref = '#signin',
+      Accueil = 'ACCUEIL',
+      homeHref = '/',
+      signInHref = '/#salons',
       ctaText = 'SE CONNECTER',
-      ctaHref = '#get-started',
-      onSignInClick,
+      ctaHref = '/login',
       onCtaClick,
       ...props
     },
@@ -123,7 +122,6 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
     const [isMobile, setIsMobile] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const containerRef = useRef<HTMLElement>(null);
-    const router = useRouter();
 
     useEffect(() => {
       const checkWidth = () => {
@@ -207,8 +205,8 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
                   <NavigationMenuList className="flex-col items-start gap-1">
                     {navigationLinks.map((link, index) => (
                       <NavigationMenuItem key={index} className="w-full">
-                        <button
-                          onClick={(e) => e.preventDefault()}
+                        <Link
+                          href={link.href}
                           className={cn(
                             "flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer no-underline",
                             link.active 
@@ -217,7 +215,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
                           )}
                         >
                           {link.label}
-                        </button>
+                        </Link>
                       </NavigationMenuItem>
                     ))}
                   </NavigationMenuList>
@@ -227,23 +225,22 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
             )}
             {/* Main nav */}
             <div className="flex items-center gap-6">
-              <button 
-                onClick={(e) => e.preventDefault()}
+              <Link
+                href={logoHref}
                 className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
               >
                 <div className="text-2xl">
                   {logo}
                 </div>
-               
-              </button>
+              </Link>
               {/* Navigation menu */}
               {!isMobile && (
                 <NavigationMenu className="flex">
                 <NavigationMenuList className="gap-1">
                   {navigationLinks.map((link, index) => (
                     <NavigationMenuItem key={index}>
-                      <button
-                        onClick={(e) => e.preventDefault()}
+                      <Link
+                        href={link.href}
                         className={cn(
                           "group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer no-underline",
                           link.active 
@@ -252,7 +249,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
                         )}
                       >
                         {link.label}
-                      </button>
+                      </Link>
                     </NavigationMenuItem>
                   ))}
                 </NavigationMenuList>
@@ -262,49 +259,45 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
           </div>
           {/* Right side */}
           <div className="flex items-center gap-3">
-             <Button
+            <Button
+              asChild
               variant="ghost"
               size="sm"
               className="font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onSignInClick) onSignInClick();
-              }}
             >
-              {Accueil}
+              <Link href={homeHref}>{Accueil}</Link>
             </Button>
             <Button
+              asChild
               variant="ghost"
               size="sm"
-              className=" font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onSignInClick) onSignInClick();
-              }}
+              className="font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             >
-              {signInText}
+              <Link href={signInHref}>{signInText}</Link>
             </Button>
             {isLoggedIn ? (
               <Button
+                asChild
                 size="sm"
                 className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788] hover:bg-[#c01f73]"
-                onClick={(e) => {
-                  e.preventDefault();
-                  router.push('/dashboard');
-                }}
               >
-                MON COMPTE
+                <Link href="/dashboard">MON COMPTE</Link>
               </Button>
-            ) : (
+            ) : onCtaClick ? (
               <Button
                 size="sm"
                 className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788]"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (onCtaClick) onCtaClick();
-                }}
+                onClick={onCtaClick}
               >
                 {ctaText}
+              </Button>
+            ) : (
+              <Button
+                asChild
+                size="sm"
+                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788]"
+              >
+                <Link href={ctaHref}>{ctaText}</Link>
               </Button>
             )}
           </div>
