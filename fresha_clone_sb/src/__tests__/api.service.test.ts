@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockInterceptorUse = vi.fn()
+const mockRequestInterceptorUse = vi.fn()
+const mockResponseInterceptorUse = vi.fn()
 const mockAxiosInstance = {
   interceptors: {
+    request: {
+      use: mockRequestInterceptorUse
+    },
     response: {
-      use: mockInterceptorUse
+      use: mockResponseInterceptorUse
     }
   }
 }
@@ -29,7 +33,7 @@ describe('services/api axios interceptor', () => {
   })
 
   it('clears auth storage on 401 for non-auth requests outside auth pages', async () => {
-    const rejectHandler = mockInterceptorUse.mock.calls[0][1]
+    const rejectHandler = mockResponseInterceptorUse.mock.calls[0][1]
     const error = {
       response: { status: 401 },
       config: { url: '/bookings' }
@@ -42,7 +46,7 @@ describe('services/api axios interceptor', () => {
   })
 
   it('does not clear auth storage for auth endpoints', async () => {
-    const rejectHandler = mockInterceptorUse.mock.calls[0][1]
+    const rejectHandler = mockResponseInterceptorUse.mock.calls[0][1]
     const error = {
       response: { status: 401 },
       config: { url: '/auth/login' }
@@ -58,7 +62,7 @@ describe('services/api axios interceptor', () => {
     vi.resetModules()
     await import('../services/api')
 
-    const rejectHandler = mockInterceptorUse.mock.calls[0][1]
+    const rejectHandler = mockResponseInterceptorUse.mock.calls[0][1]
     const error = {
       response: { status: 401 },
       config: { url: '/bookings' }
@@ -70,7 +74,7 @@ describe('services/api axios interceptor', () => {
   })
 
   it('ignores non-401 errors', async () => {
-    const rejectHandler = mockInterceptorUse.mock.calls[0][1]
+    const rejectHandler = mockResponseInterceptorUse.mock.calls[0][1]
     const error = {
       response: { status: 500 },
       config: { url: '/bookings' }

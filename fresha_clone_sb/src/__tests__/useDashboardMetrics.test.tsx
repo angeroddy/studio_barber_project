@@ -44,19 +44,22 @@ describe('useDashboardMetrics', () => {
         {
           id: 'b1',
           status: 'CONFIRMED',
-          service: { price: 100, duration: 60 }
+          price: 100,
+          duration: 60
         },
         {
           id: 'b2',
           status: 'CANCELED',
-          service: { price: 80, duration: 45 }
+          price: 80,
+          duration: 45
         }
       ])
       .mockResolvedValueOnce([
         {
           id: 'b3',
           status: 'CONFIRMED',
-          service: { price: 50, duration: 30 }
+          price: 50,
+          duration: 30
         }
       ])
 
@@ -72,7 +75,7 @@ describe('useDashboardMetrics', () => {
     })
 
     expect(mockedGetBookingsBySalon).toHaveBeenCalledTimes(2)
-    expect(mockedGetClientsBySalon).toHaveBeenCalledWith('salon-1')
+    expect(mockedGetClientsBySalon).toHaveBeenCalledWith('salon-1', true)
 
     expect(result.current.metrics.newClientsWeek).toBe(1)
     expect(result.current.metrics.newClientsWeekChange).toBe(0)
