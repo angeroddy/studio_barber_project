@@ -74,7 +74,7 @@ export default function EcommerceMetrics({
         </div>
       </div>
 
-      {/* RÃ©servations du jour */}
+      {/* R�servations du jour */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
           <BookingIcon className="text-gray-800 size-6 dark:text-white/90" />
@@ -82,7 +82,7 @@ export default function EcommerceMetrics({
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              RÃ©servations de la journÃ©e
+              R�servations de la journ�e
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {bookingsToday.toLocaleString('fr-FR')}
@@ -104,7 +104,7 @@ export default function EcommerceMetrics({
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Chiffre d'affaires (journÃ©e)
+              Chiffre d'affaires (journ�e)
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {revenueToday.toLocaleString('fr-FR', {
@@ -131,7 +131,7 @@ export default function EcommerceMetrics({
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Taux d'occupation (journÃ©e)
+              Taux d'occupation (journ�e)
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {occupancyRateToday.toFixed(1)}%

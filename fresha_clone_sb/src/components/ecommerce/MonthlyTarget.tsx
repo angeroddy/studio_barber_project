@@ -125,8 +125,8 @@ export default function MonthlyTarget({
         </div>
         <p className="mx-auto mt-10 w-full max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
           {currentRevenue > 0
-            ? `Vous avez gÃ©nÃ©rÃ© ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
-            : 'Aucun revenu enregistrÃ© ce mois-ci.'}
+            ? `Vous avez g�n�r� ${formatEUR(currentRevenue)} ce mois-ci sur un objectif de ${formatEUR(targetRevenue)}.`
+            : 'Aucun revenu enregistr� ce mois-ci.'}
         </p>
       </div>
 

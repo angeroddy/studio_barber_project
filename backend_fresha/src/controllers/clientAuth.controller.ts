@@ -17,11 +17,16 @@ function getFrontendBaseUrl(): string {
   if (configured) {
     return configured.replace(/\/+$/, '')
   }
+  if (process.env.NODE_ENV === 'production') {
+    return ''
+  }
   return 'http://localhost:3000'
 }
 
 function buildFrontendUrl(path: string): string {
-  return `${getFrontendBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const base = getFrontendBaseUrl()
+  return base ? `${base}${normalizedPath}` : normalizedPath
 }
 
 export const checkEmailValidation = [

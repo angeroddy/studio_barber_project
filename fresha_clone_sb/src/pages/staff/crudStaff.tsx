@@ -304,10 +304,10 @@ const CrudStaff = () => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Aucun salon trouvï¿½
+            Aucun salon trouvé
           </h2>
           <p className="text-gray-500 dark:text-gray-400">
-            Vous devez ï¿½tre associï¿½ ï¿½ un salon pour gï¿½rer le personnel.
+            Vous devez être associé à un salon pour gérer le personnel.
           </p>
         </div>
       </div>
@@ -316,14 +316,14 @@ const CrudStaff = () => {
 
   return (
     <div className="p-6">
-      {/* En-tï¿½te */}
+      {/* En-tête */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Gestion du Personnel
           </h1>
           <p className="mt-2 text-xl text-gray-500 dark:text-gray-400">
-            GÃ©rez les membres de votre Ã©quipe
+            Gérez les membres de votre équipe
           </p>
         </div>
         <Button onClick={handleAdd} variant="primary" disabled={isLoading}>
@@ -344,12 +344,12 @@ const CrudStaff = () => {
         </Button>
       </div>
 
-      {/* Alert de succï¿½s */}
+      {/* Alert de succès */}
       {showSuccessAlert && (
         <div className="mb-4">
           <Alert
             variant="success"
-            title="Succï¿½s"
+            title="Succès"
             message={alertMessage}
           />
         </div>
@@ -379,7 +379,7 @@ const CrudStaff = () => {
       ) : staffList.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 dark:text-gray-400">
-            Aucun membre du personnel trouvï¿½. Cliquez sur "Ajouter un membre" pour commencer.
+            Aucun membre du personnel trouvé. Cliquez sur "Ajouter un membre" pour commencer.
           </p>
         </div>
       ) : null}

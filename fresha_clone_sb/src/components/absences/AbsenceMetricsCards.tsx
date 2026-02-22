@@ -43,7 +43,7 @@ export default function AbsenceMetricsCards({
     return (
       <div className="rounded-2xl border border-error-200 bg-error-50 p-5 dark:border-error-800 dark:bg-error-900/20 md:p-6">
         <p className="text-sm text-error-600 dark:text-error-400">
-          Erreur lors du chargement des mÃ©triques: {error}
+          Erreur lors du chargement des m�triques: {error}
         </p>
       </div>
     );
@@ -95,7 +95,7 @@ export default function AbsenceMetricsCards({
         </div>
       </div>
 
-      {/* ApprouvÃ©es (Semaine) */}
+      {/* Approuv�es (Semaine) */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-success-50 rounded-xl dark:bg-success-500/15">
           <CheckCircleIcon className="text-success-600 size-6 dark:text-success-400" />
@@ -103,7 +103,7 @@ export default function AbsenceMetricsCards({
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              ApprouvÃ©es (Semaine)
+              Approuv�es (Semaine)
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {metrics.approvedThisWeek.toLocaleString('fr-FR')}
@@ -116,7 +116,7 @@ export default function AbsenceMetricsCards({
         </div>
       </div>
 
-      {/* Moyenne jours/employÃ© */}
+      {/* Moyenne jours/employ� */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
         <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
           <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />
@@ -124,7 +124,7 @@ export default function AbsenceMetricsCards({
         <div className="flex items-end justify-between mt-5">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Moyenne jours/employÃ©
+              Moyenne jours/employ�
             </span>
             <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
               {metrics.avgDaysPerStaff.toFixed(1)}

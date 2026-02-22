@@ -7,10 +7,10 @@ interface BookingStatusChartProps {
 }
 
 const STATUS_CONFIG = [
-  { key: 'CONFIRMED', label: 'ConfirmÃ©', color: '#465FFF' },
+  { key: 'CONFIRMED', label: 'Confirm�', color: '#465FFF' },
   { key: 'IN_PROGRESS', label: 'En cours', color: '#F59E0B' },
-  { key: 'COMPLETED', label: 'TerminÃ©', color: '#10B981' },
-  { key: 'CANCELED', label: 'AnnulÃ©', color: '#EF4444' },
+  { key: 'COMPLETED', label: 'Termin�', color: '#10B981' },
+  { key: 'CANCELED', label: 'Annul�', color: '#EF4444' },
   { key: 'NO_SHOW', label: 'No-show', color: '#8B5CF6' },
   { key: 'PENDING', label: 'En attente', color: '#6B7280' },
 ];
@@ -58,7 +58,7 @@ export default function BookingStatusChart({
     },
     tooltip: {
       y: {
-        formatter: (val: number) => `${val} rÃ©servation${val > 1 ? 's' : ''}`,
+        formatter: (val: number) => `${val} r�servation${val > 1 ? 's' : ''}`,
       },
     },
   };
@@ -78,16 +78,16 @@ export default function BookingStatusChart({
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          RÃ©partition des rÃ©servations
+          R�partition des r�servations
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Statuts des rÃ©servations ce mois
+          Statuts des r�servations ce mois
         </p>
       </div>
 
       {total === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-12 text-center">
-          Aucune rÃ©servation ce mois-ci
+          Aucune r�servation ce mois-ci
         </p>
       ) : (
         <div className="flex items-center justify-center">

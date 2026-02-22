@@ -70,19 +70,39 @@ interface BrandedEmailParams {
 function getBackendPublicUrl(): string {
   const configured =
     process.env.BACKEND_PUBLIC_URL?.trim() ||
-    process.env.RENDER_EXTERNAL_URL?.trim()
+    process.env.RENDER_EXTERNAL_URL?.trim() ||
+    (process.env.RENDER_EXTERNAL_HOSTNAME?.trim()
+      ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME.trim()}`
+      : '')
+
   if (configured) {
     return configured.replace(/\/+$/, '')
   }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'BACKEND_PUBLIC_URL manquant en production (ou RENDER_EXTERNAL_URL/RENDER_EXTERNAL_HOSTNAME indisponible)'
+    )
+  }
+
   const port = process.env.PORT || '5000'
   return `http://localhost:${port}`
 }
 
 function getStaffAppUrl(): string {
-  const configured = process.env.STAFF_APP_URL?.trim() || process.env.FRONTEND_URL?.trim()
+  const configured =
+    process.env.STAFF_APP_URL?.trim() ||
+    process.env.ADMIN_APP_URL?.trim() ||
+    process.env.FRONTEND_URL?.trim()
+
   if (configured) {
     return configured.replace(/\/+$/, '')
   }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('STAFF_APP_URL manquant en production')
+  }
+
   return 'http://localhost:5173'
 }
 

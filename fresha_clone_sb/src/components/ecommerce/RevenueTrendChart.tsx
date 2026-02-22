@@ -74,15 +74,15 @@ export default function RevenueTrendChart({
               maximumFractionDigits: 0,
             });
           }
-          return `${val} rÃ©servations`;
+          return `${val} r�servations`;
         },
       },
     },
     xaxis: {
       type: "category",
       categories: [
-        "Jan", "FÃ©v", "Mar", "Avr", "Mai", "Juin",
-        "Juil", "AoÃ»t", "Sep", "Oct", "Nov", "DÃ©c",
+        "Jan", "F�v", "Mar", "Avr", "Mai", "Juin",
+        "Juil", "Ao�t", "Sep", "Oct", "Nov", "D�c",
       ],
       axisBorder: {
         show: false,
@@ -124,7 +124,7 @@ export default function RevenueTrendChart({
       data: monthlyRevenue,
     },
     {
-      name: "RÃ©servations",
+      name: "R�servations",
       data: monthlyBookings,
     },
   ];
@@ -148,10 +148,10 @@ export default function RevenueTrendChart({
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Ã‰volution du chiffre d'affaires
+            �volution du chiffre d'affaires
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            CA et rÃ©servations mois par mois
+            CA et r�servations mois par mois
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">

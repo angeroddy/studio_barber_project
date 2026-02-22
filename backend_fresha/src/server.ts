@@ -44,6 +44,7 @@ function validateEnvironment() {
 validateEnvironment()
 
 const PORT = process.env.PORT || 5000
+const publicBaseUrl = getPublicBaseUrl()
 
 app.listen(PORT, () => {
   startBookingRecapWorker()
@@ -51,12 +52,24 @@ app.listen(PORT, () => {
   logger.info('Backend demarre', {
     port: PORT,
     environment: process.env.NODE_ENV || 'development',
-    healthCheck: `/health`,
+    healthCheck: `${publicBaseUrl}/health`,
     corsOrigins: process.env.ALLOWED_ORIGINS || 'localhost seulement'
   })
 
-  console.log(`Backend demarre sur http://localhost:${PORT}`)
-  console.log(`Health check: http://localhost:${PORT}/health`)
+  console.log(`Backend demarre sur ${publicBaseUrl}`)
+  console.log(`Health check: ${publicBaseUrl}/health`)
   console.log(`Environnement: ${process.env.NODE_ENV || 'development'}`)
   console.log(`CORS active pour: ${process.env.ALLOWED_ORIGINS || 'localhost seulement'}`)
 })
+
+function getPublicBaseUrl(): string {
+  const configured =
+    process.env.BACKEND_PUBLIC_URL?.trim() ||
+    process.env.RENDER_EXTERNAL_URL?.trim()
+
+  if (configured) {
+    return configured.replace(/\/+$/, '')
+  }
+
+  return `http://localhost:${PORT}`
+}

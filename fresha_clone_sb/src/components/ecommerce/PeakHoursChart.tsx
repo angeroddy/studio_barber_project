@@ -72,14 +72,14 @@ export default function PeakHoursChart({
     },
     tooltip: {
       y: {
-        formatter: (val: number) => `${val} rÃ©servation${val > 1 ? 's' : ''}`,
+        formatter: (val: number) => `${val} r�servation${val > 1 ? 's' : ''}`,
       },
     },
   };
 
   const series = [
     {
-      name: "RÃ©servations",
+      name: "R�servations",
       data: businessHours,
     },
   ];
@@ -100,7 +100,7 @@ export default function PeakHoursChart({
           Heures de pointe
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          RÃ©servations par crÃ©neau horaire ce mois
+          R�servations par cr�neau horaire ce mois
         </p>
       </div>
 

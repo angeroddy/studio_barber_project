@@ -166,13 +166,13 @@ export default function AbsenceTrendChart({
           Tendance des absences (12 mois)
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Ã‰volution du nombre et de la durÃ©e des absences
+          �volution du nombre et de la dur�e des absences
         </p>
       </div>
 
       {!hasData ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-12 text-center">
-          Aucune donnÃ©e sur les 12 derniers mois
+          Aucune donn�e sur les 12 derniers mois
         </p>
       ) : (
         <div className="max-w-full overflow-x-auto custom-scrollbar">

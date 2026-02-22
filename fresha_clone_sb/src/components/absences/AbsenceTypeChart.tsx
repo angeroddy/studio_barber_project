@@ -9,8 +9,8 @@ interface AbsenceTypeChartProps {
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   VACATION: { label: 'Vacances', color: '#465FFF' },
-  SICK_LEAVE: { label: 'CongÃ© maladie', color: '#EF4444' },
-  PERSONAL: { label: 'CongÃ© personnel', color: '#8B5CF6' },
+  SICK_LEAVE: { label: 'Cong� maladie', color: '#EF4444' },
+  PERSONAL: { label: 'Cong� personnel', color: '#8B5CF6' },
   OTHER: { label: 'Autre', color: '#6B7280' },
 };
 
@@ -77,7 +77,7 @@ export default function AbsenceTypeChart({
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          RÃ©partition par type d'absence
+          R�partition par type d'absence
         </h3>
         <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
           Distribution des types d'absences
@@ -86,7 +86,7 @@ export default function AbsenceTypeChart({
 
       {total === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-12 text-center">
-          Aucune absence enregistrÃ©e
+          Aucune absence enregistr�e
         </p>
       ) : (
         <div className="flex items-center justify-center">

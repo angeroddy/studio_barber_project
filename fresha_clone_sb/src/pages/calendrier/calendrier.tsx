@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type DragEvent as ReactDragEvent } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -7,7 +7,6 @@ import type { EventInput, DateSelectArg, EventClickArg } from "@fullcalendar/cor
 import frLocale from "@fullcalendar/core/locales/fr";
 import { Modal } from "../../components/ui/modal";
 import { useModal } from "../../hooks/useModal";
-import Avatar from "../../components/ui/avatar/Avatar";
 import { getStaffBySalon } from "../../services/staff.service";
 import type { Staff } from "../../services/staff.service";
 import {
@@ -123,22 +122,40 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     console.log('🎯 [Drag] Fin du drag');
   };
 
-  const handleDrop = async (hairdresserId: string, hourIndex: number, date: Date = selectedDate) => {
+  const handleDrop = async (
+    hairdresserId: string,
+    hourIndex: number,
+    date: Date = selectedDate,
+    dropEvent?: ReactDragEvent<HTMLDivElement>
+  ) => {
     if (isCalendarReadOnly || !draggedEvent) return;
 
     const hour = hourIndex + CALENDAR_START_HOUR;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
-
     const oldStart = new Date(draggedEvent.start);
     const oldEnd = new Date(draggedEvent.end);
-    const duration = oldEnd.getTime() - oldStart.getTime();
+    const duration = Math.max(5 * 60 * 1000, oldEnd.getTime() - oldStart.getTime());
 
-    const newStartTime = `${dateStr}T${String(hour).padStart(2, '0')}:00:00`;
-    const newEndDate = new Date(newStartTime);
-    newEndDate.setTime(newEndDate.getTime() + duration);
+    // Precision drop: infer minute from pointer position in the cell (snap 5 minutes).
+    let minuteOffset = 0;
+    if (dropEvent) {
+      const rect = dropEvent.currentTarget.getBoundingClientRect();
+      const relativeY = Math.min(Math.max(dropEvent.clientY - rect.top, 0), rect.height);
+      const rawMinutes = (relativeY / Math.max(rect.height, 1)) * 60;
+      const snapped = Math.floor(rawMinutes / 5) * 5;
+      minuteOffset = Math.min(Math.max(snapped, 0), 55);
+    }
+
+    const newStartDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hour,
+      minuteOffset,
+      0,
+      0
+    );
+    const newEndDate = new Date(newStartDate.getTime() + duration);
+    const newStartTime = newStartDate.toISOString();
     const newEndTime = newEndDate.toISOString();
 
     console.log('🎯 [Drag] Drop:', {
@@ -156,20 +173,50 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     }
 
     try {
-      // Mettre à jour via l'API
+      // Optimistic local move for instant feedback.
+      setEvents((prevEvents) =>
+        prevEvents.map((eventItem) =>
+          eventItem.id === draggedEvent.id
+            ? {
+                ...eventItem,
+                resourceId: hairdresserId,
+                start: newStartTime,
+                end: newEndTime,
+                extendedProps: {
+                  ...eventItem.extendedProps,
+                  resourceId: hairdresserId,
+                },
+              }
+            : eventItem
+        )
+      );
+
       await updateBooking(draggedEvent.extendedProps.bookingId, {
         staffId: hairdresserId,
         startTime: newStartTime,
         endTime: newEndTime,
       });
 
-      // Rafraîchir les données
-      await fetchBookings();
-
-      console.log('✅ [Drag] Booking déplacé avec succès');
+      console.log('[Drag] Booking deplace avec succes');
     } catch (error) {
-      console.error('Erreur lors du déplacement:', error);
-      alert('Erreur lors du déplacement du rendez-vous.');
+      console.error('Erreur lors du deplacement:', error);
+      setEvents((prevEvents) =>
+        prevEvents.map((eventItem) =>
+          eventItem.id === draggedEvent.id
+            ? {
+                ...eventItem,
+                resourceId: draggedEvent.resourceId,
+                start: String(draggedEvent.start),
+                end: String(draggedEvent.end),
+                extendedProps: {
+                  ...eventItem.extendedProps,
+                  resourceId: draggedEvent.resourceId,
+                },
+              }
+            : eventItem
+        )
+      );
+      alert('Erreur lors du deplacement du rendez-vous.');
     } finally {
       handleDragEnd();
     }
@@ -193,6 +240,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   const getStaffColor = (staffId: string) => {
     const index = hairdressers.findIndex((h) => h.id === staffId);
     return index >= 0 ? staffColors[index % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
+  };
+
+  const getStaffInitials = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "??";
+    if (parts.length === 1) {
+      return (parts[0].slice(0, 2) || parts[0]).toUpperCase();
+    }
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
   };
 
   // Charger les données initiales (staff, services, bookings)
@@ -1090,9 +1146,37 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       return;
     }
 
+    const newStartTime = event.start?.toISOString() || "";
+    const newEndTime = event.end?.toISOString() || "";
+    if (!newStartTime || !newEndTime) {
+      console.error("Dates invalides après déplacement");
+      info.revert();
+      return;
+    }
+
+    const movedEventId = String(event.id);
+    const previousEvent = events.find((e) => String(e.id) === movedEventId);
+    const newResourceId = event.extendedProps?.resourceId;
+
+    // Sync locale immédiate pour éviter l'effet de latence/rebond visuel.
+    setEvents((prevEvents) =>
+      prevEvents.map((item) =>
+        String(item.id) === movedEventId
+          ? {
+              ...item,
+              start: newStartTime,
+              end: newEndTime,
+              resourceId: newResourceId || item.resourceId,
+              extendedProps: {
+                ...item.extendedProps,
+                resourceId: newResourceId || item.extendedProps?.resourceId,
+              },
+            }
+          : item
+      )
+    );
+
     try {
-      const newStartTime = event.start?.toISOString() || "";
-      const newEndTime = event.end?.toISOString() || "";
 
       console.log('🔄 [Calendrier] Déplacement du booking par drag and drop:', {
         bookingId,
@@ -1102,18 +1186,26 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
       // Mettre à jour via l'API
       await updateBooking(bookingId, {
+        staffId: newResourceId || undefined,
         startTime: newStartTime,
         endTime: newEndTime,
       });
 
-      // Rafraîchir les données depuis le serveur
-      await fetchBookings();
 
       console.log('✅ [Calendrier] Booking déplacé avec succès');
     } catch (error) {
       console.error("Erreur lors du déplacement du rendez-vous:", error);
       alert("Erreur lors du déplacement du rendez-vous. Les modifications ont été annulées.");
       info.revert(); // Annuler le déplacement en cas d'erreur
+      if (previousEvent) {
+        setEvents((prevEvents) =>
+          prevEvents.map((item) =>
+            String(item.id) === movedEventId ? previousEvent : item
+          )
+        );
+      } else {
+        await fetchBookings();
+      }
     }
   };
 
@@ -1129,9 +1221,31 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       return;
     }
 
+    const newStartTime = event.start?.toISOString() || "";
+    const newEndTime = event.end?.toISOString() || "";
+    if (!newStartTime || !newEndTime) {
+      console.error("Dates invalides après redimensionnement");
+      info.revert();
+      return;
+    }
+
+    const resizedEventId = String(event.id);
+    const previousEvent = events.find((e) => String(e.id) === resizedEventId);
+
+    // Sync locale immédiate pour garder une interaction fluide.
+    setEvents((prevEvents) =>
+      prevEvents.map((item) =>
+        String(item.id) === resizedEventId
+          ? {
+              ...item,
+              start: newStartTime,
+              end: newEndTime,
+            }
+          : item
+      )
+    );
+
     try {
-      const newStartTime = event.start?.toISOString() || "";
-      const newEndTime = event.end?.toISOString() || "";
 
       console.log('🔄 [Calendrier] Redimensionnement du booking:', {
         bookingId,
@@ -1145,14 +1259,21 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         endTime: newEndTime,
       });
 
-      // Rafraîchir les données depuis le serveur
-      await fetchBookings();
 
       console.log('✅ [Calendrier] Booking redimensionné avec succès');
     } catch (error) {
       console.error("Erreur lors du redimensionnement du rendez-vous:", error);
       alert("Erreur lors du redimensionnement du rendez-vous. Les modifications ont été annulées.");
       info.revert(); // Annuler le redimensionnement en cas d'erreur
+      if (previousEvent) {
+        setEvents((prevEvents) =>
+          prevEvents.map((item) =>
+            String(item.id) === resizedEventId ? previousEvent : item
+          )
+        );
+      } else {
+        await fetchBookings();
+      }
     }
   };
 
@@ -1182,39 +1303,117 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   const isLunchHour = (hour: number) =>
     hour >= LUNCH_START_HOUR && hour < LUNCH_END_HOUR;
 
+  const parseMinutesFromTime = (time: string): number => {
+    const [hoursRaw, minutesRaw] = time.split(":");
+    const hours = Number.parseInt(hoursRaw ?? "0", 10);
+    const minutes = Number.parseInt(minutesRaw ?? "0", 10);
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+      return 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  const getSalonScheduleForDate = (date: Date) =>
+    schedules.find((schedule) => schedule.dayOfWeek === date.getDay());
+
+  const isDateTimeOpenBySchedule = (dateTime: Date) => {
+    // Fallback UX if schedules are not loaded yet.
+    if (schedules.length === 0) {
+      return !isSunday(dateTime) && !isLunchHour(dateTime.getHours());
+    }
+
+    const daySchedule = getSalonScheduleForDate(dateTime);
+    if (!daySchedule || daySchedule.isClosed || !daySchedule.timeSlots?.length) {
+      return false;
+    }
+
+    const minuteOfDay = dateTime.getHours() * 60 + dateTime.getMinutes();
+
+    return daySchedule.timeSlots.some((timeSlot) => {
+      const startMinutes = parseMinutesFromTime(timeSlot.startTime);
+      const endMinutes = parseMinutesFromTime(timeSlot.endTime);
+      return minuteOfDay >= startMinutes && minuteOfDay < endMinutes;
+    });
+  };
+
+  const isDayClosedBySchedule = (date: Date) => {
+    if (schedules.length === 0) {
+      return isSunday(date);
+    }
+
+    const daySchedule = getSalonScheduleForDate(date);
+    if (!daySchedule) {
+      return true;
+    }
+
+    return daySchedule.isClosed || !daySchedule.timeSlots || daySchedule.timeSlots.length === 0;
+  };
+
+  const isBlockedTimedRange = (start: Date, end: Date) => {
+    if (end <= start) {
+      return true;
+    }
+
+    const cursor = new Date(start);
+    while (cursor < end) {
+      if (!isDateTimeOpenBySchedule(cursor)) {
+        return true;
+      }
+      cursor.setMinutes(cursor.getMinutes() + 5);
+    }
+
+    return false;
+  };
+
   const isBlockedCustomSlot = (date: Date, slotIndex: number) => {
     const hour = CALENDAR_START_HOUR + slotIndex;
-    return isSunday(date) || isLunchHour(hour);
+    const slotStart = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hour,
+      0,
+      0,
+      0
+    );
+    const slotEnd = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hour + 1,
+      0,
+      0,
+      0
+    );
+    return isBlockedTimedRange(slotStart, slotEnd);
   };
 
   const isBlockedDateRange = (start: Date, end: Date) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    if (isSunday(startDate)) {
-      return true;
-    }
-
-    // Selection all-day (month view): only block Sundays.
-    if (startDate.getHours() === 0 && endDate.getHours() === 0) {
+    // Selection all-day (month view): block days where salon is closed.
+    if (
+      startDate.getHours() === 0 &&
+      startDate.getMinutes() === 0 &&
+      endDate.getHours() === 0 &&
+      endDate.getMinutes() === 0
+    ) {
       for (
         const cursor = new Date(startDate);
         cursor < endDate;
         cursor.setDate(cursor.getDate() + 1)
       ) {
-        if (isSunday(cursor)) {
+        if (isDayClosedBySchedule(cursor)) {
           return true;
         }
       }
       return false;
     }
 
-    const lunchStart = new Date(startDate);
-    lunchStart.setHours(LUNCH_START_HOUR, 0, 0, 0);
-    const lunchEnd = new Date(startDate);
-    lunchEnd.setHours(LUNCH_END_HOUR, 0, 0, 0);
-
-    return startDate < lunchEnd && endDate > lunchStart;
+    return isBlockedTimedRange(startDate, endDate);
   };
 
   return (
@@ -1415,7 +1614,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   key={hairdresser.id}
                   className="p-4 flex flex-col items-center justify-center border-r border-gray-200 dark:border-gray-700 last:border-r-0"
                 >
-                  <Avatar src={hairdresser.avatar} alt={hairdresser.title} size="large" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-sm font-semibold">
+                    {getStaffInitials(hairdresser.title)}
+                  </div>
                   <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white truncate">
                     {hairdresser.title}
                   </p>
@@ -1458,7 +1659,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           onDrop={(e) => {
                             e.preventDefault();
                             if (isBlockedSlot) return;
-                            handleDrop(hairdresser.id, index);
+                            handleDrop(hairdresser.id, index, selectedDate, e);
                           }}
                           onDragOver={(e) => {
                             e.preventDefault();
@@ -1580,12 +1781,12 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               </div>
               {getWeekDates().map((date, index) => {
                 const isToday = date.toDateString() === new Date().toDateString();
-                const isSundayColumn = isSunday(date);
+                const isClosedDayColumn = isDayClosedBySchedule(date);
                 return (
                   <div
                     key={index}
                     className={`p-3 border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isToday ? 'bg-brand-50 dark:bg-brand-900/20' : ''
-                      } ${isSundayColumn ? 'calendar-weekday-blocked' : ''}`}
+                      } ${isClosedDayColumn ? 'calendar-weekday-blocked' : ''}`}
                   >
                     <div className="text-center">
                       <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -1597,13 +1798,13 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                       {/* Mini avatars des coiffeurs */}
                       <div className="flex items-center justify-center gap-1 mt-2 flex-wrap">
                         {hairdressers.slice(0, 4).map((hairdresser) => (
-                          <img
+                          <div
                             key={hairdresser.id}
-                            src={hairdresser.avatar}
-                            alt={hairdresser.title}
-                            className="w-6 h-6 rounded-full object-cover border-2 border-white dark:border-gray-800"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[9px] font-semibold border-2 border-white dark:border-gray-800"
                             title={hairdresser.title}
-                          />
+                          >
+                            {getStaffInitials(hairdresser.title)}
+                          </div>
                         ))}
                         {hairdressers.length > 4 && (
                           <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-medium text-gray-600 dark:text-gray-300">
@@ -1637,13 +1838,13 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
                   const dayEvents = getEventsForDate(date);
                   const isToday = date.toDateString() === new Date().toDateString();
-                  const isSundayColumn = isSunday(date);
+                  const isClosedDayColumn = isDayClosedBySchedule(date);
 
                   return (
                     <div
                       key={dayIndex}
                       className={`relative border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isToday ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''
-                        } ${isSundayColumn ? 'calendar-weekday-blocked' : ''}`}
+                        } ${isClosedDayColumn ? 'calendar-weekday-blocked' : ''}`}
                     >
                       {/* Lignes de séparation des heures - Drop zones */}
                       {Array.from({ length: CALENDAR_VISIBLE_HOURS }).map((_, index) => {
@@ -1670,7 +1871,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                             e.preventDefault();
                             if (isBlockedSlot) return;
                             if (hairdressers.length > 0) {
-                              handleDrop(hairdressers[0].id, index, date);
+                              const targetStaffId =
+                                draggedEvent?.resourceId || hairdressers[0].id;
+                              handleDrop(targetStaffId, index, date, e);
                             }
                           }}
                           onDragOver={(e) => {
@@ -1766,11 +1969,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 </div>
                                 {staffMember && (
                                   <div className="flex items-center gap-1 mt-0.5">
-                                    <img
-                                      src={staffMember.avatar}
-                                      alt={staffMember.title}
-                                      className="w-3 h-3 rounded-full object-cover"
-                                    />
+                                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[7px] font-semibold">
+                                      {getStaffInitials(staffMember.title)}
+                                    </div>
                                     <span className="text-[9px] text-gray-700 truncate">
                                       {staffMember.title}
                                     </span>
@@ -1820,14 +2021,18 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               slotMaxTime="20:00:00"
               slotDuration="00:20:00"
               slotLabelInterval="01:00:00"
-              dayHeaderClassNames={(arg) => (arg.date.getDay() === 0 ? ["fc-day-header-sunday-gray"] : [])}
-              dayCellClassNames={(arg) => (arg.date.getDay() === 0 ? ["fc-day-sunday-gray"] : [])}
+              dayHeaderClassNames={(arg) =>
+                isDayClosedBySchedule(arg.date) ? ["fc-day-header-sunday-gray"] : []
+              }
+              dayCellClassNames={(arg) =>
+                isDayClosedBySchedule(arg.date) ? ["fc-day-sunday-gray"] : []
+              }
               slotLaneClassNames={(arg) => {
                 const classes: string[] = [];
-                if (arg.date.getDay() === 0) {
+                if (isDayClosedBySchedule(arg.date)) {
                   classes.push("fc-slot-sunday-gray");
                 }
-                if (arg.date.getHours() === LUNCH_START_HOUR) {
+                if (!isDayClosedBySchedule(arg.date) && !isDateTimeOpenBySchedule(arg.date)) {
                   classes.push("fc-slot-lunch-gray");
                 }
                 return classes;
@@ -1854,11 +2059,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                     )}
                     {staffMember && viewMode === "all" && (
                       <div className="flex items-center gap-2 mt-1">
-                        <img
-                          src={staffMember.avatar}
-                          alt={staffMember.title}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[10px] font-semibold">
+                          {getStaffInitials(staffMember.title)}
+                        </div>
                         <span className="text-sm text-gray-600">
                           {staffMember.title}
                         </span>
@@ -2146,7 +2349,4 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 };
 
 export default Calendrier;
-
-
-
 

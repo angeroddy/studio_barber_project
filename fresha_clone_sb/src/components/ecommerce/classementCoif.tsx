@@ -51,7 +51,7 @@ function StaffRow({ staff, maxRevenue }: { staff: StaffRanking; maxRevenue: numb
             {staff.firstName} {staff.lastName}
           </span>
           <span className="text-sm font-semibold text-gray-800 dark:text-white/90 ml-2 shrink-0">
-            {staff.revenue.toLocaleString('fr-FR')} â‚¬
+            {staff.revenue.toLocaleString('fr-FR')} �
           </span>
         </div>
 
@@ -108,7 +108,7 @@ export default function ClassementCoif({ salonId }: ClassementCoifProps) {
 
       {rankings.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-          Aucune donnÃ©e ce mois-ci
+          Aucune donn�e ce mois-ci
         </p>
       ) : (
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
