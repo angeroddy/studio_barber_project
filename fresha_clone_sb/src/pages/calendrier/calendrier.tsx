@@ -924,7 +924,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
     // Si pas d'horaire défini ou salon fermé ce jour-là, retourner un tableau vide
     if (!daySchedule || daySchedule.isClosed || !daySchedule.timeSlots || daySchedule.timeSlots.length === 0) {
-      console.log(`âš ï¸ [TimeSlots] Salon fermÃ© le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
+      console.log(`[TimeSlots] Salon ferme le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
       return [];
     }
 
@@ -1205,7 +1205,6 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   // Fonction pour gérer le déplacement d'un événement (drag and drop)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEventDrop = async (info: any) => {
     const event = info.event;
     const bookingId = event.extendedProps?.bookingId;
@@ -1280,7 +1279,6 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   // Fonction pour gérer le redimensionnement d'un événement
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEventResize = async (info: any) => {
     const event = info.event;
     const bookingId = event.extendedProps?.bookingId;
