@@ -19,6 +19,8 @@ import {
   deleteService,
 } from "../../services/service.service";
 import { useSalon } from "../../context/SalonContext";
+import { ServiceMobileCard } from "../../components/services/ServiceMobileCard";
+import { useIsMobile } from "../../hooks/useBreakpoint";
 
 const PRESET_CATEGORIES = ["La formule", "Coupes", "Barbe"] as const;
 
@@ -33,6 +35,9 @@ const generateRandomColor = (): string => {
 };
 
 const CrudService = () => {
+  // Hook pour détecter mobile
+  const isMobile = useIsMobile();
+
   // Récupérer le salon sélectionné
   const { selectedSalon } = useSalon();
 
@@ -291,33 +296,41 @@ const CrudService = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       {/* En-tête */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Catalogue de prestations
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+              Catalogue de prestations
           </h1>
-          <p className="mt-2 text-xl text-gray-500 dark:text-gray-400">
-            Consultez et gérez les prestations offertes par votre entreprise
+          <p className="mt-1 text-base text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-xl">
+            {services.length} service{services.length > 1 ? 's' : ''}
           </p>
-        </div>
-        <Button onClick={handleAdd} variant="primary" disabled={isLoading}>
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          </div>
+          <Button
+            onClick={handleAdd}
+            variant="primary"
+            disabled={isLoading}
+            className="flex-shrink-0"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Ajouter un service
-        </Button>
+            <svg
+              className="h-4 w-4 sm:h-5 sm:w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span className="hidden sm:inline">Ajouter un service</span>
+            <span className="sm:hidden">Ajouter</span>
+          </Button>
+        </div>
       </div>
 
       {/* Alert de succès */}
@@ -360,8 +373,22 @@ const CrudService = () => {
         </div>
       ) : null}
 
-      {/* Tableau des services */}
-      {services.length > 0 && (
+      {/* Vue mobile - Cards */}
+      {services.length > 0 && isMobile && (
+        <div className="space-y-3">
+          {services.map((service) => (
+            <ServiceMobileCard
+              key={service.id}
+              service={service}
+              onEdit={handleEdit}
+              onDelete={handleDeleteClick}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Vue desktop - Tableau */}
+      {services.length > 0 && !isMobile && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <Table>
             <TableHeader>
@@ -497,10 +524,11 @@ const CrudService = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        className="max-w-2xl p-6 sm:p-8"
+        className="max-w-2xl p-4 sm:p-6 md:p-8"
+        mobileFullscreen={true}
       >
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
             {currentService ? "Modifier le service" : "Ajouter un service"}
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -508,7 +536,7 @@ const CrudService = () => {
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Nom */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -636,11 +664,12 @@ const CrudService = () => {
         </div>
 
         {/* Boutons d'action */}
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-4 sm:mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
           <Button
             onClick={() => setIsModalOpen(false)}
             variant="outline"
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
@@ -648,6 +677,7 @@ const CrudService = () => {
             onClick={handleSave}
             variant="primary"
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             {isLoading ? "Enregistrement..." : currentService ? "Modifier" : "Ajouter"}
           </Button>
@@ -658,7 +688,7 @@ const CrudService = () => {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        className="max-w-md p-6"
+        className="max-w-md p-4 sm:p-6"
       >
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-error-100 dark:bg-error-900/30">

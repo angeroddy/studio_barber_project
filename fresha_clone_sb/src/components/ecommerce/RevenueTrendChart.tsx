@@ -13,6 +13,9 @@ export default function RevenueTrendChart({
   monthlyBookings,
   loading = false,
 }: RevenueTrendChartProps) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const chartHeight = isMobile ? 250 : 310;
+
   const options: ApexOptions = {
     legend: {
       show: false,
@@ -22,7 +25,7 @@ export default function RevenueTrendChart({
     colors: ["#465FFF", "#9CB9FF"],
     chart: {
       fontFamily: "Outfit, sans-serif",
-      height: 310,
+      height: chartHeight,
       type: "line",
       toolbar: {
         show: false,
@@ -160,8 +163,8 @@ export default function RevenueTrendChart({
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="min-w-[1000px] xl:min-w-full">
-          <Chart options={options} series={series} type="area" height={310} />
+        <div className="min-w-[500px] sm:min-w-[700px] xl:min-w-full">
+          <Chart options={options} series={series} type="area" height={chartHeight} />
         </div>
       </div>
     </div>

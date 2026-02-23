@@ -296,11 +296,86 @@
 
 @media (max-width: 992px) {
   .schedule-grid-container {
-    overflow-x: auto;
+    padding: 0.75rem;
   }
 
   .schedule-grid {
     min-width: 1000px;
+    overflow-x: auto;
+  }
+
+  .schedule-header-nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .week-info {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-grid-container {
+    padding: 0.5rem;
+  }
+
+  .schedule-header-nav {
+    padding: 0.75rem;
+  }
+
+  .nav-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .week-label {
+    font-size: 0.75rem;
+  }
+
+  .week-range {
+    font-size: 0.875rem;
+  }
+}
+
+/* Mobile: ScrollableHorizontal grid on small screens */
+@media (max-width: 640px) {
+  .schedule-grid-container {
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+
+  .schedule-grid {
+    min-width: 800px;
+  }
+
+  .grid-header,
+  .staff-row {
+    grid-template-columns: 150px repeat(7, minmax(80px, 1fr));
+  }
+
+  .staff-info-cell {
+    padding: 0.75rem;
+  }
+
+  .staff-name {
+    font-size: 0.8125rem;
+  }
+
+  .schedule-cell {
+    padding: 0.75rem 0.5rem;
+    min-height: 60px;
+  }
+
+  .schedule-time {
+    font-size: 0.6875rem;
+  }
+
+  .day-name {
+    font-size: 0.75rem;
+  }
+
+  .day-total-hours {
+    font-size: 0.625rem;
   }
 }
 

@@ -14,7 +14,10 @@
       "Bash(gh:*)",
       "Bash(cmd.exe /c \"gh --version\")",
       "Bash(node -e:*)",
-      "Bash(TMPDIR=\"$HOME/AppData/Local/Temp\")"
+      "Bash(TMPDIR=\"$HOME/AppData/Local/Temp\")",
+      "Bash(ls:*)",
+      "Bash(grep -r \"sm:\\\\|md:\\\\|lg:\\\\|xl:\" fresha_clone_sb/src/layout/*.tsx)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

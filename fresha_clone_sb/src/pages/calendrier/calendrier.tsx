@@ -22,6 +22,7 @@ import type { Schedule } from "../../services/schedule.service";
 import { useSalon } from "../../context/SalonContext";
 import ClientAutocomplete from "../../components/form/input/ClientAutocomplete";
 import type { Client } from "../../services/client.service";
+import { useNavigate } from "react-router-dom";
 import "./calendrier.css";
 
 interface HairdresserResource {
@@ -65,9 +66,30 @@ const CALENDAR_VISIBLE_HOURS = 12;
 const LUNCH_START_HOUR = 12;
 const LUNCH_END_HOUR = 13;
 
+const formatDateInputValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateInputValue = (value: string): Date | null => {
+  const [yearRaw, monthRaw, dayRaw] = value.split("-");
+  const year = Number.parseInt(yearRaw ?? "", 10);
+  const month = Number.parseInt(monthRaw ?? "", 10);
+  const day = Number.parseInt(dayRaw ?? "", 10);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
 const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   // Utiliser le contexte salon
   const { selectedSalon, isLoading: salonLoading } = useSalon();
+  const navigate = useNavigate();
   const isCalendarReadOnly = readOnly;
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -81,9 +103,10 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const calendarRef = useRef<FullCalendar>(null);
+  const quickDateInputRef = useRef<HTMLInputElement>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
-  // États pour les données dynamiques
+  // Ã‰tats pour les donnÃ©es dynamiques
   const [hairdressers, setHairdressers] = useState<HairdresserResource[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -94,11 +117,11 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   // Animation states
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  // États pour le drag and drop
+  // Ã‰tats pour le drag and drop
   const [draggedEvent, setDraggedEvent] = useState<CalendarEvent | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // États pour la sélection de créneaux horaires
+  // Ã‰tats pour la sÃ©lection de crÃ©neaux horaires
   const [selectedBookingDate, setSelectedBookingDate] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<Array<{
@@ -106,20 +129,20 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     available: boolean;
   }>>([]);
 
-  // État pour le client sélectionné
+  // Ã‰tat pour le client sÃ©lectionnÃ©
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   // Handlers pour le drag and drop dans les vues grilles personnalisées
   const handleDragStart = (event: CalendarEvent) => {
     setDraggedEvent(event);
     setIsDragging(true);
-    console.log('🎯 [Drag] Début du drag:', event.title);
+    console.log('ðŸŽ¯ [Drag] DÃ©but du drag:', event.title);
   };
 
   const handleDragEnd = () => {
     setDraggedEvent(null);
     setIsDragging(false);
-    console.log('🎯 [Drag] Fin du drag');
+    console.log('ðŸŽ¯ [Drag] Fin du drag');
   };
 
   const handleDrop = async (
@@ -158,7 +181,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     const newStartTime = newStartDate.toISOString();
     const newEndTime = newEndDate.toISOString();
 
-    console.log('🎯 [Drag] Drop:', {
+    console.log('ðŸŽ¯ [Drag] Drop:', {
       bookingId: draggedEvent.extendedProps?.bookingId,
       oldStart: draggedEvent.start,
       newStart: newStartTime,
@@ -253,8 +276,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Charger les données initiales (staff, services, bookings)
   useEffect(() => {
-    console.log("🚀 [Calendrier] Effect fetchData déclenché");
-    console.log("🏢 [Calendrier] Salon sélectionné:", selectedSalon);
+    console.log("ðŸš€ [Calendrier] Effect fetchData dÃ©clenchÃ©");
+    console.log("ðŸ¢ [Calendrier] Salon sÃ©lectionnÃ©:", selectedSalon);
     console.log("⏳ [Calendrier] Chargement salon:", salonLoading);
 
     // Attendre que le salon soit chargé
@@ -264,7 +287,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     }
 
     if (!selectedSalon) {
-      console.warn("⚠️ [Calendrier] Pas de salon sélectionné, chargement des données de démo...");
+      console.warn("âš ï¸ [Calendrier] Pas de salon sÃ©lectionnÃ©, chargement des donnÃ©es de dÃ©mo...");
       // Charger directement les données de démo
       setHairdressers([
         { id: "1", title: "John Doe", avatar: "https://i.pravatar.cc/150?img=12" },
@@ -279,53 +302,53 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     }
 
     const fetchData = async () => {
-      console.log("📡 [Calendrier] Début du chargement des données depuis l'API...");
+      console.log("ðŸ“¡ [Calendrier] DÃ©but du chargement des donnÃ©es depuis l'API...");
       setLoading(true);
       setError(null);
 
       try {
         // Charger le personnel
-        console.log("👥 [Calendrier] Chargement du personnel pour salon:", selectedSalon.name);
+        console.log("ðŸ‘¥ [Calendrier] Chargement du personnel pour salon:", selectedSalon.name);
         const [staffData, servicesData, schedulesData] = await Promise.all([getStaffBySalon(selectedSalon.id, true, true), getServicesBySalon(selectedSalon.id), getSchedulesBySalon(selectedSalon.id)]);
-        console.log("✅ [Calendrier] Personnel chargé:", staffData);
-        console.log("📊 [Calendrier] Nombre de membres du personnel:", staffData.length);
+        console.log("âœ… [Calendrier] Personnel chargÃ©:", staffData);
+        console.log("ðŸ“Š [Calendrier] Nombre de membres du personnel:", staffData.length);
 
         const formattedStaff: HairdresserResource[] = staffData.map((staff: Staff) => ({
           id: staff.id,
           title: `${staff.firstName} ${staff.lastName}`,
           avatar: staff.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
         }));
-        console.log("💈 [Calendrier] Personnel formaté:", formattedStaff);
+        console.log("ðŸ’ˆ [Calendrier] Personnel formatÃ©:", formattedStaff);
         setHairdressers(formattedStaff);
 
         // Charger les services
-        console.log("🔧 [Calendrier] Chargement des services...");
-        console.log("✅ [Calendrier] Services chargés:", servicesData);
+        console.log("ðŸ”§ [Calendrier] Chargement des services...");
+        console.log("âœ… [Calendrier] Services chargÃ©s:", servicesData);
         setServices(servicesData);
 
         // Charger les horaires du salon
         console.log("⏰ [Calendrier] Chargement des horaires du salon...");
         // Deja charge en parallele avec les services
-        console.log("✅ [Calendrier] Horaires chargés:", schedulesData);
+        console.log("âœ… [Calendrier] Horaires chargÃ©s:", schedulesData);
         setSchedules(schedulesData);
 
         // Charger les réservations en passant la liste de staff
-        console.log("📅 [Calendrier] Chargement des réservations...");
+        console.log("ðŸ“… [Calendrier] Chargement des rÃ©servations...");
         await fetchBookings(formattedStaff);
 
         setLoading(false);
-        console.log("✨ [Calendrier] Toutes les données ont été chargées avec succès!");
+        console.log("âœ¨ [Calendrier] Toutes les donnÃ©es ont Ã©tÃ© chargÃ©es avec succÃ¨s!");
       } catch (err) {
-        console.error("❌ [Calendrier] Erreur lors du chargement des données:", err);
+        console.error("âŒ [Calendrier] Erreur lors du chargement des donnÃ©es:", err);
         const error = err as Error;
-        console.error("❌ [Calendrier] Détails de l'erreur:", error.message);
-        console.error("❌ [Calendrier] Stack:", error.stack);
+        console.error("âŒ [Calendrier] DÃ©tails de l'erreur:", error.message);
+        console.error("âŒ [Calendrier] Stack:", error.stack);
 
         setError("Impossible de charger les données du calendrier. Utilisation des données de démonstration.");
         setLoading(false);
 
         // Données de démonstration en cas d'erreur
-        console.warn("⚠️ [Calendrier] Chargement des données de démonstration...");
+        console.warn("âš ï¸ [Calendrier] Chargement des donnÃ©es de dÃ©monstration...");
         setHairdressers([
           { id: "1", title: "John Doe", avatar: "https://i.pravatar.cc/150?img=12" },
           { id: "2", title: "Maria Garcia", avatar: "https://i.pravatar.cc/150?img=45" },
@@ -357,8 +380,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         endDate: endDate.toISOString(),
       });
 
-      console.log("📋 [Calendrier] Bookings reçus:", bookingsData);
-      console.log("📋 [Calendrier] Premier booking:", bookingsData[0]);
+      console.log("ðŸ“‹ [Calendrier] Bookings reÃ§us:", bookingsData);
+      console.log("ðŸ“‹ [Calendrier] Premier booking:", bookingsData[0]);
 
       setBookings(bookingsData);
 
@@ -374,8 +397,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           ? `${booking.client.firstName} ${booking.client.lastName}`.trim()
           : booking.clientName || "Sans nom";
 
-        console.log("👤 [Calendrier] Client name pour booking", booking.id, ":", clientName);
-        console.log("🔍 [Calendrier] isMultiService:", booking.isMultiService, "bookingServices:", booking.bookingServices?.length);
+        console.log("ðŸ‘¤ [Calendrier] Client name pour booking", booking.id, ":", clientName);
+        console.log("ðŸ” [Calendrier] isMultiService:", booking.isMultiService, "bookingServices:", booking.bookingServices?.length);
 
         // Si c'est une réservation multi-services, créer un événement par BookingService
         if (booking.isMultiService && booking.bookingServices && booking.bookingServices.length > 0) {
@@ -384,7 +407,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             const staffIndex = activeStaffList.findIndex((h) => h.id === bookingService.staffId);
             const colors = staffIndex >= 0 ? staffColors[staffIndex % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
 
-            console.log(`📌 [Calendrier] Événement multi-service ${index + 1}/${booking.bookingServices!.length}:`, {
+            console.log(`ðŸ“Œ [Calendrier] Ã‰vÃ©nement multi-service ${index + 1}/${booking.bookingServices!.length}:`, {
               bookingServiceId: bookingService.id,
               staffId: bookingService.staffId,
               serviceName,
@@ -422,7 +445,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           const staffIndex = activeStaffList.findIndex((h) => h.id === booking.staffId);
           const colors = staffIndex >= 0 ? staffColors[staffIndex % staffColors.length] : { bg: "#E5E7EB", border: "#D1D5DB" };
 
-          console.log("📌 [Calendrier] Événement simple:", {
+          console.log("ðŸ“Œ [Calendrier] Ã‰vÃ©nement simple:", {
             bookingId: booking.id,
             staffId: booking.staffId,
             serviceName,
@@ -452,7 +475,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         }
       });
 
-      console.log(`✅ [Calendrier] Total événements créés: ${calendarEvents.length}`);
+      console.log(`âœ… [Calendrier] Total Ã©vÃ©nements crÃ©Ã©s: ${calendarEvents.length}`);
       setEvents(calendarEvents);
     } catch (err) {
       console.error("Erreur lors du chargement des réservations:", err);
@@ -478,7 +501,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
     const day = String(today.getDate()).padStart(2, "0");
     const dateStr = `${year}-${month}-${day}`;
 
-    // Événements pour aujourd'hui
+    // Ã‰vÃ©nements pour aujourd'hui
     const todayEvents: CalendarEvent[] = [
       {
         id: "1",
@@ -739,7 +762,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
       if (selectedEvent && selectedEvent.extendedProps?.bookingId) {
         // Mettre à jour l'événement existant via l'API
-        console.log('🔄 [Calendrier] Mise à jour du booking:', {
+        console.log('ðŸ”„ [Calendrier] Mise Ã  jour du booking:', {
           bookingId: selectedEvent.extendedProps.bookingId,
           staffId: selectedResource,
           serviceId: eventService || undefined,
@@ -783,7 +806,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           return;
         }
 
-        console.log('➕ [Calendrier] Création du booking:', {
+        console.log('âž• [Calendrier] CrÃ©ation du booking:', {
           salonId: selectedSalon.id,
           staffId: selectedResource,
           serviceId: eventService || "default-service-id",
@@ -901,7 +924,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
     // Si pas d'horaire défini ou salon fermé ce jour-là, retourner un tableau vide
     if (!daySchedule || daySchedule.isClosed || !daySchedule.timeSlots || daySchedule.timeSlots.length === 0) {
-      console.log(`⚠️ [TimeSlots] Salon fermé le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
+      console.log(`âš ï¸ [TimeSlots] Salon fermÃ© le ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
       return [];
     }
 
@@ -950,7 +973,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       }
     }
 
-    console.log(`✅ [TimeSlots] ${slots.length} créneaux générés pour ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
+    console.log(`âœ… [TimeSlots] ${slots.length} crÃ©neaux gÃ©nÃ©rÃ©s pour ${['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][dayOfWeek]}`);
     return slots;
   };
 
@@ -1077,20 +1100,67 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   // Navigation de date
-  const goToPreviousDay = () => {
+  const shiftDateByCurrentView = (direction: -1 | 1) => {
     const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() - 1);
+
+    if (timeView === "month") {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else if (timeView === "week") {
+      newDate.setDate(newDate.getDate() + (7 * direction));
+    } else {
+      newDate.setDate(newDate.getDate() + direction);
+    }
+
     setSelectedDate(newDate);
   };
 
-  const goToNextDay = () => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
+  const goToPreviousPeriod = () => {
+    shiftDateByCurrentView(-1);
+  };
+
+  const goToNextPeriod = () => {
+    shiftDateByCurrentView(1);
   };
 
   const goToToday = () => {
     setSelectedDate(new Date());
+  };
+
+  const handleQuickFilterToggle = () => {
+    if (viewMode === "all") {
+      const nextResource = selectedResource || hairdressers[0]?.id || "";
+      if (!nextResource) {
+        return;
+      }
+      setSelectedResource(nextResource);
+      setViewMode("single");
+      return;
+    }
+
+    setViewMode("all");
+  };
+
+  const handleOpenSettings = () => {
+    navigate("/parametres");
+  };
+
+  const handleOpenQuickDatePicker = () => {
+    const quickDateInput = quickDateInputRef.current;
+    if (!quickDateInput) {
+      return;
+    }
+
+    try {
+      if (typeof quickDateInput.showPicker === "function") {
+        quickDateInput.showPicker();
+        return;
+      }
+    } catch {
+      // showPicker can throw on unsupported environments.
+    }
+
+    quickDateInput.focus();
+    quickDateInput.click();
   };
 
   // Fonction pour rafraîchir les données avec animation
@@ -1107,7 +1177,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       return;
     }
 
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce rendez-vous ?")) {
+    if (!window.confirm("ÃŠtes-vous sÃ»r de vouloir supprimer ce rendez-vous ?")) {
       return;
     }
 
@@ -1178,7 +1248,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
     try {
 
-      console.log('🔄 [Calendrier] Déplacement du booking par drag and drop:', {
+      console.log('ðŸ”„ [Calendrier] DÃ©placement du booking par drag and drop:', {
         bookingId,
         startTime: newStartTime,
         endTime: newEndTime,
@@ -1192,7 +1262,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       });
 
 
-      console.log('✅ [Calendrier] Booking déplacé avec succès');
+      console.log('âœ… [Calendrier] Booking dÃ©placÃ© avec succÃ¨s');
     } catch (error) {
       console.error("Erreur lors du déplacement du rendez-vous:", error);
       alert("Erreur lors du déplacement du rendez-vous. Les modifications ont été annulées.");
@@ -1247,7 +1317,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
     try {
 
-      console.log('🔄 [Calendrier] Redimensionnement du booking:', {
+      console.log('ðŸ”„ [Calendrier] Redimensionnement du booking:', {
         bookingId,
         startTime: newStartTime,
         endTime: newEndTime,
@@ -1260,7 +1330,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       });
 
 
-      console.log('✅ [Calendrier] Booking redimensionné avec succès');
+      console.log('âœ… [Calendrier] Booking redimensionnÃ© avec succÃ¨s');
     } catch (error) {
       console.error("Erreur lors du redimensionnement du rendez-vous:", error);
       alert("Erreur lors du redimensionnement du rendez-vous. Les modifications ont été annulées.");
@@ -1279,24 +1349,59 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Obtenir le format de la date affichée (ex: "Wednesday 21 Jun")
   const getFormattedDate = () => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short'
-    };
-    return selectedDate.toLocaleDateString('fr-FR', options);
+    if (timeView === "month") {
+      return selectedDate.toLocaleDateString("fr-FR", {
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    if (timeView === "week") {
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[weekDates.length - 1];
+      return `${weekStart.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      })} - ${weekEnd.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      })}`;
+    }
+
+    return selectedDate.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    });
   };
 
   // Obtenir la vue FullCalendar appropriée
-  const getFullCalendarView = () => {
-    if (timeView === "day") return "timeGridDay";
-    if (timeView === "week") return "timeGridWeek";
-    return "dayGridMonth";
-  };
+  const fullCalendarView =
+    timeView === "day"
+      ? "timeGridDay"
+      : timeView === "week"
+        ? "timeGridWeek"
+        : "dayGridMonth";
 
   // Déterminer si on doit utiliser FullCalendar ou la grille personnalisée
   // La grille personnalisée est utilisée pour "jour" et "semaine" en mode "all"
-  const useFullCalendar = viewMode === "single" || timeView === "month";
+  const useFullCalendar =
+    timeView === "month" || (viewMode === "single" && timeView === "day");
+  const dayStaffColumnCount = Math.max(hairdressers.length, 1);
+  const dayGridTemplateColumns = `80px repeat(${dayStaffColumnCount}, minmax(180px, 1fr))`;
+  const dayGridMinWidth = `${80 + dayStaffColumnCount * 180}px`;
+
+  useEffect(() => {
+    if (!useFullCalendar || !calendarRef.current) {
+      return;
+    }
+
+    const calendarApi = calendarRef.current.getApi();
+    if (calendarApi.view.type !== fullCalendarView) {
+      calendarApi.changeView(fullCalendarView);
+    }
+  }, [fullCalendarView, useFullCalendar]);
 
   const isSunday = (date: Date) => date.getDay() === 0;
 
@@ -1417,7 +1522,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="p-3 sm:p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Indicateur de chargement */}
       {loading && (
         <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-3">
@@ -1447,19 +1552,19 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       )}
 
       {/* Barre de navigation moderne */}
-      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         {/* Section gauche: Navigation de date */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={goToToday}
-            className="px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 font-medium text-sm text-gray-700 dark:text-gray-300"
+            className="px-3 py-2 sm:px-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 font-medium text-xs sm:text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
           >
             Aujourd'hui
           </button>
 
           <div className="flex items-center border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
             <button
-              onClick={goToPreviousDay}
+              onClick={goToPreviousPeriod}
               className="p-2 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border-r border-gray-300 dark:border-gray-700"
             >
               <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1467,7 +1572,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               </svg>
             </button>
             <button
-              onClick={goToNextDay}
+              onClick={goToNextPeriod}
               className="p-2 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
             >
               <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1476,13 +1581,13 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             </button>
           </div>
 
-          <div className="text-gray-900 dark:text-white font-medium text-sm capitalize">
+          <div className="text-gray-900 dark:text-white font-medium text-xs sm:text-sm capitalize flex-1 sm:flex-initial">
             {getFormattedDate()}
           </div>
         </div>
 
         {/* Section centre: Sélection salon et équipe */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
 
 
           <div className="relative">
@@ -1496,7 +1601,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   setSelectedResource(e.target.value);
                 }
               }}
-              className="pl-4 pr-10 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-sm font-medium appearance-none cursor-pointer"
+              className="pl-3 pr-8 py-2 sm:pl-4 sm:pr-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-xs sm:text-sm font-medium appearance-none cursor-pointer w-full sm:w-auto"
             >
               <option value="all">Toute l'équipe</option>
               {hairdressers.map((h) => (
@@ -1516,8 +1621,14 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           </div>
 
           <button
-            className="p-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-            title="Filtrer"
+            onClick={handleQuickFilterToggle}
+            className={`p-2 rounded-lg border transition-colors ${
+              viewMode === "single"
+                ? "border-brand-500 bg-brand-50 text-brand-600 dark:border-brand-400 dark:bg-brand-900/30 dark:text-brand-300"
+                : "border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+            }`}
+            title={viewMode === "single" ? "Afficher toute l'équipe" : "Filtrer sur un coiffeur"}
+            aria-pressed={viewMode === "single"}
           >
             <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
@@ -1528,6 +1639,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         {/* Section droite: Actions */}
         <div className="flex items-center gap-2">
           <button
+            onClick={handleOpenSettings}
             className="p-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
             title="Paramètres"
           >
@@ -1538,13 +1650,29 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           </button>
 
           <button
+            onClick={handleOpenQuickDatePicker}
             className="p-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
-            title="Calendrier"
+            title="Aller à une date"
           >
             <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
+
+          <input
+            ref={quickDateInputRef}
+            type="date"
+            value={formatDateInputValue(selectedDate)}
+            onChange={(e) => {
+              const nextDate = parseDateInputValue(e.target.value);
+              if (nextDate) {
+                setSelectedDate(nextDate);
+              }
+            }}
+            className="absolute h-0 w-0 opacity-0 pointer-events-none"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
 
           <button
             onClick={handleRefresh}
@@ -1562,7 +1690,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             <select
               value={timeView}
               onChange={(e) => setTimeView(e.target.value as TimeView)}
-              className="pl-4 pr-10 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-sm font-medium appearance-none cursor-pointer"
+              className="pl-3 pr-8 py-2 sm:pl-4 sm:pr-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white text-xs sm:text-sm font-medium appearance-none cursor-pointer w-full sm:w-auto"
             >
               <option value="day">Jour</option>
               <option value="week">Semaine</option>
@@ -1600,12 +1728,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         </div>
       </div>
 
-      {/* Vue Tous les coiffeurs en mode Jour/Semaine - Grille personnalisée */}
+      {/* Vue Tous les coiffeurs en mode Jour - Grille personnalisée */}
       {!useFullCalendar && timeView === "day" && (
         <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3 overflow-x-auto">
-          <div className="min-w-[1200px]">
+          <div style={{ minWidth: dayGridMinWidth }}>
             {/* En-tête avec les profils des coiffeurs pour la vue jour */}
-            <div className="grid grid-cols-[80px_repeat(6,1fr)] border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+            <div
+              className="grid border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+              style={{ gridTemplateColumns: dayGridTemplateColumns }}
+            >
               <div className="border-r border-gray-200 dark:border-gray-700 flex items-center justify-center">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Heures</span>
               </div>
@@ -1626,7 +1757,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
             {/* Grille horaire */}
             <div className="relative">
-              <div className="grid grid-cols-[80px_repeat(6,1fr)]">
+              <div className="grid" style={{ gridTemplateColumns: dayGridTemplateColumns }}>
                 {/* Colonne des heures */}
                 <div className="bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
                   {Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, i) => i + CALENDAR_START_HOUR).map((hour) => (
@@ -1797,7 +1928,10 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                       </div>
                       {/* Mini avatars des coiffeurs */}
                       <div className="flex items-center justify-center gap-1 mt-2 flex-wrap">
-                        {hairdressers.slice(0, 4).map((hairdresser) => (
+                        {(viewMode === "single"
+                          ? hairdressers.filter((h) => h.id === selectedResource).slice(0, 1)
+                          : hairdressers.slice(0, 4)
+                        ).map((hairdresser) => (
                           <div
                             key={hairdresser.id}
                             className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[9px] font-semibold border-2 border-white dark:border-gray-800"
@@ -1806,7 +1940,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                             {getStaffInitials(hairdresser.title)}
                           </div>
                         ))}
-                        {hairdressers.length > 4 && (
+                        {viewMode === "all" && hairdressers.length > 4 && (
                           <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-medium text-gray-600 dark:text-gray-300">
                             +{hairdressers.length - 4}
                           </div>
@@ -1836,7 +1970,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                 {/* Colonnes des jours */}
                 {getWeekDates().map((date, dayIndex) => {
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-                  const dayEvents = getEventsForDate(date);
+                  const dayEvents = getEventsForDate(date).filter((eventItem) =>
+                    viewMode === "single" ? eventItem.resourceId === selectedResource : true
+                  );
                   const isToday = date.toDateString() === new Date().toDateString();
                   const isClosedDayColumn = isDayClosedBySchedule(date);
 
@@ -1860,8 +1996,12 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                               const startDateTime = `${dateStr}T${String(hour).padStart(2, "0")}:00:00`;
                               const endDateTime = `${dateStr}T${String(hour + 1).padStart(2, "0")}:00:00`;
 
+                              const resourceForCreation =
+                                viewMode === "single"
+                                  ? selectedResource || hairdressers[0].id
+                                  : hairdressers[0].id;
                               resetModalFields();
-                              setSelectedResource(hairdressers[0].id);
+                              setSelectedResource(resourceForCreation);
                               setEventStartDate(startDateTime);
                               setEventEndDate(endDateTime);
                               openModal();
@@ -1872,7 +2012,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                             if (isBlockedSlot) return;
                             if (hairdressers.length > 0) {
                               const targetStaffId =
-                                draggedEvent?.resourceId || hairdressers[0].id;
+                                viewMode === "single"
+                                  ? selectedResource || draggedEvent?.resourceId || hairdressers[0].id
+                                  : draggedEvent?.resourceId || hairdressers[0].id;
                               handleDrop(targetStaffId, index, date, e);
                             }
                           }}
@@ -1967,7 +2109,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 <div className="text-xs font-bold text-gray-900 truncate leading-tight">
                                   {appointment.title || "Sans nom"}
                                 </div>
-                                {staffMember && (
+                                {staffMember && viewMode === "all" && (
                                   <div className="flex items-center gap-1 mt-0.5">
                                     <div className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[7px] font-semibold">
                                       {getStaffInitials(staffMember.title)}
@@ -1991,14 +2133,14 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         </div>
       )}
 
-      {/* Vue avec FullCalendar (individuelle OU mois) */}
+      {/* Vue avec FullCalendar (jour individuel + mois) */}
       {useFullCalendar && (
         <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3 overflow-hidden">
           <div className="calendar-container p-4">
             <FullCalendar
               ref={calendarRef}
               plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-              initialView={getFullCalendarView()}
+              initialView={fullCalendarView}
               locale={frLocale}
               headerToolbar={{
                 left: "",
@@ -2078,7 +2220,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       <Modal
         isOpen={isOpen}
         onClose={closeModal}
-        className="max-w-[1000px] w-full p-6 lg:p-10"
+        className="max-w-[1000px] w-full p-4 sm:p-6 lg:p-10"
+        mobileFullscreen={true}
       >
         <div className="flex flex-col overflow-visible">
           <div className="mb-6">
@@ -2091,9 +2234,9 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           </div>
 
           {/* Disposition en 2 colonnes */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8">
             {/* COLONNE GAUCHE - Formulaire */}
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {/* Nom du client */}
               <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -2166,7 +2309,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                 {services.length > 0 ? (
                   services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} - {service.duration}min - {service.price}€
+                      {service.name} - {service.duration}min - {service.price}â‚¬
                     </option>
                   ))
                 ) : (
@@ -2349,4 +2492,5 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 };
 
 export default Calendrier;
+
 

@@ -19,8 +19,13 @@ import {
   deleteClient,
   searchClients,
 } from "../../services/client.service";
+import { ClientMobileCard } from "../../components/clients/ClientMobileCard";
+import { useIsMobile } from "../../hooks/useBreakpoint";
 
 const CrudClients = () => {
+  // Hook pour détecter mobile
+  const isMobile = useIsMobile();
+
   // États
   const [clientList, setClientList] = useState<Client[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -315,37 +320,45 @@ const CrudClients = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       {/* En-tête */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Gestion des Clients
-          </h1>
-          <p className="mt-2 text-xl text-gray-500 dark:text-gray-400">
-            Gérez votre base de clients ({totalClients} client{totalClients > 1 ? 's' : ''})
-          </p>
-        </div>
-        <Button onClick={handleAdd} variant="primary" disabled={isLoading}>
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+              Gestion des Clients
+            </h1>
+            <p className="mt-1 text-base text-gray-500 dark:text-gray-400 sm:mt-2 sm:text-xl">
+              {totalClients} client{totalClients > 1 ? 's' : ''}
+            </p>
+          </div>
+          <Button
+            onClick={handleAdd}
+            variant="primary"
+            disabled={isLoading}
+            className="flex-shrink-0"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Ajouter un client
-        </Button>
+            <svg
+              className="h-4 w-4 sm:h-5 sm:w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span className="hidden sm:inline">Ajouter un client</span>
+            <span className="sm:hidden">Ajouter</span>
+          </Button>
+        </div>
       </div>
 
       {/* Barre de recherche */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,10 +367,10 @@ const CrudClients = () => {
           </div>
           <input
             type="text"
-            placeholder="Rechercher par nom, prénom, email ou téléphone..."
+            placeholder={isMobile ? "Rechercher..." : "Rechercher par nom, prénom, email ou téléphone..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-11 w-full rounded-lg border bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 dark:bg-gray-900 dark:focus:border-brand-800 pl-10 pr-10 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3"
+            className="h-10 w-full rounded-lg border bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 dark:border-gray-700 dark:text-white/90 dark:bg-gray-900 dark:focus:border-brand-800 pl-10 pr-10 py-2 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 sm:h-11 sm:py-2.5"
           />
           {searchTerm && (
             <button
@@ -418,8 +431,51 @@ const CrudClients = () => {
         </div>
       ) : null}
 
-      {/* Tableau des clients */}
-      {clientList.length > 0 && (
+      {/* Vue mobile - Cards */}
+      {clientList.length > 0 && isMobile && (
+        <div>
+          <div className="space-y-3 mb-4">
+            {clientList.map((client) => (
+              <ClientMobileCard
+                key={client.id}
+                client={client}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
+
+          {/* Pagination mobile */}
+          {totalPages > 1 && (
+            <div className="flex flex-col gap-3 items-center border-t border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-900 rounded-b-xl">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Page {currentPage} sur {totalPages}
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  variant="outline"
+                  disabled={currentPage === 1 || isLoading}
+                  className="flex-1"
+                >
+                  Précédent
+                </Button>
+                <Button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  variant="outline"
+                  disabled={currentPage === totalPages || isLoading}
+                  className="flex-1"
+                >
+                  Suivant
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Vue desktop - Tableau */}
+      {clientList.length > 0 && !isMobile && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <Table>
             <TableHeader>
@@ -600,10 +656,11 @@ const CrudClients = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        className="max-w-2xl p-6 sm:p-8"
+        className="max-w-2xl p-4 sm:p-6 md:p-8"
+        mobileFullscreen={true}
       >
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
             {currentClient ? "Modifier le client" : "Ajouter un client"}
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -611,7 +668,7 @@ const CrudClients = () => {
           </p>
         </div>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="space-y-3 sm:space-y-4 max-h-[60vh] md:max-h-[65vh] overflow-y-auto pr-1 sm:pr-2">
           {/* Prénom et Nom */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -731,11 +788,12 @@ const CrudClients = () => {
         </div>
 
         {/* Boutons d'action */}
-        <div className="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+        <div className="mt-4 sm:mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-gray-200 pt-3 sm:pt-4 dark:border-gray-700">
           <Button
             onClick={() => setIsModalOpen(false)}
             variant="outline"
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
@@ -743,6 +801,7 @@ const CrudClients = () => {
             onClick={handleSave}
             variant="primary"
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             {isLoading ? "Enregistrement..." : currentClient ? "Modifier" : "Ajouter"}
           </Button>

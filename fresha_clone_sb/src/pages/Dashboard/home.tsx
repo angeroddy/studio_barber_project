@@ -34,11 +34,11 @@ export default function Home() {
                 title="Espace Employe | Fresha Clone"
                 description="Dashboard employe"
             />
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
                 {/* Bienvenue */}
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <div className="px-6.5 py-6">
-                        <h2 className="text-2xl font-semibold text-black dark:text-white mb-2">
+                    <div className="px-4 py-4 sm:px-6.5 sm:py-6">
+                        <h2 className="text-xl font-semibold text-black dark:text-white mb-2 sm:text-2xl">
                             Bienvenue {user ? fixTextEncoding((user as any).firstName) : ''}
                         </h2>
                         <p className="text-bodydark">
@@ -53,10 +53,10 @@ export default function Home() {
 
                 {/* Dashboard pour employes simples */}
                 {isSimpleEmployee && (
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6">
                         <Link to="/calendrier" className="block">
                             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark hover:shadow-lg transition-shadow cursor-pointer">
-                                <div className="px-6.5 py-6 flex items-center gap-4">
+                                <div className="px-4 py-4 flex items-center gap-3 sm:px-6.5 sm:py-6 sm:gap-4">
                                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary bg-opacity-10">
                                         <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -78,7 +78,7 @@ export default function Home() {
 
                 {/* Dashboard pour proprietaires/managers */}
                 {!isSimpleEmployee && selectedSalon && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                         {/* Message d'erreur */}
                         {error && (
                             <div className="rounded-sm border border-danger bg-danger bg-opacity-10 p-4">
@@ -111,7 +111,7 @@ export default function Home() {
                         />
 
                         {/* Row 3 : Evolution CA + Objectif mensuel */}
-                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
                             <div className="lg:col-span-2">
                                 <RevenueTrendChart
                                     monthlyRevenue={trend.monthlyRevenue}
@@ -128,7 +128,7 @@ export default function Home() {
                         </div>
 
                         {/* Row 4 : Heures de pointe + Repartition statuts */}
-                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
                             <PeakHoursChart
                                 hourlyDistribution={stats.hourlyDistribution}
                                 loading={statsLoading}
@@ -140,7 +140,7 @@ export default function Home() {
                         </div>
 
                         {/* Row 5 : RDV du jour + Classement + Prestations populaires */}
-                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
                             <TodayRdv salonId={salonId} />
                             <ClassementCoif salonId={salonId} />
                             <RecentOrders salonId={salonId} />

@@ -8,6 +8,7 @@ interface ModalProps {
   title?: string;
   showCloseButton?: boolean; // New prop to control close button visibility
   isFullscreen?: boolean; // Default to false for backwards compatibility
+  mobileFullscreen?: boolean; // Full screen on mobile only
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -18,6 +19,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   showCloseButton = true, // Default to true for backwards compatibility
   isFullscreen = false,
+  mobileFullscreen = false,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   const contentClasses = isFullscreen
     ? "w-full h-full"
-    : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
+    : mobileFullscreen
+    ? "w-full h-full md:w-auto md:h-auto md:rounded-3xl md:max-w-2xl relative bg-white dark:bg-gray-900"
+    : "relative w-full max-w-2xl mx-4 rounded-3xl bg-white dark:bg-gray-900";
 
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
@@ -91,8 +95,8 @@ export const Modal: React.FC<ModalProps> = ({
         )}
         <div>
           {title && (
-            <div className="px-6 pt-6 pb-2">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+            <div className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">{title}</h3>
             </div>
           )}
           <div>{children}</div>
