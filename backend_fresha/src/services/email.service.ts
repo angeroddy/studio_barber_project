@@ -17,6 +17,13 @@ interface SendClientAccountVerificationEmailParams {
   expiresAt: Date
 }
 
+interface SendClientPasswordSetupEmailParams {
+  to: string
+  firstName: string
+  token: string
+  expiresAt: Date
+}
+
 interface SendBookingRecapEmailParams {
   to: string
   firstName: string
@@ -104,6 +111,27 @@ function getStaffAppUrl(): string {
   }
 
   return 'http://localhost:5173'
+}
+
+function getClientAppUrl(): string {
+  const configured = process.env.CLIENT_APP_URL?.trim() || process.env.FRONTEND_URL?.trim()
+
+  if (configured) {
+    return configured.replace(/\/+$/, '')
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CLIENT_APP_URL manquant en production')
+  }
+
+  return 'http://localhost:5173'
+}
+
+function buildClientPasswordSetupUrl(token: string): string {
+  const configured = process.env.CLIENT_PASSWORD_SETUP_URL?.trim()
+  const baseUrl = configured || `${getClientAppUrl()}/set-password`
+  const separator = baseUrl.includes('?') ? '&' : '?'
+  return `${baseUrl}${separator}token=${encodeURIComponent(token)}`
 }
 
 function postResendEmail(payload: Record<string, unknown>, apiKey: string): Promise<void> {
@@ -363,6 +391,37 @@ export async function sendClientAccountVerificationEmail(
         cta: {
           label: 'Activer mon compte',
           url: verificationUrl
+        }
+      })
+    },
+    apiKey
+  )
+}
+
+export async function sendClientPasswordSetupEmail(
+  params: SendClientPasswordSetupEmailParams
+): Promise<void> {
+  const { apiKey, sender } = getResendConfig()
+  const setupUrl = buildClientPasswordSetupUrl(params.token)
+
+  await postResendEmail(
+    {
+      from: sender,
+      to: [params.to],
+      subject: 'Configurez votre mot de passe Studio Barber',
+      html: renderBrandedEmail({
+        preheader: 'Votre compte client est deja actif. Definissez votre mot de passe.',
+        badge: 'Activation mot de passe',
+        title: 'Choisissez votre mot de passe',
+        firstName: params.firstName,
+        introLines: [
+          'Votre compte client a ete cree par votre salon.',
+          'Il est deja actif. Il ne vous reste qu a definir votre mot de passe.'
+        ],
+        rows: [{ label: 'Lien valide jusqu au', value: formatDateTime(params.expiresAt) }],
+        cta: {
+          label: 'Definir mon mot de passe',
+          url: setupUrl
         }
       })
     },

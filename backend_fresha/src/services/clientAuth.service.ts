@@ -49,6 +49,11 @@ interface LoginClientData {
   password: string
 }
 
+interface CompleteClientInvitationData {
+  token: string
+  password: string
+}
+
 interface VerifyClientEmailResult {
   token: string
   user: {
@@ -146,6 +151,78 @@ export async function setPasswordForExistingClient(data: SetPasswordData) {
   const updatedClient = await prisma.client.update({
     where: { id: client.id },
     data: { password: hashedPassword },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      createdAt: true,
+      salon: {
+        select: {
+          id: true,
+          name: true,
+          slug: true
+        }
+      }
+    }
+  })
+
+  const token = generateToken({
+    userId: updatedClient.id,
+    email: updatedClient.email,
+    userType: 'client',
+    type: 'client'
+  })
+
+  return {
+    user: updatedClient,
+    token
+  }
+}
+
+export async function completeClientInvitation(data: CompleteClientInvitationData) {
+  const tokenHash = hashVerificationToken(data.token)
+  const now = new Date()
+
+  const client = await prisma.client.findFirst({
+    where: {
+      emailVerificationTokenHash: tokenHash
+    },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      password: true,
+      emailVerificationTokenExpiresAt: true
+    }
+  })
+
+  if (!client) {
+    throw new Error('Lien de creation de mot de passe invalide')
+  }
+
+  if (!client.emailVerificationTokenExpiresAt || client.emailVerificationTokenExpiresAt < now) {
+    throw new Error('Ce lien de creation de mot de passe a expire')
+  }
+
+  if (client.password) {
+    throw new Error('Ce compte a deja un mot de passe. Veuillez vous connecter.')
+  }
+
+  const hashedPassword = await hashPassword(data.password)
+
+  const updatedClient = await prisma.client.update({
+    where: { id: client.id },
+    data: {
+      password: hashedPassword,
+      emailVerificationRequired: false,
+      emailVerifiedAt: now,
+      emailVerificationTokenHash: null,
+      emailVerificationTokenExpiresAt: null
+    },
     select: {
       id: true,
       email: true,

@@ -45,11 +45,16 @@ api.interceptors.response.use(
       requestUrl.includes('/auth/register') ||
       requestUrl.includes('/staff-auth/login') ||
       requestUrl.includes('/staff-auth/first-login') ||
-      requestUrl.includes('/staff-auth/complete-invitation');
+      requestUrl.includes('/staff-auth/complete-invitation') ||
+      requestUrl.includes('/client-auth/complete-invitation');
 
     const isAuthPage =
       typeof window !== 'undefined' &&
-      (window.location.pathname === '/signin' || window.location.pathname === '/signup');
+      (
+        window.location.pathname === '/signin' ||
+        window.location.pathname === '/signup' ||
+        window.location.pathname === '/set-password'
+      );
 
     // Si la session est invalide, nettoyer l'etat local et rediriger
     if (error.response?.status === 401 && !isAuthRequest && !isAuthPage) {

@@ -13,7 +13,9 @@ import {
   loginValidation,
   registerWithBookingValidation,
   verifyEmailValidation,
-  verifyEmailHandler
+  verifyEmailHandler,
+  completeInvitationValidation,
+  completeInvitationHandler
 } from '../controllers/clientAuth.controller'
 import { authMiddleware } from '../middlewares/auth.middleware'
 import { requireClient } from '../middlewares/authorization.middleware'
@@ -25,6 +27,7 @@ router.post('/check-email', checkEmailValidation, checkEmailHandler)
 router.post('/set-password', setPasswordValidation, setPasswordHandler)
 router.post('/register', registerValidation, registerHandler)
 router.post('/register-with-booking', registerWithBookingValidation, registerWithBookingHandler)
+router.post('/complete-invitation', completeInvitationValidation, completeInvitationHandler)
 router.get('/verify-email', verifyEmailValidation, verifyEmailHandler)
 router.post('/login', loginValidation, loginHandler)
 router.post('/logout', logoutHandler)

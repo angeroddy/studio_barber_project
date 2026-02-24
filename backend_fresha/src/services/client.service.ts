@@ -1,5 +1,8 @@
 import prisma from '../config/database'
 import bcrypt from 'bcrypt'
+import { createHash, randomBytes } from 'crypto'
+import logger from '../config/logger'
+import { sendClientPasswordSetupEmail } from './email.service'
 
 interface CreateClientData {
   salonId?: string
@@ -19,6 +22,26 @@ interface UpdateClientData {
   notes?: string
   marketing?: boolean
   password?: string
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+function createPasswordSetupToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
+function hashPasswordSetupToken(rawToken: string): string {
+  return createHash('sha256').update(rawToken).digest('hex')
+}
+
+function getClientPasswordSetupTtlHours(): number {
+  const parsed = Number(process.env.CLIENT_PASSWORD_SETUP_TTL_HOURS)
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed)
+  }
+  return 72
 }
 
 function buildSalonScope(accessibleSalonIds?: string[]) {
@@ -47,8 +70,9 @@ function stripPassword<T extends { password?: string | null }>(item: T) {
 }
 
 export async function createClient(data: CreateClientData) {
+  const normalizedEmail = normalizeEmail(data.email)
   const existingClient = await prisma.client.findUnique({
-    where: { email: data.email }
+    where: { email: normalizedEmail }
   })
 
   if (existingClient) {
@@ -65,21 +89,33 @@ export async function createClient(data: CreateClientData) {
     }
   }
 
+  const hasProvidedPassword = Boolean(data.password && data.password.trim().length > 0)
   let hashedPassword: string | undefined
-  if (data.password) {
-    hashedPassword = await bcrypt.hash(data.password, 10)
+  if (hasProvidedPassword) {
+    hashedPassword = await bcrypt.hash(data.password!.trim(), 10)
   }
 
+  const passwordSetupTokenRaw = !hasProvidedPassword ? createPasswordSetupToken() : null
+  const passwordSetupTokenHash = passwordSetupTokenRaw ? hashPasswordSetupToken(passwordSetupTokenRaw) : null
+  const passwordSetupTokenExpiresAt = passwordSetupTokenRaw
+    ? new Date(Date.now() + getClientPasswordSetupTtlHours() * 60 * 60 * 1000)
+    : null
+
+  let createdClientId: string | null = null
   const client = await prisma.client.create({
     data: {
       salonId: data.salonId,
-      email: data.email,
+      email: normalizedEmail,
       password: hashedPassword,
       firstName: data.firstName,
       lastName: data.lastName,
       phone: data.phone,
       notes: data.notes,
-      marketing: data.marketing || false
+      marketing: data.marketing || false,
+      emailVerificationRequired: false,
+      emailVerifiedAt: new Date(),
+      emailVerificationTokenHash: passwordSetupTokenHash,
+      emailVerificationTokenExpiresAt: passwordSetupTokenExpiresAt
     },
     include: {
       salon: {
@@ -91,6 +127,30 @@ export async function createClient(data: CreateClientData) {
       }
     }
   })
+  createdClientId = client.id
+
+  if (passwordSetupTokenRaw && passwordSetupTokenExpiresAt) {
+    try {
+      await sendClientPasswordSetupEmail({
+        to: client.email,
+        firstName: client.firstName,
+        token: passwordSetupTokenRaw,
+        expiresAt: passwordSetupTokenExpiresAt
+      })
+    } catch (error: any) {
+      if (createdClientId) {
+        try {
+          await prisma.client.delete({ where: { id: createdClientId } })
+        } catch (rollbackError: any) {
+          logger.error('Failed to rollback client creation after password setup email failure', {
+            clientId: createdClientId,
+            error: rollbackError?.message
+          })
+        }
+      }
+      throw error
+    }
+  }
 
   return stripPassword(client)
 }

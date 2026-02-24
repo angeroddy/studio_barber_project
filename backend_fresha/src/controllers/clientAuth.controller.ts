@@ -5,6 +5,7 @@ import { clearAuthCookie, setAuthCookie } from '../config/authCookie'
 import {
   checkEmailExists,
   setPasswordForExistingClient,
+  completeClientInvitation,
   registerClientWithEmailVerification,
   loginClient,
   getClientProfile,
@@ -74,6 +75,17 @@ export const loginValidation = [
 
 export const verifyEmailValidation = [
   query('token').notEmpty().withMessage('Token requis')
+]
+
+export const completeInvitationValidation = [
+  body('token').notEmpty().withMessage('Token requis'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Mot de passe minimum 8 caracteres')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage(
+      'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractere special (@$!%*?&)'
+    )
 ]
 
 export async function checkEmailHandler(req: Request, res: Response) {
@@ -228,6 +240,36 @@ export async function verifyEmailHandler(req: Request, res: Response) {
   } catch (error: any) {
     logger.error('Erreur verification email client:', { error: error.message, stack: error.stack })
     return res.redirect(302, buildFrontendUrl('/?emailVerification=failed'))
+  }
+}
+
+export async function completeInvitationHandler(req: Request, res: Response) {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      })
+    }
+
+    const token = String(req.body.token || '').trim()
+    const { password } = req.body
+    const result = await completeClientInvitation({ token, password })
+
+    setAuthCookie(res, result.token)
+
+    return res.json({
+      success: true,
+      message: 'Mot de passe defini avec succes. Bienvenue !',
+      data: result
+    })
+  } catch (error: any) {
+    logger.error('Erreur activation compte client via invitation:', { error: error.message, stack: error.stack })
+    return res.status(400).json({
+      success: false,
+      error: error.message
+    })
   }
 }
 

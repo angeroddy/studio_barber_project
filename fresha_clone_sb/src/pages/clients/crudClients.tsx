@@ -21,8 +21,13 @@ import {
 } from "../../services/client.service";
 import { ClientMobileCard } from "../../components/clients/ClientMobileCard";
 import { useIsMobile } from "../../hooks/useBreakpoint";
+import { useSalon } from "../../context/SalonContext";
 
 const CrudClients = () => {
+  const { selectedSalon, salons, isLoading: salonLoading } = useSalon();
+  const selectedSalonId = (selectedSalon?.id || "").trim();
+  const fallbackSalonId = (salons[0]?.id || "").trim();
+  const salonId = selectedSalonId || fallbackSalonId;
   // Hook pour détecter mobile
   const isMobile = useIsMobile();
 
@@ -190,6 +195,13 @@ const CrudClients = () => {
         return;
       }
 
+      if (!salonId) {
+        setAlertMessage("Aucun salon sélectionné. Sélectionnez un salon avant d'ajouter un client.");
+        setShowErrorAlert(true);
+        setTimeout(() => setShowErrorAlert(false), 3000);
+        return;
+      }
+
       // Validation de l'email uniquement pour la création
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
@@ -198,6 +210,7 @@ const CrudClients = () => {
         setTimeout(() => setShowErrorAlert(false), 3000);
         return;
       }
+
     }
 
     try {
@@ -239,8 +252,8 @@ const CrudClients = () => {
         // Ajout
         console.log('➕ Appel createClient');
         const newClient = await createClient({
+          salonId,
           email: formData.email,
-          password: formData.password || undefined,
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone,
@@ -251,7 +264,7 @@ const CrudClients = () => {
 
         setClientList((prev) => [newClient, ...prev]);
         setTotalClients(totalClients + 1);
-        setAlertMessage("Client ajouté avec succès");
+        setAlertMessage("Client ajouté avec succès. Un email de création de mot de passe a été envoyé.");
       }
 
       setIsModalOpen(false);
@@ -318,6 +331,37 @@ const CrudClients = () => {
       setClientToDelete(null);
     }
   };
+
+  // Si pas de salon, afficher un message
+  if (!salonLoading && !salonId) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+            <svg
+              className="h-8 w-8 text-yellow-600 dark:text-yellow-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Aucun salon trouve
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400">
+            Vous devez etre associe a un salon pour gerer les clients.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 sm:p-6">
@@ -713,6 +757,11 @@ const CrudClients = () => {
                   L'email ne peut pas être modifié
                 </p>
               )}
+              {!currentClient && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Un email sera envoye au client pour definir son mot de passe.
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -727,21 +776,6 @@ const CrudClients = () => {
             </div>
           </div>
 
-          {/* Mot de passe */}
-          {!currentClient && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Mot de passe (optionnel)
-              </label>
-              <Input
-                type="password"
-                placeholder="Minimum 6 caractères"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-              />
-            </div>
-          )}
-
           {currentClient && (
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -749,7 +783,7 @@ const CrudClients = () => {
               </label>
               <Input
                 type="password"
-                placeholder="Minimum 6 caractères"
+                placeholder="Minimum 8 caractères (avec complexité)"
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
               />

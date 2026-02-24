@@ -61,13 +61,23 @@ interface ApiResponse<T> {
  * Créer un nouveau client
  */
 export const createClient = async (data: CreateClientData): Promise<Client> => {
-  const response = await api.post<ApiResponse<Client>>('/clients', data);
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Erreur lors de la création du client');
-  }
-  return response.data.data;
-};
+  try {
+    const response = await api.post<ApiResponse<Client>>('/clients', data);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || 'Erreur lors de la creation du client');
+    }
+    return response.data.data;
+  } catch (error: any) {
+    const apiMessage =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      (Array.isArray(error?.response?.data?.errors) && error.response.data.errors.length > 0
+        ? error.response.data.errors[0]?.msg || error.response.data.errors[0]
+        : null);
 
+    throw new Error(apiMessage || 'Erreur lors de la creation du client');
+  }
+};
 /**
  * Récupérer un client par ID
  */
@@ -216,3 +226,4 @@ export const deleteClient = async (id: string): Promise<void> => {
     throw error;
   }
 };
+

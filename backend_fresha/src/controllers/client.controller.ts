@@ -16,6 +16,8 @@ import prisma from '../config/database'
 
 type AccessMode = 'read' | 'write'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 async function getAccessibleSalonIds(
   req: Request,
   mode: AccessMode = 'read'
@@ -62,6 +64,35 @@ function mapStatusForError(error: Error): number {
   return 400
 }
 
+async function resolveSalonId(rawSalonId: string, accessibleSalonIds?: string[]): Promise<string> {
+  const normalized = String(rawSalonId || '').trim()
+  if (!normalized) {
+    throw new Error('salonId est obligatoire')
+  }
+
+  if (accessibleSalonIds && accessibleSalonIds.includes(normalized)) {
+    return normalized
+  }
+
+  if (UUID_REGEX.test(normalized)) {
+    return normalized
+  }
+
+  const salon = await prisma.salon.findUnique({
+    where: { slug: normalized },
+    select: { id: true }
+  })
+
+  if (!salon) {
+    if (accessibleSalonIds && accessibleSalonIds.length === 1) {
+      return accessibleSalonIds[0]
+    }
+    throw new Error('salonId est invalide')
+  }
+
+  return salon.id
+}
+
 /**
  * POST /api/clients
  */
@@ -85,7 +116,9 @@ export async function createClientHandler(req: Request, res: Response) {
       })
     }
 
-    if (!canAccessSalon(accessibleSalonIds, salonId)) {
+    const normalizedSalonId = await resolveSalonId(salonId, accessibleSalonIds)
+
+    if (!canAccessSalon(accessibleSalonIds, normalizedSalonId)) {
       return res.status(403).json({
         success: false,
         error: 'Acces refuse a ce salon'
@@ -93,7 +126,7 @@ export async function createClientHandler(req: Request, res: Response) {
     }
 
     const client = await createClient({
-      salonId,
+      salonId: normalizedSalonId,
       email,
       password,
       firstName,
@@ -112,6 +145,7 @@ export async function createClientHandler(req: Request, res: Response) {
     logger.error('Erreur creation client:', { error: error.message, stack: error.stack })
     return res.status(mapStatusForError(error)).json({
       success: false,
+      message: error.message,
       error: error.message
     })
   }

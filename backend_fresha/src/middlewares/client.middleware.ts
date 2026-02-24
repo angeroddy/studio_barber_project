@@ -144,7 +144,9 @@ export const createClientValidation = [
 
   body('salonId')
     .optional()
-    .isUUID().withMessage('salonId doit être un UUID valide')
+    .isString().withMessage('salonId doit etre une chaine valide')
+    .trim()
+    .notEmpty().withMessage('salonId ne peut pas etre vide')
 ]
 
 export const updateClientValidation = [
