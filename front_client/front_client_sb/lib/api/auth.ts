@@ -138,6 +138,27 @@ export async function register(data: {
 }
 
 /**
+ * Finaliser l'invitation client via token email
+ */
+export async function completeClientInvitation(token: string, password: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/client-auth/complete-invitation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token, password }),
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const error: ErrorResponse = await response.json()
+    throw new Error(getApiErrorMessage(error, "Erreur lors de l'activation du compte"))
+  }
+
+  return response.json()
+}
+
+/**
  * Inscription client + reservation en attente de verification email
  */
 export async function registerWithBooking(data: {
