@@ -39,7 +39,7 @@
     "csv-parser": "^3.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.3.0",
     "express-validator": "^7.3.0",
     "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",
@@ -60,6 +60,6 @@
     "tsx": "^4.19.2"
   },
   "overrides": {
-    "minimatch": "^10.2.1"
+    "minimatch": "10.2.4"
   }
 }
