@@ -8,7 +8,7 @@ import { BookingBreadcrumb } from "@/components/booking-breadcrumb";
 import { AuthModal } from "@/components/auth-modal";
 import { api, Service, Staff } from "@/lib/api/index";
 import { Salon } from "@/lib/api/salon.api";
-import { isAuthenticated, removeToken } from "@/lib/api/auth";
+import { hasActiveSession, removeToken } from "@/lib/api/auth";
 import { createClientBooking } from "@/lib/api/clientBooking";
 import { ApiError } from "@/lib/api/config";
 import { getSalonByIdentifier } from "@/lib/api/salonLookup";
@@ -188,9 +188,9 @@ function ValiderPageContent() {
     }
   };
 
-  const handleValidate = () => {
+  const handleValidate = async () => {
     setVerificationInfo(null);
-    if (isAuthenticated()) {
+    if (await hasActiveSession()) {
       void createBooking();
     } else {
       setShowAuthModal(true);
@@ -399,7 +399,9 @@ function ValiderPageContent() {
                 </div>
 
                 <button
-                  onClick={handleValidate}
+                  onClick={() => {
+                    void handleValidate();
+                  }}
                   disabled={creatingBooking}
                   className="w-full bg-[#DE2788] hover:bg-[#C62077] text-white font-archivo font-black text-sm sm:text-base uppercase py-5 sm:py-6 md:py-7 rounded-xl transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
                 >

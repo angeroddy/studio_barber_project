@@ -27,10 +27,10 @@ describe('lib/api/config', () => {
     })
   })
 
-  it('setAuthToken and removeAuthToken clear local storage token', () => {
+  it('setAuthToken does not persist a client-side token and removeAuthToken clears it', () => {
     localStorage.setItem('authToken', 'value')
     setAuthToken('new-token')
-    expect(localStorage.getItem('authToken')).toBeNull()
+    expect(localStorage.getItem('authToken')).toBe('value')
 
     localStorage.setItem('authToken', 'value')
     removeAuthToken()

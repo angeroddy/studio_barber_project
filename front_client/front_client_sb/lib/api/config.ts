@@ -9,9 +9,7 @@ export const getAuthToken = (): string | null => {
 
 // Helper function to set auth token
 export const setAuthToken = (_token: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('authToken');
-  }
+  // Cookie-only auth: no client-side bearer token is stored.
 };
 
 // Helper function to remove auth token

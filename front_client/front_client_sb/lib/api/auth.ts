@@ -1,5 +1,13 @@
 import { API_URL } from './config'
 
+const AUTH_STATE_EVENT = 'auth-state-changed'
+
+function notifyAuthStateChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_STATE_EVENT))
+  }
+}
+
 export interface CheckEmailResponse {
   success: boolean
   data: {
@@ -302,9 +310,7 @@ export async function getProfile() {
  * Sauvegarder le token dans le localStorage
  */
 export function saveToken(_token: string) {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('authToken')
-  }
+  // Cookie-only auth: the backend owns the session cookie.
 }
 
 export async function loginWithGoogle(data: {
@@ -359,6 +365,7 @@ export function removeToken() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('authToken')
     localStorage.removeItem('authUser')
+    notifyAuthStateChanged()
   }
 }
 
@@ -374,6 +381,7 @@ export function saveUser(user: {
 }) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('authUser', JSON.stringify(user))
+    notifyAuthStateChanged()
   }
 }
 
@@ -398,6 +406,34 @@ export function getUser(): {
     }
   }
   return null
+}
+
+export function onAuthStateChange(callback: () => void): () => void {
+  if (typeof window === 'undefined') {
+    return () => undefined
+  }
+
+  const handler = () => callback()
+  window.addEventListener(AUTH_STATE_EVENT, handler)
+  return () => {
+    window.removeEventListener(AUTH_STATE_EVENT, handler)
+  }
+}
+
+export async function hasActiveSession(): Promise<boolean> {
+  try {
+    const response = await getProfile()
+    if (response?.data) {
+      saveUser(response.data)
+    }
+    return true
+  } catch {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authUser')
+      notifyAuthStateChanged()
+    }
+    return false
+  }
 }
 
 /**

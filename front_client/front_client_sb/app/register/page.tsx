@@ -1,11 +1,24 @@
 'use client';
 
+import { useEffect } from "react"
 import { SignupForm } from "@/components/signup-form"
 import Link from "next/link"
 import Logo2 from '@/public/logoApp.png';
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { hasActiveSession } from "@/lib/api/auth";
 
 export default function RegisterPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    void hasActiveSession().then((isActive) => {
+      if (isActive) {
+        router.replace('/dashboard')
+      }
+    })
+  }, [router])
+
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Left side - Signup Form */}

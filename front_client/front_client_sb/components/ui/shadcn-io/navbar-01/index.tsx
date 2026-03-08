@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import Logo2 from '@/public/logoApp.png';
-import { isAuthenticated } from '@/lib/api/auth';
+import { hasActiveSession, onAuthStateChange } from '@/lib/api/auth';
 import Link from 'next/link';
 
 
@@ -114,7 +114,9 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
     // Vérifier l'authentification au montage et lors des changements
     useEffect(() => {
       const checkAuth = () => {
-        setIsLoggedIn(isAuthenticated());
+        void hasActiveSession().then((isActive) => {
+          setIsLoggedIn(isActive);
+        });
       };
 
       checkAuth();
@@ -133,11 +135,13 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
       window.addEventListener('storage', handleStorageChange);
       window.addEventListener('focus', checkAuth);
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      const unsubscribe = onAuthStateChange(checkAuth);
 
       return () => {
         window.removeEventListener('storage', handleStorageChange);
         window.removeEventListener('focus', checkAuth);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        unsubscribe();
       };
     }, []);
 
