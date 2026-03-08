@@ -173,6 +173,15 @@ export const metadata: Metadata = {
   description:
     "Studio Barber Grenoble: deux salons de barbier, tarifs clairs et reservation en ligne rapide.",
   applicationName: SITE_NAME,
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", type: "image/png" },
+    ],
+    shortcut: ["/icon.png"],
+  },
   openGraph: {
     type: "website",
     locale: "fr_FR",
@@ -220,6 +229,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${bebasNeue.variable} ${geistMono.variable} ${monumentExtended.variable} ${cyGrotesk.variable} ${archivo.variable} antialiased`}
       >
+        <a href="#main-content" className="skip-link">
+          Aller au contenu principal
+        </a>
         <QueryProvider>
           <Toaster
             position="top-right"
@@ -245,7 +257,9 @@ export default function RootLayout({
               },
             }}
           />
-          {children}
+          <main id="main-content" tabIndex={-1}>
+            {children}
+          </main>
         </QueryProvider>
       </body>
     </html>
