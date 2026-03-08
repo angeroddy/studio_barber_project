@@ -52,7 +52,11 @@ describe('auth.service', () => {
 
     const result = await getProfile()
 
-    expect(mockedApi.get).toHaveBeenCalledWith('/auth/me')
+    expect(mockedApi.get).toHaveBeenCalledWith('/auth/me', {
+      headers: {
+        'X-Skip-Auth-Redirect': 'true',
+      },
+    })
     expect(result).toEqual(response)
   })
 

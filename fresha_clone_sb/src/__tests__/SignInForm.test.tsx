@@ -71,8 +71,7 @@ describe('SignInForm Component', () => {
     it('should show signup link for owner login type', () => {
       renderWithRouter(<SignInForm />);
 
-      expect(screen.getByText("Pas encore de compte?")).toBeInTheDocument();
-      expect(screen.getByText("S'inscrire")).toBeInTheDocument();
+      expect(screen.getByText('Création de compte administrateur désactivée.')).toBeInTheDocument();
     });
   });
 
