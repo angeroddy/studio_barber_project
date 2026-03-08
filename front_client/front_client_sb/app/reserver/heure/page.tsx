@@ -24,6 +24,28 @@ const getDateKey = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const createDateFromKey = (dateKey: string): Date => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const getMonthDateKeys = (monthDate: Date): string[] => {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: daysInMonth }, (_, index) =>
+    getDateKey(new Date(year, month, index + 1))
+  );
+};
+
+const getDateKeysInRange = (startDate: Date, numberOfDays: number): string[] =>
+  Array.from({ length: numberOfDays }, (_, index) => {
+    const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    date.setDate(date.getDate() + index);
+    return getDateKey(date);
+  });
+
 // ─── DateStrip Component ──────────────────────────────────────────────
 interface DateStripDay {
   date: Date;
@@ -34,14 +56,20 @@ interface DateStripDay {
   isClosed: boolean; // e.g. dimanche
 }
 
+type DateAvailabilityState = "available" | "unavailable" | "loading";
+
 function DateStrip({
   selectedDate,
   onSelect,
   closedDays = [0], // dimanche par défaut
+  unavailableDateKeys = new Set<string>(),
+  onVisibleMonthChange,
 }: {
   selectedDate: Date | null;
   onSelect: (date: Date) => void;
   closedDays?: number[];
+  unavailableDateKeys?: Set<string>;
+  onVisibleMonthChange?: (date: Date) => void;
 }) {
   const today = useMemo(() => new Date(), []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -122,6 +150,8 @@ function DateStrip({
         }
         return centerVisibleDay.date;
       });
+
+      onVisibleMonthChange?.(centerVisibleDay.date);
     };
 
     const onScroll = () => {
@@ -138,7 +168,7 @@ function DateStrip({
       window.removeEventListener("resize", onScroll);
       if (frameId) window.cancelAnimationFrame(frameId);
     };
-  }, [days]);
+  }, [days, onVisibleMonthChange]);
 
   useEffect(() => {
     if (!selectedDate || !scrollRef.current) return;
@@ -207,7 +237,10 @@ function DateStrip({
             const isSelected =
               selectedDate &&
               day.date.toDateString() === selectedDate.toDateString();
-            const disabled = day.isPast || day.isClosed;
+            const disabled =
+              day.isPast ||
+              day.isClosed ||
+              unavailableDateKeys.has(getDateKey(day.date));
 
             return (
               <button
@@ -312,6 +345,8 @@ interface CalendarPickerProps {
   onSelectDate: (date: Date) => void;
   closedDays?: number[];
   minDate?: Date;
+  unavailableDateKeys?: Set<string>;
+  onViewMonthChange?: (date: Date) => void;
 }
 
 function CalendarPicker({
@@ -321,6 +356,8 @@ function CalendarPicker({
   onSelectDate,
   closedDays = [0],
   minDate,
+  unavailableDateKeys = new Set<string>(),
+  onViewMonthChange,
 }: CalendarPickerProps) {
   const minSelectableDate = useMemo(() => {
     const source = minDate ?? new Date();
@@ -331,6 +368,10 @@ function CalendarPicker({
     const base = selectedDate ?? minSelectableDate;
     return new Date(base.getFullYear(), base.getMonth(), 1);
   });
+
+  useEffect(() => {
+    onViewMonthChange?.(viewMonth);
+  }, [onViewMonthChange, viewMonth]);
 
   if (!isOpen) return null;
 
@@ -349,11 +390,12 @@ function CalendarPicker({
     const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const isClosed = closedDays.includes(date.getDay());
     const isPast = dateStart < minSelectableDate;
+    const isUnavailable = unavailableDateKeys.has(getDateKey(date));
 
     return {
       date,
       dayNumber,
-      disabled: isClosed || isPast,
+      disabled: isClosed || isPast || isUnavailable,
     };
   });
 
@@ -669,6 +711,7 @@ function HeurePageContent() {
   const [closedDays, setClosedDays] = useState<number[]>([0]);
   const [nextAvailableDateLabel, setNextAvailableDateLabel] = useState<string | null>(null);
   const [loadingNextDate, setLoadingNextDate] = useState(false);
+  const [dateAvailability, setDateAvailability] = useState<Record<string, DateAvailabilityState>>({});
 
   const today = useMemo(() => new Date(), []);
   const [selectedDate, setSelectedDate] = useState<Date | null>(today);
@@ -676,8 +719,18 @@ function HeurePageContent() {
   const [selectedProfessionalId, setSelectedProfessionalId] = useState(initialProfessionalId);
   const [isProfessionalSelectorOpen, setIsProfessionalSelectorOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const preloadedRangesRef = useRef<Set<string>>(new Set());
 
   const totalPrice = service ? Number(service.price) : 0;
+  const unavailableDateKeys = useMemo(
+    () =>
+      new Set(
+        Object.entries(dateAvailability)
+          .filter(([, state]) => state === "unavailable")
+          .map(([dateKey]) => dateKey)
+      ),
+    [dateAvailability]
+  );
 
   useEffect(() => {
     async function loadSalonData() {
@@ -720,6 +773,105 @@ function HeurePageContent() {
     }
     fetchService();
   }, [serviceParam]);
+
+  const fetchAvailabilityForDateKeys = useCallback(
+    async (dateKeys: string[], force = false) => {
+      if (!service) {
+        return;
+      }
+
+      const uniqueDateKeys = Array.from(new Set(dateKeys))
+        .filter((dateKey) => {
+          const date = createDateFromKey(dateKey);
+          return !closedDays.includes(date.getDay());
+        })
+        .filter((dateKey) => {
+          if (force) {
+            return true;
+          }
+          const state = dateAvailability[dateKey];
+          return state !== "available" && state !== "unavailable" && state !== "loading";
+        });
+
+      if (uniqueDateKeys.length === 0) {
+        return;
+      }
+
+      setDateAvailability((current) => {
+        const next = { ...current };
+        for (const dateKey of uniqueDateKeys) {
+          next[dateKey] = "loading";
+        }
+        return next;
+      });
+
+      const batchSize = 6;
+      for (let index = 0; index < uniqueDateKeys.length; index += batchSize) {
+        const batch = uniqueDateKeys.slice(index, index + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (dateKey) => {
+            const slots = await api.bookings.getAvailableSlots(
+              salonId,
+              selectedProfessionalId,
+              service.id,
+              dateKey
+            );
+
+            return {
+              dateKey,
+              hasSlots: slots.length > 0,
+            };
+          })
+        );
+
+        setDateAvailability((current) => {
+          const next = { ...current };
+          results.forEach((result, batchIndex) => {
+            const dateKey = batch[batchIndex];
+            if (!dateKey) {
+              return;
+            }
+
+            next[dateKey] =
+              result.status === "fulfilled" && result.value.hasSlots
+                ? "available"
+                : "unavailable";
+          });
+          return next;
+        });
+      }
+    },
+    [closedDays, dateAvailability, salonId, selectedProfessionalId, service]
+  );
+
+  const prefetchDateRange = useCallback(
+    async (startDate: Date, numberOfDays: number) => {
+      if (!service) {
+        return;
+      }
+
+      const startKey = getDateKey(startDate);
+      const rangeKey = `${selectedProfessionalId}:${service.id}:${startKey}:${numberOfDays}`;
+      if (preloadedRangesRef.current.has(rangeKey)) {
+        return;
+      }
+
+      preloadedRangesRef.current.add(rangeKey);
+      await fetchAvailabilityForDateKeys(getDateKeysInRange(startDate, numberOfDays));
+    },
+    [fetchAvailabilityForDateKeys, selectedProfessionalId, service]
+  );
+
+  const prefetchMonthAvailability = useCallback(
+    async (monthDate: Date) => {
+      if (!service) {
+        return;
+      }
+
+      await fetchAvailabilityForDateKeys(getMonthDateKeys(monthDate));
+    },
+    [fetchAvailabilityForDateKeys, service]
+  );
 
   const findNextAvailableDate = useCallback(async () => {
     if (!selectedDate || !service) {
@@ -867,6 +1019,20 @@ function HeurePageContent() {
     setNextAvailableDateLabel(null);
   }, [selectedDate, selectedProfessionalId, service]);
 
+  useEffect(() => {
+    preloadedRangesRef.current.clear();
+    setDateAvailability({});
+  }, [selectedProfessionalId, service?.id, salonId]);
+
+  useEffect(() => {
+    if (!service) {
+      return;
+    }
+
+    void prefetchDateRange(today, 120);
+    void prefetchMonthAvailability(selectedDate ?? today);
+  }, [prefetchDateRange, prefetchMonthAvailability, selectedDate, service, today]);
+
   const handleContinue = useCallback(() => {
     if (selectedTime && selectedDate) {
       const year = selectedDate.getFullYear();
@@ -1000,6 +1166,10 @@ function HeurePageContent() {
                   setSelectedTime(null);
                 }}
                 closedDays={closedDays}
+                unavailableDateKeys={unavailableDateKeys}
+                onVisibleMonthChange={(date) => {
+                  void prefetchMonthAvailability(date);
+                }}
               />
             </div>
 
@@ -1085,6 +1255,10 @@ function HeurePageContent() {
         }}
         closedDays={closedDays}
         minDate={today}
+        unavailableDateKeys={unavailableDateKeys}
+        onViewMonthChange={(date) => {
+          void prefetchMonthAvailability(date);
+        }}
       />
 
       <ProfessionalSelectorModal

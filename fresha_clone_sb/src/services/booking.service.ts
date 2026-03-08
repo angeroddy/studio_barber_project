@@ -101,6 +101,18 @@ interface ApiResponse<T> {
   count?: number;
 }
 
+export interface CheckAvailabilityResponse {
+  available: boolean;
+  conflictingBookings?: Booking[];
+  conflictingBookingServices?: BookingService[];
+  absence?: {
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  };
+}
+
 /**
  * Créer un nouveau rendez-vous
  */
@@ -232,13 +244,38 @@ export const checkAvailability = async (
   startTime: string,
   endTime: string,
   excludeBookingId?: string
-): Promise<{ available: boolean; conflictingBookings?: Booking[] }> => {
-  const response = await api.post<ApiResponse<{ available: boolean; conflictingBookings?: Booking[] }>>(
+): Promise<CheckAvailabilityResponse> => {
+  const response = await api.post<ApiResponse<CheckAvailabilityResponse>>(
     '/bookings/check-availability',
     { staffId, startTime, endTime, excludeBookingId }
   );
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || 'Erreur lors de la vérification de la disponibilité');
   }
+  return response.data.data;
+};
+
+/**
+ * Obtenir les créneaux disponibles pour un jour donné
+ */
+export const getAvailableSlots = async (
+  salonId: string,
+  staffId: string,
+  serviceId: string,
+  date: string
+): Promise<string[]> => {
+  const response = await api.get<ApiResponse<string[]>>('/bookings/available-slots', {
+    params: {
+      salonId,
+      staffId,
+      serviceId,
+      date
+    }
+  });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || 'Erreur lors de la récupération des créneaux disponibles');
+  }
+
   return response.data.data;
 };

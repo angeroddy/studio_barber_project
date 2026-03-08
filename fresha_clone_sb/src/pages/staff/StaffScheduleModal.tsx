@@ -230,28 +230,25 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
   if (!staff || !date) return null;
 
   const totalDuration = calculateTotalDuration();
+  const recurringDayLabel = dayNames[dayOfWeek];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="max-w-2xl">
-      <div className="p-6">
+    <Modal isOpen={isOpen} onClose={onClose} className="w-full max-w-2xl">
+      <div className="p-4 sm:p-6">
         {/* En-tête */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <h2 className="text-xl font-semibold text-gray-900">
-              Plage horaire de {staff.firstName} le {formatDate(date)}
+              Disponibilités hebdomadaires de {staff.firstName} pour chaque {recurringDayLabel}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Vous modifiez uniquement les périodes de travail de cette journée.
-              Pour définir des périodes de travail récurrentes, accédez à{" "}
-              <button className="text-blue-600 hover:underline font-medium">
-                périodes de travail planifiées
-              </button>
-              .
+              Les horaires enregistrés ici s'appliquent à tous les {recurringDayLabel}s.
+              La date du {formatDate(date)} sert uniquement de repère visuel.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="shrink-0 text-gray-400 transition-colors hover:text-gray-600"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -270,7 +267,7 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
         {isWorking && timeSlots.length > 0 ? (
           <div className="space-y-4">
             {timeSlots.map((slot, index) => (
-              <div key={slot.id} className="flex items-center gap-4">
+              <div key={slot.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 {/* Heure de début */}
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -310,7 +307,7 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
                 {/* Bouton supprimer */}
                 <button
                   onClick={() => removeTimeSlot(slot.id)}
-                  className="mt-0.5 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="self-start rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 sm:mt-7"
                   aria-label="Supprimer cette plage horaire"
                 >
                   <svg
@@ -387,12 +384,12 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
         )}
 
         {/* Pied du modal */}
-        <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
+        <div className="mt-6 flex flex-col gap-3 border-t border-gray-200 pt-6">
           {/* Bouton supprimer (gauche) */}
           {isWorking && timeSlots.length > 0 && (
             <button
               onClick={handleDeleteAll}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="inline-flex items-center justify-center self-start rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
               aria-label="Supprimer tous les horaires"
             >
               <svg
@@ -413,12 +410,12 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
           )}
 
           {/* Boutons annuler/copier/enregistrer (droite) */}
-          <div className="flex gap-3 ml-auto">
+          <div className="grid grid-cols-1 gap-3 sm:ml-auto sm:flex sm:flex-wrap sm:justify-end">
             {onCopyToOtherDays && (
               <button
                 onClick={handleOpenCopyModal}
                 disabled={isSaving}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 title="Copier ces horaires vers d'autres jours de la semaine"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -435,14 +432,14 @@ const StaffScheduleModal: React.FC<StaffScheduleModalProps> = ({
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-11 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? (
                 <>

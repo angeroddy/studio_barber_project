@@ -4,6 +4,11 @@ import {
   buildOverlapConditions,
   withSerializableBookingTransaction
 } from '../utils/booking-concurrency.util'
+import {
+  findStaffConflictsForInterval,
+  resolveAvailableStaffForVisibleStart,
+  validateStaffIntervalConstraints
+} from './availability.service'
 
 interface CreateClientBookingData {
   clientId: string  // ID du client authentifiÃ©
@@ -72,34 +77,25 @@ export async function createClientBooking(data: CreateClientBookingData) {
       throw new Error('Service introuvable')
     }
 
-    let finalStaffId = data.staffId
-    if (!finalStaffId || finalStaffId === 'any') {
-      const availableStaff = await tx.staff.findFirst({
-        where: {
-          salonId: data.salonId,
-          isActive: true
-        }
-      })
-
-      if (!availableStaff) {
-        throw new Error('Aucun professionnel disponible')
-      }
-
-      finalStaffId = availableStaff.id
-    } else {
-      const staff = await tx.staff.findUnique({
-        where: { id: finalStaffId }
-      })
-
-      if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
-        throw new Error('Professionnel introuvable')
-      }
-    }
-
     const clientSelectedTime = new Date(data.startTime)
+    const finalStaffId = await resolveAvailableStaffForVisibleStart({
+      salonId: data.salonId,
+      staffId: data.staffId || 'any',
+      serviceId: data.serviceId,
+      visibleStartTime: clientSelectedTime,
+      db: tx
+    })
     const actualStartTime = new Date(clientSelectedTime.getTime() - salon.bufferBefore * 60000)
     const totalDuration = salon.bufferBefore + service.duration + salon.processingTime + salon.bufferAfter
     const endTime = new Date(actualStartTime.getTime() + totalDuration * 60000)
+
+    await validateStaffIntervalConstraints({
+      salonId: data.salonId,
+      staffId: finalStaffId,
+      startTime: actualStartTime,
+      endTime,
+      db: tx
+    })
 
     await acquireBookingLocks(tx, [`client:${client.id}`, `staff:${finalStaffId}`])
 
@@ -438,18 +434,48 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
 
       let finalStaffId = serviceInput.staffId
       if (!finalStaffId || finalStaffId === 'any') {
-        const availableStaff = await tx.staff.findFirst({
+        const candidateStaff = await tx.staff.findMany({
           where: {
             salonId: data.salonId,
             isActive: true
+          },
+          select: {
+            id: true
+          },
+          orderBy: {
+            createdAt: 'asc'
           }
         })
 
-        if (!availableStaff) {
-          throw new Error('Aucun professionnel disponible')
+        for (const candidate of candidateStaff) {
+          try {
+            await validateStaffIntervalConstraints({
+              salonId: data.salonId,
+              staffId: candidate.id,
+              startTime: serviceStartTime,
+              endTime: serviceEndTime,
+              db: tx
+            })
+
+            const conflicts = await findStaffConflictsForInterval({
+              staffId: candidate.id,
+              startTime: serviceStartTime,
+              endTime: serviceEndTime,
+              db: tx
+            })
+
+            if (conflicts.bookings.length === 0 && conflicts.bookingServices.length === 0 && !conflicts.absence) {
+              finalStaffId = candidate.id
+              break
+            }
+          } catch {
+            continue
+          }
         }
 
-        finalStaffId = availableStaff.id
+        if (!finalStaffId || finalStaffId === 'any') {
+          throw new Error('Aucun professionnel disponible')
+        }
       } else {
         const staff = await tx.staff.findUnique({
           where: { id: finalStaffId }
@@ -458,9 +484,14 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
         if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
           throw new Error(`Professionnel ${finalStaffId} introuvable`)
         }
-      }
-      if (!finalStaffId || finalStaffId === 'any') {
-        throw new Error('Aucun professionnel disponible')
+
+        await validateStaffIntervalConstraints({
+          salonId: data.salonId,
+          staffId: finalStaffId,
+          startTime: serviceStartTime,
+          endTime: serviceEndTime,
+          db: tx
+        })
       }
 
       bookingServicesData.push({
@@ -480,6 +511,14 @@ export async function createClientMultiServiceBooking(data: CreateClientMultiSer
       const lastService = bookingServicesData[bookingServicesData.length - 1]
       const endTimeWithBuffer = new Date(lastService.endTime.getTime() + salon.bufferAfter * 60000)
       lastService.endTime = endTimeWithBuffer
+
+      await validateStaffIntervalConstraints({
+        salonId: data.salonId,
+        staffId: lastService.staffId,
+        startTime: lastService.startTime,
+        endTime: lastService.endTime,
+        db: tx
+      })
     }
 
     const finalEndTime = new Date(currentStartTime)

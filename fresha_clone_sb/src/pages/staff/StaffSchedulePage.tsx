@@ -9,20 +9,20 @@ const StaffSchedulePage: React.FC = () => {
       {/* En-tête de la page */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <h1 className="text-3xl font-bold text-gray-900">
+          <div className="py-5 sm:py-6">
+            <h1 className="max-w-[14ch] text-3xl font-bold leading-tight text-gray-900 sm:max-w-none">
               Planification des horaires
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Gérez les horaires de travail de votre équipe
+              Gérez les disponibilités hebdomadaires récurrentes de votre équipe, appliquées à chaque jour correspondant.
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-4 border-b border-gray-200">
+          <div className="grid grid-cols-2 gap-2 border-b border-gray-200 sm:flex sm:gap-4">
             <button
               onClick={() => setActiveTab("schedule")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors sm:px-4 ${
                 activeTab === "schedule"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -32,7 +32,7 @@ const StaffSchedulePage: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab("settings")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors sm:px-4 ${
                 activeTab === "settings"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"

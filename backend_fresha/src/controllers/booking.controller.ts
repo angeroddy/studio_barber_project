@@ -191,9 +191,8 @@ export async function getAvailableSlots(req: Request, res: Response) {
       })
     }
 
-    // Convertir la date
-    const dateObj = new Date(date as string)
-    if (isNaN(dateObj.getTime())) {
+    const dateValue = date as string
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
       return res.status(400).json({
         success: false,
         message: 'Format de date invalide'
@@ -208,7 +207,7 @@ export async function getAvailableSlots(req: Request, res: Response) {
       salonId as string,
       staffId as string,
       serviceId as string,
-      dateObj,
+      dateValue,
       customDuration
     )
 

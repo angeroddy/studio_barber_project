@@ -5,6 +5,12 @@ import {
   buildOverlapConditions,
   withSerializableBookingTransaction
 } from '../utils/booking-concurrency.util'
+import {
+  findStaffConflictsForInterval,
+  getAvailableSlotTimes,
+  resolveAvailableStaffForVisibleStart,
+  validateStaffIntervalConstraints
+} from './availability.service'
 
 interface CreateBooking {
   salonId: string
@@ -34,18 +40,13 @@ interface UpdateBooking {
 // ============= CREATE =============
 export async function createBooking(data: CreateBooking) {
   return withSerializableBookingTransaction(async (tx) => {
-    const [salon, staff, service] = await Promise.all([
+    const [salon, service] = await Promise.all([
       tx.salon.findUnique({ where: { id: data.salonId } }),
-      tx.staff.findUnique({ where: { id: data.staffId } }),
       tx.service.findUnique({ where: { id: data.serviceId } })
     ])
 
     if (!salon) {
       throw new Error('Salon introuvable')
-    }
-
-    if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
-      throw new Error('Membre du personnel introuvable')
     }
 
     if (!service || service.salonId !== data.salonId || service.isActive === false) {
@@ -77,17 +78,33 @@ export async function createBooking(data: CreateBooking) {
     }
 
     const clientSelectedTime = new Date(data.startTime)
+    const resolvedStaffId = await resolveAvailableStaffForVisibleStart({
+      salonId: data.salonId,
+      staffId: data.staffId,
+      serviceId: data.serviceId,
+      visibleStartTime: clientSelectedTime,
+      db: tx
+    })
+
     const actualStartTime = new Date(clientSelectedTime.getTime() - salon.bufferBefore * 60000)
     const totalDuration = salon.bufferBefore + service.duration + salon.processingTime + salon.bufferAfter
     const endTime = new Date(actualStartTime.getTime() + totalDuration * 60000)
 
-    await acquireBookingLocks(tx, [`staff:${staff.id}`, `client:${client.id}`])
+    await validateStaffIntervalConstraints({
+      salonId: data.salonId,
+      staffId: resolvedStaffId,
+      startTime: actualStartTime,
+      endTime,
+      db: tx
+    })
+
+    await acquireBookingLocks(tx, [`staff:${resolvedStaffId}`, `client:${client.id}`])
     const overlapConditions = buildOverlapConditions(actualStartTime, endTime)
 
     const [existingStaffBooking, existingBookingService, existingClientBooking] = await Promise.all([
       tx.booking.findFirst({
         where: {
-          staffId: staff.id,
+          staffId: resolvedStaffId,
           OR: overlapConditions,
           status: {
             notIn: ['CANCELED', 'NO_SHOW']
@@ -96,7 +113,7 @@ export async function createBooking(data: CreateBooking) {
       }),
       tx.bookingService.findFirst({
         where: {
-          staffId: staff.id,
+          staffId: resolvedStaffId,
           OR: overlapConditions,
           booking: {
             status: {
@@ -128,7 +145,7 @@ export async function createBooking(data: CreateBooking) {
       data: {
         salonId: data.salonId,
         clientId: client.id,
-        staffId: staff.id,
+        staffId: resolvedStaffId,
         serviceId: service.id,
         startTime: actualStartTime,
         endTime,
@@ -556,6 +573,19 @@ export async function updateBooking(data: UpdateBooking) {
     }
   }
 
+  const salon = await prisma.salon.findUnique({
+    where: { id: existingBooking.salonId },
+    select: {
+      bufferBefore: true,
+      bufferAfter: true,
+      processingTime: true
+    }
+  })
+
+  if (!salon) {
+    throw new Error('Salon introuvable')
+  }
+
   // 4. Préparer les données de mise à jour
   const { id, ...updateData } = data
 
@@ -568,14 +598,49 @@ export async function updateBooking(data: UpdateBooking) {
     finalUpdateData.endTime = new Date(updateData.endTime)
   }
 
+  const targetServiceId = updateData.serviceId || existingBooking.serviceId
+  if (targetServiceId) {
+    const targetService = await prisma.service.findUnique({
+      where: { id: targetServiceId },
+      select: {
+        id: true,
+        salonId: true,
+        duration: true,
+        price: true,
+        isActive: true
+      }
+    })
+
+    if (!targetService || targetService.salonId !== existingBooking.salonId || targetService.isActive === false) {
+      throw new Error('Service introuvable')
+    }
+
+    const recomputedDuration =
+      salon.bufferBefore + targetService.duration + salon.processingTime + salon.bufferAfter
+    finalUpdateData.duration = recomputedDuration
+    finalUpdateData.price = targetService.price
+
+    if (finalUpdateData.startTime && !finalUpdateData.endTime) {
+      finalUpdateData.endTime = new Date(finalUpdateData.startTime.getTime() + recomputedDuration * 60000)
+    }
+  }
+
   // 5. Vérifier les conflits si on modifie le staff, la date ou l'heure
   const isTimeChanged = updateData.startTime || updateData.endTime
   const isStaffChanged = updateData.staffId && updateData.staffId !== existingBooking.staffId
+  const isServiceChanged = updateData.serviceId && updateData.serviceId !== existingBooking.serviceId
 
-  if (isTimeChanged || isStaffChanged) {
+  if (isTimeChanged || isStaffChanged || isServiceChanged) {
     const checkStartTime = finalUpdateData.startTime || existingBooking.startTime
     const checkEndTime = finalUpdateData.endTime || existingBooking.endTime
     const checkStaffId = finalUpdateData.staffId || existingBooking.staffId
+
+    await validateStaffIntervalConstraints({
+      salonId: existingBooking.salonId,
+      staffId: checkStaffId,
+      startTime: new Date(checkStartTime),
+      endTime: new Date(checkEndTime)
+    })
 
     // Vérifier la disponibilité du professionnel (réservations simples)
     const existingStaffBooking = await prisma.booking.findFirst({
@@ -766,78 +831,23 @@ export async function checkAvailability(
   endTime: Date | string,
   excludeBookingId?: string
 ) {
-  const where: any = {
-    staffId: staffId,
-    status: {
-      in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
-    },
-    OR: [
-      {
-        // Nouveau créneau commence pendant une réservation existante
-        AND: [
-          { startTime: { lte: new Date(startTime) } },
-          { endTime: { gt: new Date(startTime) } }
-        ]
-      },
-      {
-        // Nouveau créneau se termine pendant une réservation existante
-        AND: [
-          { startTime: { lt: new Date(endTime) } },
-          { endTime: { gte: new Date(endTime) } }
-        ]
-      },
-      {
-        // Nouveau créneau englobe complètement une réservation existante
-        AND: [
-          { startTime: { gte: new Date(startTime) } },
-          { endTime: { lte: new Date(endTime) } }
-        ]
-      }
-    ]
-  }
-
-  if (excludeBookingId) {
-    where.id = { not: excludeBookingId }
-  }
-
-  const conflictingBookings = await prisma.booking.findMany({
-    where,
-    include: {
-      service: {
-        select: {
-          name: true
-        }
-      }
-    }
+  const conflicts = await findStaffConflictsForInterval({
+    staffId,
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
+    excludeBookingId
   })
-
-  // Vérifier aussi les absences approuvées
-  const approvedAbsence = await prisma.absence.findFirst({
-    where: {
-      staffId: staffId,
-      status: 'APPROVED',
-      OR: [
-        {
-          AND: [
-            { startDate: { lte: new Date(endTime) } },
-            { endDate: { gte: new Date(startTime) } }
-          ]
-        }
-      ]
-    }
-  })
-
-  const isAvailable = conflictingBookings.length === 0 && !approvedAbsence
+  const isAvailable =
+    conflicts.bookings.length === 0 &&
+    conflicts.bookingServices.length === 0 &&
+    !conflicts.absence
 
   return {
     available: isAvailable,
-    conflictingBookings: conflictingBookings.length > 0 ? conflictingBookings : undefined,
-    absence: approvedAbsence ? {
-      type: approvedAbsence.type,
-      startDate: approvedAbsence.startDate,
-      endDate: approvedAbsence.endDate,
-      reason: approvedAbsence.reason
-    } : undefined
+    conflictingBookings: conflicts.bookings.length > 0 ? conflicts.bookings : undefined,
+    conflictingBookingServices:
+      conflicts.bookingServices.length > 0 ? conflicts.bookingServices : undefined,
+    absence: conflicts.absence
   }
 }
 
@@ -846,262 +856,16 @@ export async function getAvailableSlots(
   salonId: string,
   staffId: string,
   serviceId: string,
-  date: Date,
+  date: Date | string,
   customDuration?: number // Durée personnalisée en minutes (pour multi-services)
 ) {
-  // 1. Récupérer le service pour connaître sa durée
-  const service = await prisma.service.findUnique({
-    where: { id: serviceId },
-    select: {
-      id: true,
-      name: true,
-      duration: true,
-      salonId: true
-    }
+  return getAvailableSlotTimes({
+    salonId,
+    staffId,
+    serviceId,
+    date,
+    customDuration
   })
-
-  if (!service) {
-    throw new Error('Service introuvable')
-  }
-
-  // 2. Récupérer les temps tampons du SALON (configuration globale)
-  const salon = await prisma.salon.findUnique({
-    where: { id: salonId },
-    select: {
-      bufferBefore: true,
-      bufferAfter: true,
-      processingTime: true
-    }
-  })
-
-  if (!salon) {
-    throw new Error('Salon introuvable')
-  }
-
-  // Utiliser la durée personnalisée si fournie, sinon la durée du service
-  const baseDuration = customDuration || service.duration // en minutes
-
-  // Calculer la durée TOTALE incluant les temps tampons du SALON
-  // bufferBefore : temps bloqué AVANT le service (configuration salon)
-  // baseDuration : durée principale du service
-  // processingTime : temps de traitement supplémentaire (configuration salon)
-  // bufferAfter : temps bloqué APRÈS le service (configuration salon)
-  const totalBlockedDuration = salon.bufferBefore + baseDuration + salon.processingTime + salon.bufferAfter
-
-  // Pour la génération des créneaux, on utilise la durée totale bloquée
-  const serviceDuration = baseDuration // Ce que le client voit
-  const effectiveDuration = totalBlockedDuration // Ce qui est réellement bloqué
-
-  // 2. Récupérer le jour de la semaine (0=Dimanche, 1=Lundi, ...)
-  // Utiliser getUTCDay() car la date reçue est interprétée en UTC
-  const dayOfWeek = date.getUTCDay()
-
-  // 3. Vérifier si c'est un jour de fermeture exceptionnel
-  const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0))
-  const endOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999))
-
-  const closedDay = await prisma.closedDay.findFirst({
-    where: {
-      salonId: salonId,
-      date: {
-        gte: startOfDay,
-        lt: endOfDay
-      }
-    }
-  })
-
-  if (closedDay) {
-    return [] // Salon fermé ce jour-là
-  }
-
-  // 4. Récupérer les horaires du salon pour ce jour avec les plages horaires
-  const salonSchedule = await prisma.schedule.findFirst({
-    where: {
-      salonId: salonId,
-      dayOfWeek: dayOfWeek
-    },
-    include: {
-      timeSlots: {
-        orderBy: {
-          order: 'asc'
-        }
-      }
-    }
-  })
-
-  if (!salonSchedule || salonSchedule.isClosed) {
-    return [] // Salon fermé ce jour de la semaine
-  }
-
-  // Vérifier qu'il y a au moins une plage horaire
-  if (!salonSchedule.timeSlots || salonSchedule.timeSlots.length === 0) {
-    return [] // Pas d'horaires définis pour ce jour
-  }
-
-  // 5. Gérer le cas "N'importe quel professionnel"
-  let staffMembers: any[] = []
-
-  if (staffId === 'any') {
-    // Récupérer tous les staff actifs du salon
-    staffMembers = await prisma.staff.findMany({
-      where: {
-        salonId: salonId,
-        isActive: true
-      },
-      include: {
-        schedules: {
-          where: {
-            dayOfWeek: dayOfWeek
-          }
-        }
-      }
-    })
-  } else {
-    // Récupérer le staff spécifique
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      include: {
-        schedules: {
-          where: {
-            dayOfWeek: dayOfWeek
-          }
-        }
-      }
-    })
-
-    if (!staff || !staff.isActive) {
-      return []
-    }
-
-    staffMembers = [staff]
-  }
-
-  // 5.1. Filtrer les coiffeurs en absence approuvée ce jour-là
-  const approvedAbsences = await prisma.absence.findMany({
-    where: {
-      staffId: {
-        in: staffMembers.map(s => s.id)
-      },
-      status: 'APPROVED',
-      OR: [
-        {
-          AND: [
-            { startDate: { lte: endOfDay } },
-            { endDate: { gte: startOfDay } }
-          ]
-        }
-      ]
-    }
-  })
-
-  // Créer un Set des IDs des coiffeurs en absence
-  const staffIdsOnAbsence = new Set(approvedAbsences.map((a: { staffId: string }) => a.staffId))
-
-  // Filtrer les coiffeurs disponibles (pas en absence)
-  staffMembers = staffMembers.filter(staff => !staffIdsOnAbsence.has(staff.id))
-
-  // 6. Récupérer TOUTES les réservations pour TOUS les staff members en UNE SEULE requête (fix N+1)
-  // Inclure à la fois les bookings simples ET les bookingServices pour les multi-services
-  const [simpleBookings, bookingServices] = await Promise.all([
-    // Réservations simples (où staffId est défini)
-    prisma.booking.findMany({
-      where: {
-        staffId: {
-          in: staffMembers.map(s => s.id)
-        },
-        status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
-        },
-        startTime: {
-          gte: startOfDay,
-          lt: endOfDay
-        }
-      }
-    }),
-    // BookingServices pour les réservations multi-services
-    prisma.bookingService.findMany({
-      where: {
-        staffId: {
-          in: staffMembers.map(s => s.id)
-        },
-        startTime: {
-          gte: startOfDay,
-          lt: endOfDay
-        },
-        booking: {
-          status: {
-            in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
-          }
-        }
-      },
-      include: {
-        booking: true
-      }
-    })
-  ])
-
-  // Grouper les bookings par staffId en mémoire pour accès rapide
-  const bookingsByStaffId = new Map<string, any[]>()
-
-  // Ajouter les réservations simples
-  for (const booking of simpleBookings) {
-    if (!bookingsByStaffId.has(booking.staffId!)) {
-      bookingsByStaffId.set(booking.staffId!, [])
-    }
-    bookingsByStaffId.get(booking.staffId!)!.push(booking)
-  }
-
-  // Ajouter les services des réservations multi-services
-  for (const bookingService of bookingServices) {
-    if (!bookingsByStaffId.has(bookingService.staffId)) {
-      bookingsByStaffId.set(bookingService.staffId, [])
-    }
-    // Transformer BookingService en format compatible avec Booking pour la vérification
-    bookingsByStaffId.get(bookingService.staffId)!.push({
-      id: bookingService.id,
-      staffId: bookingService.staffId,
-      startTime: bookingService.startTime,
-      endTime: bookingService.endTime,
-      status: bookingService.booking.status
-    })
-  }
-
-  // 7. Calculer tous les créneaux disponibles
-  const allSlots = new Set<string>()
-
-  for (const staff of staffMembers) {
-    // Si le staff n'a pas d'horaires ce jour-là, passer au suivant
-    if (!staff.schedules || staff.schedules.length === 0) {
-      continue
-    }
-
-    // Récupérer les réservations de ce staff depuis le Map (pas de requête DB)
-    const existingBookings = bookingsByStaffId.get(staff.id) || []
-
-    // Pour chaque plage horaire du salon (ex: 10h-12h, 14h-18h)
-    for (const salonTimeSlot of salonSchedule.timeSlots) {
-      // Pour chaque plage horaire du staff
-      for (const staffSchedule of staff.schedules) {
-        // Générer les créneaux pour l'intersection entre les horaires du salon et du staff
-        // On passe effectiveDuration pour bloquer le temps tampon complet
-        const slots = generateSlotsForSchedule(
-          staffSchedule.startTime,
-          staffSchedule.endTime,
-          effectiveDuration, // Durée totale incluant les temps tampons
-          existingBookings,
-          salonTimeSlot.startTime,
-          salonTimeSlot.endTime,
-          salon.bufferBefore // Pour calculer l'heure affichée au client (config salon)
-        )
-
-        // Ajouter les créneaux au Set (évite les doublons)
-        slots.forEach(slot => allSlots.add(slot))
-      }
-    }
-  }
-
-  // 7. Convertir le Set en tableau et trier
-  return Array.from(allSlots).sort()
 }
 
 // Fonction helper pour générer les créneaux pour une plage horaire
@@ -1291,18 +1055,48 @@ export async function createMultiServiceBooking(data: CreateMultiServiceBooking)
 
       let staffId = serviceInput.staffId
       if (!staffId || staffId === 'any') {
-        const availableStaff = await tx.staff.findFirst({
+        const candidateStaff = await tx.staff.findMany({
           where: {
             salonId: data.salonId,
             isActive: true
+          },
+          select: {
+            id: true
+          },
+          orderBy: {
+            createdAt: 'asc'
           }
         })
 
-        if (!availableStaff) {
-          throw new Error('Aucun professionnel disponible pour ce service')
+        for (const candidate of candidateStaff) {
+          try {
+            await validateStaffIntervalConstraints({
+              salonId: data.salonId,
+              staffId: candidate.id,
+              startTime: serviceStartTime,
+              endTime: serviceEndTime,
+              db: tx
+            })
+
+            const conflicts = await findStaffConflictsForInterval({
+              staffId: candidate.id,
+              startTime: serviceStartTime,
+              endTime: serviceEndTime,
+              db: tx
+            })
+
+            if (conflicts.bookings.length === 0 && conflicts.bookingServices.length === 0 && !conflicts.absence) {
+              staffId = candidate.id
+              break
+            }
+          } catch {
+            continue
+          }
         }
 
-        staffId = availableStaff.id
+        if (!staffId || staffId === 'any') {
+          throw new Error('Aucun professionnel disponible pour ce service')
+        }
       }
 
       const staff = await tx.staff.findUnique({
@@ -1312,6 +1106,14 @@ export async function createMultiServiceBooking(data: CreateMultiServiceBooking)
       if (!staff || staff.salonId !== data.salonId || staff.isActive === false) {
         throw new Error(`Professionnel ${staffId} introuvable`)
       }
+
+      await validateStaffIntervalConstraints({
+        salonId: data.salonId,
+        staffId: staff.id,
+        startTime: serviceStartTime,
+        endTime: serviceEndTime,
+        db: tx
+      })
 
       bookingServicesData.push({
         serviceId: service.id,
@@ -1330,6 +1132,14 @@ export async function createMultiServiceBooking(data: CreateMultiServiceBooking)
       const lastService = bookingServicesData[bookingServicesData.length - 1]
       const endTimeWithBuffer = new Date(lastService.endTime.getTime() + salon.bufferAfter * 60000)
       lastService.endTime = endTimeWithBuffer
+
+      await validateStaffIntervalConstraints({
+        salonId: data.salonId,
+        staffId: lastService.staffId,
+        startTime: lastService.startTime,
+        endTime: lastService.endTime,
+        db: tx
+      })
     }
 
     const finalEndTime = new Date(currentStartTime)

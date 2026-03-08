@@ -10,7 +10,14 @@ jest.mock('../config/database', () => ({
     salon: {
       findUnique: jest.fn(),
     },
+    closedDay: {
+      findFirst: jest.fn(),
+    },
+    schedule: {
+      findFirst: jest.fn(),
+    },
     staff: {
+      findMany: jest.fn(),
       findUnique: jest.fn(),
     },
     service: {
@@ -30,6 +37,10 @@ jest.mock('../config/database', () => ({
     },
     bookingService: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    absence: {
+      findMany: jest.fn(),
     },
   },
 }));
@@ -45,6 +56,22 @@ describe('Booking API Tests', () => {
       userId: mockUserId,
       email: 'owner@example.com'
     });
+
+    (prisma.closedDay.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.schedule.findFirst as jest.Mock).mockResolvedValue({
+      dayOfWeek: 0,
+      isClosed: false,
+      timeSlots: [
+        {
+          startTime: '09:00',
+          endTime: '18:00',
+          order: 0
+        }
+      ]
+    });
+    (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.absence.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   describe('POST /api/bookings', () => {
@@ -74,7 +101,15 @@ describe('Booking API Tests', () => {
       id: 'staff-123',
       firstName: 'Jane',
       lastName: 'Smith',
-      salonId: 'salon-123'
+      salonId: 'salon-123',
+      isActive: true,
+      schedules: [
+        {
+          startTime: '09:00',
+          endTime: '18:00',
+          isAvailable: true
+        }
+      ]
     };
 
     const mockService = {
@@ -98,6 +133,7 @@ describe('Booking API Tests', () => {
       // Mock all the checks
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.client.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.client.create as jest.Mock).mockResolvedValue(mockClient);
@@ -146,6 +182,8 @@ describe('Booking API Tests', () => {
     it('should reject booking for non-existent staff', async () => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
 
       const response = await request(app)
         .post('/api/bookings')
@@ -160,6 +198,7 @@ describe('Booking API Tests', () => {
     it('should reject booking for non-existent service', async () => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app)
@@ -175,6 +214,7 @@ describe('Booking API Tests', () => {
     it('should reject booking when staff is already booked', async () => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.client.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.client.create as jest.Mock).mockResolvedValue(mockClient);
@@ -203,6 +243,7 @@ describe('Booking API Tests', () => {
     it('should create client if it does not exist', async () => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.client.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.client.create as jest.Mock).mockResolvedValue(mockClient);
@@ -232,6 +273,7 @@ describe('Booking API Tests', () => {
     it('should use existing client if email matches', async () => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.client.findUnique as jest.Mock).mockResolvedValue(mockClient);
       (prisma.booking.findFirst as jest.Mock).mockResolvedValue(null);

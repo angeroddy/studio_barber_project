@@ -56,13 +56,23 @@ export const Modal: React.FC<ModalProps> = ({
   const contentClasses = isFullscreen
     ? "w-full h-full"
     : mobileFullscreen
-    ? "w-full h-full md:w-auto md:h-auto md:rounded-3xl relative bg-white dark:bg-gray-900"
-    : "relative w-full mx-4 rounded-3xl bg-white dark:bg-gray-900";
+    ? "relative w-full h-[100dvh] max-h-[100dvh] overflow-y-auto overscroll-y-contain bg-white dark:bg-gray-900 md:h-auto md:max-h-[min(92vh,980px)] md:w-auto md:overflow-hidden md:rounded-3xl"
+    : "relative w-full mx-4 max-h-[90vh] overflow-hidden rounded-3xl bg-white dark:bg-gray-900";
 
   const maxWidthClass = className ? "" : "max-w-2xl";
+  const innerLayoutClasses =
+    isFullscreen || mobileFullscreen
+      ? "flex h-full max-h-full min-h-0 flex-col"
+      : "flex max-h-full min-h-0 flex-col";
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
+    <div
+      className={`fixed inset-0 z-99999 flex modal ${
+        mobileFullscreen && !isFullscreen
+          ? "items-end justify-stretch md:items-center md:justify-center"
+          : "items-center justify-center"
+      } ${mobileFullscreen && !isFullscreen ? "overflow-hidden md:overflow-y-auto" : "overflow-y-auto"}`}
+    >
       {!isFullscreen && (
         <div
           className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
@@ -95,13 +105,13 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div>
+        <div className={innerLayoutClasses}>
           {title && (
             <div className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6">
               <h3 className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">{title}</h3>
             </div>
           )}
-          <div>{children}</div>
+          <div className="min-h-0 flex-1">{children}</div>
         </div>
       </div>
     </div>

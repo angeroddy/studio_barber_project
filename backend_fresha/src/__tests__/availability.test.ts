@@ -58,8 +58,8 @@ describe('Booking Availability Tests', () => {
     it('should return available when no conflicts exist', async () => {
       // No conflicting bookings
       (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
-      // No absences
-      (prisma.absence.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.absence.findMany as jest.Mock).mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/bookings/check-availability')
@@ -86,7 +86,8 @@ describe('Booking Availability Tests', () => {
       };
 
       (prisma.booking.findMany as jest.Mock).mockResolvedValue([conflictingBooking]);
-      (prisma.absence.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.absence.findMany as jest.Mock).mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/bookings/check-availability')
@@ -112,7 +113,8 @@ describe('Booking Availability Tests', () => {
       };
 
       (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.absence.findFirst as jest.Mock).mockResolvedValue(absence);
+      (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.absence.findMany as jest.Mock).mockResolvedValue([absence]);
 
       const response = await request(app)
         .post('/api/bookings/check-availability')
@@ -148,7 +150,8 @@ describe('Booking Availability Tests', () => {
         }
         return Promise.resolve([excludedBooking]);
       });
-      (prisma.absence.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.absence.findMany as jest.Mock).mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/bookings/check-availability')
@@ -165,7 +168,7 @@ describe('Booking Availability Tests', () => {
       salonId: 'salon-123',
       staffId: 'staff-123',
       serviceId: 'service-123',
-      date: '2026-02-03' // Monday
+      date: '2026-02-02' // Monday
     };
 
     const mockService = {
@@ -222,7 +225,7 @@ describe('Booking Availability Tests', () => {
 
     beforeEach(() => {
       (prisma.salon.findUnique as jest.Mock).mockResolvedValue(mockSalon);
-      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.closedDay.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.schedule.findFirst as jest.Mock).mockResolvedValue(mockSchedule);
@@ -354,8 +357,8 @@ describe('Booking Availability Tests', () => {
         {
           id: 'booking-1',
           staffId: 'staff-123',
-          startTime: new Date('2026-02-03T10:00:00Z'),
-          endTime: new Date('2026-02-03T11:00:00Z'),
+          startTime: new Date('2026-02-02T10:00:00+01:00'),
+          endTime: new Date('2026-02-02T11:00:00+01:00'),
           status: 'CONFIRMED'
         }
       ];
@@ -382,7 +385,7 @@ describe('Booking Availability Tests', () => {
         bufferAfter: 0,
         processingTime: 0
       });
-      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
       (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
       (prisma.closedDay.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.schedule.findFirst as jest.Mock).mockResolvedValue(mockSchedule);
@@ -396,13 +399,92 @@ describe('Booking Availability Tests', () => {
           salonId: 'salon-123',
           staffId: 'staff-123',
           serviceId: 'service-123',
-          date: '2026-02-03'
+          date: '2026-02-02'
         })
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
-      // The 10:00 slot should not be in the available slots
-      // This test verifies the business logic
+      expect(response.body.data).not.toContain('10:00');
+      expect(response.body.data).not.toContain('10:20');
+      expect(response.body.data).not.toContain('10:40');
+      expect(response.body.data).toContain('11:00');
+    });
+
+    it('should not propose 11:00 when a booking lasts from 10:40 to 11:10', async () => {
+      const mockService = {
+        id: 'service-123',
+        duration: 30,
+        price: 50,
+        salonId: 'salon-123',
+        isActive: true
+      };
+
+      const mockSchedule = {
+        dayOfWeek: 1,
+        isClosed: false,
+        timeSlots: [
+          {
+            id: 'slot-1',
+            startTime: '09:00',
+            endTime: '18:00',
+            order: 1
+          }
+        ]
+      };
+
+      const mockStaff = {
+        id: 'staff-123',
+        salonId: 'salon-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        isActive: true,
+        schedules: [
+          {
+            id: 'staff-schedule-1',
+            dayOfWeek: 1,
+            startTime: '09:00',
+            endTime: '18:00',
+            isAvailable: true
+          }
+        ]
+      };
+
+      const existingBookings = [
+        {
+          id: 'booking-1040',
+          staffId: 'staff-123',
+          startTime: new Date('2026-02-02T10:40:00+01:00'),
+          endTime: new Date('2026-02-02T11:10:00+01:00'),
+          status: 'CONFIRMED'
+        }
+      ];
+
+      (prisma.salon.findUnique as jest.Mock).mockResolvedValue({
+        id: 'salon-123',
+        bufferBefore: 0,
+        bufferAfter: 0,
+        processingTime: 0
+      });
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([mockStaff]);
+      (prisma.service.findUnique as jest.Mock).mockResolvedValue(mockService);
+      (prisma.closedDay.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.schedule.findFirst as jest.Mock).mockResolvedValue(mockSchedule);
+      (prisma.booking.findMany as jest.Mock).mockResolvedValue(existingBookings);
+      (prisma.bookingService.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.absence.findMany as jest.Mock).mockResolvedValue([]);
+
+      const response = await request(app)
+        .get('/api/bookings/available-slots')
+        .query({
+          salonId: 'salon-123',
+          staffId: 'staff-123',
+          serviceId: 'service-123',
+          date: '2026-02-02'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).not.toContain('11:00');
+      expect(response.body.data).toContain('11:20');
     });
   });
 });

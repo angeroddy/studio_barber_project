@@ -11,6 +11,7 @@ import { getStaffBySalon } from "../../services/staff.service";
 import type { Staff } from "../../services/staff.service";
 import {
   getBookingsBySalon,
+  getAvailableSlots,
   createBooking,
   updateBooking,
   deleteBooking,
@@ -24,6 +25,7 @@ import ClientAutocomplete from "../../components/form/input/ClientAutocomplete";
 import type { Client } from "../../services/client.service";
 import { useNavigate } from "react-router-dom";
 import { useBreakpoint } from "../../hooks/useBreakpoint";
+import { fixTextEncoding } from "../../utils/textEncoding";
 import "./calendrier.css";
 
 interface HairdresserResource {
@@ -1021,26 +1023,56 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Effet pour régénérer les créneaux quand la date, le coiffeur ou le service changent
   useEffect(() => {
-    if (selectedBookingDate && selectedResource && eventService) {
-      // Trouver la durée du service sélectionné
-      const selectedServiceObj = services.find(s => s.id === eventService);
-      const serviceDuration = selectedServiceObj?.duration || 60;
+    let cancelled = false;
 
-      // Générer les créneaux disponibles
-      const slots = generateAvailableTimeSlots(
-        selectedBookingDate,
-        selectedResource,
-        serviceDuration,
-        selectedEvent?.id
-      );
+    async function fetchServerSlots() {
+      if (!selectedBookingDate || !selectedResource || !eventService || !selectedSalon) {
+        setAvailableTimeSlots([]);
+        setSelectedTimeSlot('');
+        return;
+      }
 
-      setAvailableTimeSlots(slots);
-    } else {
-      setAvailableTimeSlots([]);
-      setSelectedTimeSlot('');
+      try {
+        const times = await getAvailableSlots(
+          selectedSalon.id,
+          selectedResource,
+          eventService,
+          selectedBookingDate
+        );
+
+        const mappedSlots = times.map((time) => ({
+          time,
+          available: true,
+        }));
+
+        if (
+          selectedEvent &&
+          selectedTimeSlot &&
+          !mappedSlots.some((slot) => slot.time === selectedTimeSlot)
+        ) {
+          mappedSlots.unshift({
+            time: selectedTimeSlot,
+            available: true,
+          });
+        }
+
+        if (!cancelled) {
+          setAvailableTimeSlots(mappedSlots);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des créneaux disponibles:", error);
+        if (!cancelled) {
+          setAvailableTimeSlots([]);
+        }
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBookingDate, selectedResource, eventService, events]);
+
+    void fetchServerSlots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBookingDate, selectedResource, eventService, selectedSalon, selectedEvent, selectedTimeSlot]);
 
   // Effet pour initialiser les champs lors de la modification d'un événement
   useEffect(() => {
@@ -2410,11 +2442,11 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       <Modal
         isOpen={isOpen}
         onClose={closeModal}
-        className="max-w-[1000px] w-full p-4 sm:p-6 lg:p-10"
+        className="flex w-full max-w-[1000px] flex-col p-4 sm:p-6 lg:p-8"
         mobileFullscreen={true}
       >
-        <div className="flex flex-col overflow-visible">
-          <div className="mb-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mb-4 shrink-0 border-b border-gray-100 pb-4 pr-12 dark:border-gray-800 sm:mb-6 sm:pb-5">
             <h5 className="mb-2 font-semibold text-gray-800 modal-title text-theme-xl dark:text-white/90 lg:text-2xl">
               {selectedEvent ? "Modifier le Rendez-vous" : "Ajouter un Rendez-vous"}
             </h5>
@@ -2424,7 +2456,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           </div>
 
           {/* Disposition en 2 colonnes */}
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8">
+          <div className="min-h-0 flex-1 pr-1 pb-4 sm:pr-0 sm:pb-0 md:overflow-y-auto">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8">
             {/* COLONNE GAUCHE - Formulaire */}
             <div className="space-y-4 sm:space-y-5">
               {/* Nom du client */}
@@ -2499,7 +2532,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                 {services.length > 0 ? (
                   services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} - {service.duration}min - {service.price}â‚¬
+                      {fixTextEncoding(service.name)} - {service.duration}min - {service.price}€
                     </option>
                   ))
                 ) : (
@@ -2587,7 +2620,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             </div>
 
             {/* COLONNE DROITE - Créneaux horaires */}
-            <div className="flex flex-col">
+            <div className="flex min-h-0 flex-col">
               {selectedBookingDate && selectedResource && eventService ? (
                 <>
                   <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -2595,8 +2628,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   </label>
 
                   {availableTimeSlots.length > 0 ? (
-                  <div className="max-h-[300px] overflow-y-auto custom-scrollbar border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900">
-                    <div className="grid grid-cols-3 gap-2">
+                  <div className="custom-scrollbar rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900 max-h-[38vh] overflow-y-auto sm:max-h-[300px] lg:max-h-[420px]">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {availableTimeSlots.map((slot, index) => {
                         // Format français 24h (ex: 08:00, 14:30)
                         const displayTime = slot.time;
@@ -2639,11 +2672,13 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                 </div>
               )}
             </div>
+            </div>
           </div>
 
           {!isCalendarReadOnly && (
-            <div className="flex items-center gap-3 mt-6 modal-footer sm:justify-between">
-              <div>
+            <div className="modal-footer mt-4 shrink-0 border-t border-gray-100 pt-4 dark:border-gray-800 sm:mt-6 sm:pt-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="order-2 sm:order-1">
                 {selectedEvent && (
                   <button
                     onClick={handleDeleteEvent}
@@ -2655,7 +2690,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="order-1 flex flex-col-reverse gap-3 sm:order-2 sm:flex-row sm:items-center">
                 <button
                   onClick={closeModal}
                   type="button"
@@ -2672,6 +2707,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                 >
                   {loading ? "Enregistrement..." : selectedEvent ? "Mettre à jour" : "Ajouter"}
                 </button>
+              </div>
               </div>
             </div>
           )}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getStaffBySalon, upsertStaffSchedulesForDay } from "../../services/staff.service";
 import type { Staff, StaffSchedule } from "../../services/staff.service";
 import { useSalon } from "../../context/SalonContext";
+import { useBreakpoint } from "../../hooks/useBreakpoint";
 import StaffScheduleModal from "./StaffScheduleModal";
 import "./StaffScheduleGrid.css";
 
@@ -16,7 +17,10 @@ interface DayColumn {
 
 const StaffScheduleGrid: React.FC = () => {
   const { selectedSalon } = useSalon();
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === "xs" || breakpoint === "sm";
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getStartOfWeek(new Date()));
+  const [selectedMobileDayIndex, setSelectedMobileDayIndex] = useState<number>(0);
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +188,19 @@ const StaffScheduleGrid: React.FC = () => {
 
   const weekDays = getWeekDays();
 
+  useEffect(() => {
+    const today = new Date();
+    const todayWeekStart = getStartOfWeek(today);
+
+    if (currentWeekStart.getTime() === todayWeekStart.getTime()) {
+      const normalizedTodayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+      setSelectedMobileDayIndex(normalizedTodayIndex);
+      return;
+    }
+
+    setSelectedMobileDayIndex(0);
+  }, [currentWeekStart]);
+
   // Gestion du clic sur une cellule
   const handleCellClick = (staff: Staff, day: DayColumn) => {
     setSelectedStaff(staff);
@@ -191,6 +208,8 @@ const StaffScheduleGrid: React.FC = () => {
     setSelectedDayOfWeek(day.dayOfWeek);
     setIsModalOpen(true);
   };
+
+  const selectedMobileDay = weekDays[selectedMobileDayIndex] ?? weekDays[0];
 
   // Sauvegarde des horaires modifiés
   const handleSaveSchedule = async (timeSlots: any[], isWorking: boolean) => {
@@ -317,9 +336,36 @@ const StaffScheduleGrid: React.FC = () => {
             </svg>
           </button>
         </div>
+
+        {isMobile && (
+          <div className="mobile-day-picker" role="tablist" aria-label="Sélection du jour">
+            {weekDays.map((day, index) => {
+              const isActive = selectedMobileDayIndex === index;
+              const isToday = day.fullDate.toDateString() === new Date().toDateString();
+
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setSelectedMobileDayIndex(index)}
+                  className={`mobile-day-chip ${isActive ? "mobile-day-chip-active" : ""}`}
+                >
+                  <span className="mobile-day-chip-label">{day.dayName}</span>
+                  <span className="mobile-day-chip-number">{day.dayNumber}</span>
+                  <span className="mobile-day-chip-hours">
+                    {isToday ? "Aujourd'hui" : formatHours(getTotalDayHours(day.dayOfWeek))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Grille principale */}
+      {!isMobile && (
       <div className="schedule-grid">
         {/* En-tête de la grille */}
         <div className="grid-header">
@@ -419,6 +465,78 @@ const StaffScheduleGrid: React.FC = () => {
           ))
         )}
       </div>
+      )}
+
+          {isMobile && (
+          <div className="mobile-schedule-list">
+            <div className="mobile-schedule-day-summary">
+              <div>
+                <p className="mobile-schedule-day-kicker">{selectedMobileDay.dayName}., {selectedMobileDay.dayNumber} {selectedMobileDay.monthName}.</p>
+              <h3 className="mobile-schedule-day-title">Disponibilités récurrentes de l'équipe</h3>
+              </div>
+              <span className="mobile-schedule-day-total">
+                {formatHours(getTotalDayHours(selectedMobileDay.dayOfWeek))}
+              </span>
+            </div>
+
+          {staffMembers.length === 0 ? (
+            <div className="empty-state">
+              <p className="text-gray-500">Aucun membre du staff actif</p>
+            </div>
+          ) : (
+            staffMembers.map((staff) => {
+              const schedules = getSchedulesForDay(staff, selectedMobileDay.dayOfWeek);
+              const isWorking = schedules.length > 0 && schedules.some((schedule) => schedule.isAvailable);
+
+              return (
+                <button
+                  key={staff.id}
+                  type="button"
+                  className={`mobile-staff-card ${isWorking ? "mobile-staff-card-active" : "mobile-staff-card-inactive"}`}
+                  onClick={() => handleCellClick(staff, selectedMobileDay)}
+                >
+                  <div className="mobile-staff-card-header">
+                    <div className="mobile-staff-card-identity">
+                      <div className="mobile-staff-avatar">
+                        {staff.firstName[0]}{staff.lastName[0]}
+                      </div>
+                      <div>
+                        <div className="staff-name">
+                          {staff.firstName} {staff.lastName}
+                        </div>
+                        <div className="staff-total-hours">
+                          {formatHours(getTotalWeekHours(staff))} cette semaine
+                        </div>
+                      </div>
+                    </div>
+                    <span className="mobile-staff-edit-label">Modifier</span>
+                  </div>
+
+                  <div className="mobile-staff-card-body">
+                    {isWorking ? (
+                      <>
+                        <span className="mobile-staff-status mobile-staff-status-active">Disponible</span>
+                        <div className="schedule-time">
+                          {schedules.map((schedule, idx) => (
+                            <div key={schedule.id || idx}>
+                              {schedule.startTime} - {schedule.endTime}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="mobile-staff-status mobile-staff-status-inactive">Indisponible</span>
+                        <div className="schedule-no-work">Ne travaille pas ce jour</div>
+                      </>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Note informative */}
       <div className="schedule-info-note">
@@ -440,8 +558,9 @@ const StaffScheduleGrid: React.FC = () => {
             </svg>
           </div>
           <div className="flex-1 text-sm text-gray-600">
-            La liste des membres de l'équipe indique les plages horaires disponibles pour la prise de rendez-vous,
-            mais elle n'est pas liée aux heures d'ouverture standard de votre entreprise.
+            Ces disponibilités sont hebdomadaires et s'appliquent à tous les jours correspondants
+            du calendrier, pas seulement à la date affichée. Elles ne sont pas liées aux heures d'ouverture
+            standard de votre entreprise.
             Pour définir vos heures d'ouverture standard,{" "}
             <button className="text-blue-600 hover:underline font-medium">
               cliquez ici
