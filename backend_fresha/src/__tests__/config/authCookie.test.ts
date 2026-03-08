@@ -68,6 +68,7 @@ describe('authCookie config', () => {
   it('respects cookie environment overrides', () => {
     process.env.AUTH_COOKIE_NAME = 'session_auth'
     process.env.AUTH_COOKIE_SAME_SITE = 'none'
+    process.env.AUTH_COOKIE_DOMAIN = '.example.com'
     delete process.env.AUTH_COOKIE_SECURE
     process.env.AUTH_COOKIE_MAX_AGE_MS = '60000'
     process.env.NODE_ENV = 'development'
@@ -79,6 +80,7 @@ describe('authCookie config', () => {
       'session_auth',
       'token-xyz',
       expect.objectContaining({
+        domain: '.example.com',
         sameSite: 'none',
         secure: true,
         maxAge: 60000
@@ -116,5 +118,14 @@ describe('authCookie config', () => {
   it('returns configured cookie name', () => {
     process.env.AUTH_COOKIE_NAME = 'my_cookie_name'
     expect(getAuthCookieName()).toBe('my_cookie_name')
+  })
+
+  it('omits cookie domain when AUTH_COOKIE_DOMAIN is empty', () => {
+    process.env.AUTH_COOKIE_DOMAIN = '   '
+
+    const res = createResponseMock()
+    setAuthCookie(res, 'token-without-domain')
+
+    expect((res.cookie as jest.Mock).mock.calls[0][2].domain).toBeUndefined()
   })
 })

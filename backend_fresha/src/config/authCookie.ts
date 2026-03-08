@@ -37,12 +37,18 @@ function getMaxAge(): number {
   return DEFAULT_COOKIE_MAX_AGE_MS
 }
 
+function getCookieDomain(): string | undefined {
+  const configured = process.env.AUTH_COOKIE_DOMAIN?.trim()
+  return configured || undefined
+}
+
 function buildCookieOptions(): CookieOptions {
   const sameSite = getSameSite()
   return {
     httpOnly: true,
     secure: getSecureFlag(sameSite),
     sameSite,
+    domain: getCookieDomain(),
     path: '/',
     maxAge: getMaxAge()
   }

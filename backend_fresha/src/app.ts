@@ -39,6 +39,8 @@ app.use(helmet())
 const allowedOrigins = getAllowedOrigins()
 const allowedOriginSet = new Set(allowedOrigins)
 
+console.log('[CORS] Allowed origins:', Array.from(allowedOriginSet))
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -48,7 +50,11 @@ app.use(
       }
 
       const normalizedOrigin = normalizeOrigin(origin)
-      callback(null, Boolean(normalizedOrigin && allowedOriginSet.has(normalizedOrigin)))
+      const allowed = Boolean(normalizedOrigin && allowedOriginSet.has(normalizedOrigin))
+      if (!allowed) {
+        console.warn(`[CORS] Blocked origin: "${origin}" (normalized: "${normalizedOrigin}")`)
+      }
+      callback(null, allowed)
     },
     credentials: true
   })
@@ -145,14 +151,17 @@ function getAllowedOrigins(): string[] {
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000'
   ]
-  const configuredOrigins = process.env.ALLOWED_ORIGINS
-
-  if (!configuredOrigins) {
-    return defaultOrigins
-  }
+  const configuredOrigins = [
+    process.env.ALLOWED_ORIGINS,
+    process.env.CLIENT_APP_URL,
+    process.env.STAFF_APP_URL,
+    process.env.ADMIN_APP_URL,
+    process.env.FRONTEND_URL
+  ]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => value.split(','))
 
   const normalizedOrigins = configuredOrigins
-    .split(',')
     .map((origin) => normalizeOrigin(origin))
     .filter((origin): origin is string => Boolean(origin))
 
@@ -160,7 +169,7 @@ function getAllowedOrigins(): string[] {
     return defaultOrigins
   }
 
-  return Array.from(new Set(normalizedOrigins))
+  return Array.from(new Set([...defaultOrigins, ...normalizedOrigins]))
 }
 
 function normalizeOrigin(origin: string): string | null {

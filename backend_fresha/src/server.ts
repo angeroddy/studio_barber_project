@@ -23,6 +23,22 @@ function validateEnvironment() {
     }
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.ALLOWED_ORIGINS && !process.env.CLIENT_APP_URL && !process.env.STAFF_APP_URL && !process.env.ADMIN_APP_URL) {
+      warnings.push('Aucune origine front configuree. Definissez ALLOWED_ORIGINS ou CLIENT_APP_URL/STAFF_APP_URL/ADMIN_APP_URL pour le CORS.')
+    }
+
+    const sameSite = process.env.AUTH_COOKIE_SAME_SITE?.trim().toLowerCase()
+    if (sameSite && sameSite !== 'none') {
+      warnings.push("AUTH_COOKIE_SAME_SITE devrait generalement etre 'none' en production cross-origin.")
+    }
+
+    const secure = process.env.AUTH_COOKIE_SECURE?.trim().toLowerCase()
+    if (secure && secure !== 'true') {
+      warnings.push("AUTH_COOKIE_SECURE devrait generalement etre 'true' en production.")
+    }
+  }
+
   if (missing.length > 0) {
     logger.error("Variables d'environnement manquantes", { missing })
     console.error("ERREUR: Variables d'environnement manquantes:")
