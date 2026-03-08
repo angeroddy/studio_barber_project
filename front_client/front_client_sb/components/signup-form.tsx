@@ -9,24 +9,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { GoogleAuthButton } from "@/components/google-auth-button"
+import { PasswordGuidance } from "@/components/password-guidance"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { checkEmail, setPassword, register, saveToken, saveUser } from "@/lib/api/auth"
+import { checkEmail, setPassword, register, saveToken, saveUser, loginWithGoogle, SocialAuthError } from "@/lib/api/auth"
+import { validatePassword } from "@/lib/password-policy"
 
-type SignupStep = 'email' | 'set-password' | 'full-registration'
-
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
-const PASSWORD_HINT = 'Au moins 8 caracteres, une majuscule, une minuscule, un chiffre et un caractere special (@$!%*?&)'
-
-function validatePassword(password: string): string | null {
-  if (password.length < 8) {
-    return 'Mot de passe minimum 8 caracteres'
-  }
-  if (!PASSWORD_REGEX.test(password)) {
-    return PASSWORD_HINT
-  }
-  return null
-}
+type SignupStep = 'email' | 'set-password' | 'full-registration' | 'google-phone'
 
 export function SignupForm({
   className,
@@ -42,6 +32,7 @@ export function SignupForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [googleAuthToken, setGoogleAuthToken] = useState('')
 
   // Form data pour l'inscription complète
   const [formData, setFormData] = useState({
@@ -173,6 +164,84 @@ export function SignupForm({
     }
   }
 
+  const handleGoogleAuth = async (idToken: string) => {
+    setLoading(true)
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      const response = await loginWithGoogle({ idToken })
+
+      if (response.data.mode === 'authenticated') {
+        saveToken(response.data.token)
+        saveUser(response.data.user)
+        router.push('/dashboard')
+        return
+      }
+
+      if (response.data.mode === 'verification_pending') {
+        setSuccessMessage(response.message)
+        setStep('email')
+        setGoogleAuthToken('')
+        return
+      }
+
+      setError('Reponse Google inattendue')
+    } catch (err) {
+      const socialError = err as SocialAuthError
+      if (socialError?.errorCode === 'PHONE_REQUIRED') {
+        setGoogleAuthToken(idToken)
+        setStep('google-phone')
+        return
+      }
+
+      setError(err instanceof Error ? err.message : 'Erreur lors de la connexion Google')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGooglePhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setSuccessMessage('')
+
+    if (!formData.phone) {
+      setError('Le telephone est requis')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await loginWithGoogle({
+        idToken: googleAuthToken,
+        phone: formData.phone
+      })
+
+      if (response.data.mode === 'authenticated') {
+        saveToken(response.data.token)
+        saveUser(response.data.user)
+        router.push('/dashboard')
+        return
+      }
+
+      if (response.data.mode === 'verification_pending') {
+        setSuccessMessage(response.message)
+        setStep('email')
+        setGoogleAuthToken('')
+        setFormData((prev) => ({ ...prev, phone: '' }))
+        return
+      }
+
+      setError('Reponse Google inattendue')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement Google")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <form
       className={cn("flex flex-col gap-6", className)}
@@ -181,6 +250,8 @@ export function SignupForm({
           ? handleEmailCheck
           : step === 'set-password'
           ? handleSetPassword
+          : step === 'google-phone'
+          ? handleGooglePhone
           : handleFullRegistration
       }
       {...props}
@@ -198,12 +269,20 @@ export function SignupForm({
         </div>
 
         {error && (
-          <div className="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-4 font-archivo">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-4 font-archivo"
+          >
             {error}
           </div>
         )}
         {successMessage && (
-          <div className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-4 font-archivo">
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-4 font-archivo"
+          >
             {successMessage}
           </div>
         )}
@@ -221,6 +300,28 @@ export function SignupForm({
               placeholder="votre@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+              className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
+            />
+          </Field>
+        )}
+
+        {step === 'google-phone' && (
+          <Field>
+            <FieldLabel
+              htmlFor="google-phone"
+              className="font-archivo font-bold text-black text-base uppercase"
+            >
+              Téléphone
+            </FieldLabel>
+            <Input
+              id="google-phone"
+              type="tel"
+              autoComplete="tel"
+              placeholder="06 XX XX XX XX"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
               disabled={loading}
               className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
@@ -247,6 +348,7 @@ export function SignupForm({
                 className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
               />
             </Field>
+            <PasswordGuidance password={formData.password} />
             <Field>
               <FieldLabel htmlFor="confirm-password" className="font-archivo font-bold text-black text-base uppercase">
                 Confirmer le mot de passe
@@ -261,6 +363,11 @@ export function SignupForm({
                 disabled={loading}
                 className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
               />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="mt-2 text-sm text-red-600 font-archivo">
+                  Les mots de passe ne correspondent pas
+                </p>
+              )}
             </Field>
           </>
         )}
@@ -275,6 +382,7 @@ export function SignupForm({
               <Input
                 id="firstName"
                 type="text"
+                autoComplete="given-name"
                 placeholder="Votre prénom"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -290,6 +398,7 @@ export function SignupForm({
               <Input
                 id="lastName"
                 type="text"
+                autoComplete="family-name"
                 placeholder="Votre nom"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -330,6 +439,7 @@ export function SignupForm({
                 className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
               />
             </Field>
+            <PasswordGuidance password={formData.password} />
             <Field>
               <FieldLabel htmlFor="confirm-password" className="font-archivo font-bold text-black text-base uppercase">
                 Confirmer le mot de passe
@@ -344,22 +454,28 @@ export function SignupForm({
                 disabled={loading}
                 className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
               />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="mt-2 text-sm text-red-600 font-archivo">
+                  Les mots de passe ne correspondent pas
+                </p>
+              )}
             </Field>
           </>
         )}
 
-        <Field>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#DE2788] hover:bg-black text-white font-archivo font-black text-base uppercase py-6 rounded-none transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Chargement...' :
-             step === 'email' ? 'Continuer' :
-             step === 'set-password' ? 'Activer mon compte' :
-             'Créer mon compte'}
-          </Button>
-        </Field>
+          <Field>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#DE2788] hover:bg-black text-white font-archivo font-black text-base uppercase py-6 rounded-none transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Chargement...' :
+               step === 'email' ? 'Continuer' :
+               step === 'google-phone' ? 'Valider mon numero' :
+               step === 'set-password' ? 'Activer mon compte' :
+               'Créer mon compte'}
+            </Button>
+          </Field>
 
         {step !== 'email' && (
           <Button
@@ -368,6 +484,39 @@ export function SignupForm({
               setStep('email')
               setError('')
               setSuccessMessage('')
+              setFormData({
+                firstName: '',
+                lastName: '',
+                phone: '',
+                password: '',
+                confirmPassword: ''
+              })
+            }}
+            disabled={loading}
+            className="w-full bg-gray-300 hover:bg-gray-400 text-black font-archivo font-bold text-base uppercase py-4 rounded-none transition-colors duration-300"
+          >
+            Retour
+          </Button>
+        )}
+        {step === 'email' && (
+          <>
+            <div className="text-center">
+              <span className="text-sm text-gray-500 font-archivo">ou</span>
+            </div>
+            <GoogleAuthButton
+              onCredential={handleGoogleAuth}
+              onError={(message) => setError(message)}
+              disabled={loading}
+            />
+          </>
+        )}
+        {step === 'google-phone' && (
+          <Button
+            type="button"
+            onClick={() => {
+              setStep('email')
+              setGoogleAuthToken('')
+              setError('')
               setFormData({
                 firstName: '',
                 lastName: '',

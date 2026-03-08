@@ -1,29 +1,36 @@
 'use client';
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getProfile, saveUser } from "@/lib/api/auth";
-
-const salonsData = {
-  championnet: {
-    name: "Studio Barber Championnet",
-    address: "42 Rue Lesdiguieres, Grenoble, Auvergne-Rhone-Alpes",
-    phone: "+33 4 XX XX XX XX",
-  },
-  clemenceau: {
-    name: "Studio Barber Clemenceau",
-    address: "47 Boulevard Clemenceau, Grenoble, Auvergne-Rhone-Alpes",
-    phone: "+33 4 XX XX XX XX",
-  },
-};
+import { Salon } from "@/lib/api/salon.api";
+import { getSalonByIdentifier } from "@/lib/api/salonLookup";
 
 export default function ConfirmationPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const salonSlug = params.slug as string;
-  const salon = salonsData[salonSlug as keyof typeof salonsData];
+  const [salon, setSalon] = useState<Salon | null>(null);
+  const [loadingSalon, setLoadingSalon] = useState(true);
   const isVerifiedRedirect = searchParams.get("verified") === "1";
+
+  useEffect(() => {
+    async function loadSalon() {
+      try {
+        setLoadingSalon(true);
+        const salonData = await getSalonByIdentifier(salonSlug);
+        setSalon(salonData);
+      } catch (err) {
+        console.error("Erreur lors du chargement du salon:", err);
+        setSalon(null);
+      } finally {
+        setLoadingSalon(false);
+      }
+    }
+
+    void loadSalon();
+  }, [salonSlug]);
 
   useEffect(() => {
     if (!isVerifiedRedirect) {
@@ -43,6 +50,35 @@ export default function ConfirmationPage() {
 
     void syncSessionUser();
   }, [isVerifiedRedirect]);
+
+  if (loadingSalon) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="font-archivo text-lg text-gray-600">Chargement...</p>
+      </div>
+    );
+  }
+
+  if (!salon) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
+        <div className="max-w-2xl w-full bg-white border border-black p-6 sm:p-8 md:p-10 lg:p-12 text-center">
+          <h1 className="font-archivo font-black text-2xl sm:text-3xl text-black mb-4 uppercase">
+            Confirmation indisponible
+          </h1>
+          <p className="font-archivo text-gray-700 mb-6">
+            Le salon demandé est introuvable.
+          </p>
+          <Link
+            href="/"
+            className="bg-[#DE2788] hover:bg-black text-white font-archivo font-black text-sm sm:text-base uppercase py-3 sm:py-4 px-6 sm:px-8 transition-colors duration-300"
+          >
+            Retour à l&apos;accueil
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">

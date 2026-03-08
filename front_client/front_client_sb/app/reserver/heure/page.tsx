@@ -1,268 +1,933 @@
 'use client';
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BookingBreadcrumb } from "@/components/booking-breadcrumb";
 import { BookingSummary } from "@/components/booking-summary";
 import { api, Service, Staff } from "@/lib/api/index";
-
-const salonsData = {
-  championnet: {
-    name: "Studio Barber Championnet",
-    address: "42 Rue Lesdiguieres, Grenoble, Auvergne-rh...",
-    image: "/Championnet.avif",
-  },
-  clemenceau: {
-    name: "Studio Barber Clemenceau",
-    address: "47 Boulevard Clemenceau, Grenoble, Auvergne-rh...",
-    image: "/Clemenceau.avif",
-  },
-};
+import { getSalonByIdentifier, getSalonClosedDaysByIdentifier } from "@/lib/api/salonLookup";
+import { Salon } from "@/lib/api/salon.api";
 
 const monthNames = [
-  "janvier", "fevrier", "mars", "avril", "mai", "juin",
-  "juillet", "aout", "septembre", "octobre", "novembre", "decembre"
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre"
 ];
 
 const dayNames = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+const calendarWeekDayNames = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
 
+const getDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// ─── DateStrip Component ──────────────────────────────────────────────
+interface DateStripDay {
+  date: Date;
+  number: number;
+  dayName: string;
+  isPast: boolean;
+  isToday: boolean;
+  isClosed: boolean; // e.g. dimanche
+}
+
+function DateStrip({
+  selectedDate,
+  onSelect,
+  closedDays = [0], // dimanche par défaut
+}: {
+  selectedDate: Date | null;
+  onSelect: (date: Date) => void;
+  closedDays?: number[];
+}) {
+  const today = useMemo(() => new Date(), []);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const todayStart = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+    [today]
+  );
+  const selectedOffsetDays = useMemo(() => {
+    if (!selectedDate) return 0;
+    const selectedStart = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate()
+    );
+    return Math.max(
+      0,
+      Math.ceil((selectedStart.getTime() - todayStart.getTime()) / 86400000)
+    );
+  }, [selectedDate, todayStart]);
+  const [visibleMonthDate, setVisibleMonthDate] = useState(todayStart);
+
+  // Générer les jours à afficher
+  const days: DateStripDay[] = useMemo(() => {
+    const result: DateStripDay[] = [];
+    const totalDays = Math.max(120, selectedOffsetDays + 30);
+
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(todayStart);
+      d.setDate(d.getDate() + i);
+      const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      result.push({
+        date: d,
+        number: d.getDate(),
+        dayName: dayNames[d.getDay()],
+        isPast: dStart < todayStart,
+        isToday: dStart.getTime() === todayStart.getTime(),
+        isClosed: closedDays.includes(d.getDay()),
+      });
+    }
+    return result;
+  }, [todayStart, closedDays, selectedOffsetDays]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || days.length === 0) return;
+
+    let frameId = 0;
+
+    const updateVisibleMonth = () => {
+      frameId = 0;
+      const containerRect = container.getBoundingClientRect();
+      const dayItems = container.querySelectorAll<HTMLElement>("[data-day-index]");
+      const containerCenterX = containerRect.left + containerRect.width / 2;
+      let closestIndex = 0;
+      let closestDistance = Number.POSITIVE_INFINITY;
+      for (const item of dayItems) {
+        const rect = item.getBoundingClientRect();
+        if (rect.right <= containerRect.left || rect.left >= containerRect.right) continue;
+
+        const itemCenterX = rect.left + rect.width / 2;
+        const distance = Math.abs(itemCenterX - containerCenterX);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = Number(item.dataset.dayIndex ?? 0);
+        }
+      }
+
+      const centerVisibleDay = days[closestIndex] ?? days[0];
+      if (!centerVisibleDay) return;
+
+      setVisibleMonthDate((current) => {
+        if (
+          current.getMonth() === centerVisibleDay.date.getMonth() &&
+          current.getFullYear() === centerVisibleDay.date.getFullYear()
+        ) {
+          return current;
+        }
+        return centerVisibleDay.date;
+      });
+    };
+
+    const onScroll = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(updateVisibleMonth);
+    };
+
+    updateVisibleMonth();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
+  }, [days]);
+
+  useEffect(() => {
+    if (!selectedDate || !scrollRef.current) return;
+
+    const selectedKey = getDateKey(selectedDate);
+    const selectedItem = scrollRef.current.querySelector<HTMLElement>(
+      `[data-date-key="${selectedKey}"]`
+    );
+
+    if (selectedItem) {
+      selectedItem.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }, [selectedDate, days.length]);
+
+  // Mois/année affiché (basé sur le premier jour visible dans le scroll)
+  const displayMonth = `${monthNames[visibleMonthDate.getMonth()]} ${visibleMonthDate.getFullYear()}`;
+  const scrollDates = (direction: "prev" | "next") => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const amount = Math.max(220, Math.floor(container.clientWidth * 0.55));
+    container.scrollBy({
+      left: direction === "prev" ? -amount : amount,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="font-sans font-medium text-sm text-gray-900">
+          {displayMonth}
+        </p>
+        <div className="hidden md:flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => scrollDates("prev")}
+            aria-label="Voir les jours précédents"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollDates("next")}
+            aria-label="Voir les jours suivants"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Day circles */}
+      <div ref={scrollRef} className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max items-start gap-2 sm:gap-3 snap-x snap-mandatory touch-pan-x">
+          {days.map((day, index) => {
+            const isSelected =
+              selectedDate &&
+              day.date.toDateString() === selectedDate.toDateString();
+            const disabled = day.isPast || day.isClosed;
+
+            return (
+              <button
+                key={day.date.toISOString()}
+                onClick={() => !disabled && onSelect(day.date)}
+                disabled={disabled}
+                data-day-index={index}
+                data-date-key={getDateKey(day.date)}
+                className="flex flex-col items-center gap-1 flex-none w-[72px] sm:w-[76px] snap-start"
+              >
+                <div
+                  className={`w-15 h-15 sm:w-15 sm:h-15 p-5 rounded-full flex items-center justify-center text-3xl sm:text-3xl font-semibold leading-none transition-all ${
+                    isSelected
+                      ? "bg-[#DE2788] text-white shadow-md"
+                      : disabled
+                        ? "bg-gray-100 text-gray-300"
+                        : "bg-white text-gray-900 border border-gray-200 hover:border-[#DE2788] hover:text-[#DE2788]"
+                  }`}
+                >
+                  {day.number}
+                </div>
+                <span
+                  className={`text-xs font-medium ${
+                    isSelected
+                      ? "text-[#DE2788]"
+                      : disabled
+                        ? "text-gray-300"
+                        : "text-gray-500"
+                  }`}
+                >
+                  {day.dayName}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ProfessionalPill Component ───────────────────────────────────────
+function ProfessionalPill({
+  name,
+  initial,
+  isAny,
+  onClick,
+}: {
+  name: string;
+  initial: string;
+  isAny?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-gray-300 transition-colors"
+    >
+      <div className="w-6 h-6 rounded-full bg-[#FCE7F3] flex items-center justify-center">
+        {isAny ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        ) : (
+          <span className="text-xs font-semibold text-[#DE2788]">{initial}</span>
+        )}
+      </div>
+      <span className="font-sans text-sm font-medium text-gray-900">{name}</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+  );
+}
+
+// ─── CalendarIconButton ───────────────────────────────────────────────
+function CalendarIconButton({ onClick }: { onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:border-gray-400 transition-colors"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    </button>
+  );
+}
+
+interface CalendarPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedDate: Date | null;
+  onSelectDate: (date: Date) => void;
+  closedDays?: number[];
+  minDate?: Date;
+}
+
+function CalendarPicker({
+  isOpen,
+  onClose,
+  selectedDate,
+  onSelectDate,
+  closedDays = [0],
+  minDate,
+}: CalendarPickerProps) {
+  const minSelectableDate = useMemo(() => {
+    const source = minDate ?? new Date();
+    return new Date(source.getFullYear(), source.getMonth(), source.getDate());
+  }, [minDate]);
+
+  const [viewMonth, setViewMonth] = useState(() => {
+    const base = selectedDate ?? minSelectableDate;
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const base = selectedDate ?? minSelectableDate;
+    setViewMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+  }, [isOpen, selectedDate, minSelectableDate]);
+
+  if (!isOpen) return null;
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStartOffset = (firstOfMonth.getDay() + 6) % 7; // lundi = 0
+  const totalCells = Math.ceil((monthStartOffset + daysInMonth) / 7) * 7;
+
+  const cells = Array.from({ length: totalCells }, (_, i) => {
+    const dayNumber = i - monthStartOffset + 1;
+    if (dayNumber < 1 || dayNumber > daysInMonth) return null;
+
+    const date = new Date(year, month, dayNumber);
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const isClosed = closedDays.includes(date.getDay());
+    const isPast = dateStart < minSelectableDate;
+
+    return {
+      date,
+      dayNumber,
+      disabled: isClosed || isPast,
+    };
+  });
+
+  const goPrevMonth = () => {
+    setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1));
+  };
+
+  const goNextMonth = () => {
+    setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1));
+  };
+
+  return (
+    <div className="fixed inset-0 z-40">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Fermer le calendrier"
+        className="absolute inset-0 bg-black/20"
+      />
+
+      <div className="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center md:p-6">
+        <div className="relative w-full bg-white rounded-t-3xl md:rounded-2xl md:max-w-[620px] p-5 md:p-8 shadow-xl border border-gray-100 max-h-[80vh] overflow-y-auto">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="absolute right-4 top-4 md:hidden inline-flex items-center justify-center w-8 h-8 text-gray-600"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          <div className="flex items-center justify-between mt-8 md:mt-0 mb-6">
+            <button
+              type="button"
+              onClick={goPrevMonth}
+              aria-label="Mois précédent"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+
+            <p className="font-sans font-bold text-2xl md:text-3xl text-gray-900">
+              {monthNames[month]} {year}
+            </p>
+
+            <button
+              type="button"
+              onClick={goNextMonth}
+              aria-label="Mois suivant"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-y-2 mb-4">
+            {calendarWeekDayNames.map((name) => (
+              <span key={name} className="text-center font-sans text-sm font-medium text-gray-500">
+                {name}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-y-2">
+            {cells.map((cell, idx) => {
+              if (!cell) {
+                return <div key={`empty-${idx}`} className="h-12" />;
+              }
+
+              const isSelected =
+                selectedDate &&
+                cell.date.toDateString() === selectedDate.toDateString();
+
+              return (
+                <button
+                  key={getDateKey(cell.date)}
+                  type="button"
+                  disabled={cell.disabled}
+                  onClick={() => {
+                    onSelectDate(cell.date);
+                    onClose();
+                  }}
+                  className={`h-12 w-12 mx-auto rounded-full flex items-center justify-center font-sans text-2xl font-semibold transition-colors ${
+                    isSelected
+                      ? "bg-[#DE2788] text-white"
+                      : cell.disabled
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  {cell.dayNumber}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ProfessionalSelectorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  serviceName: string;
+  staff: Staff[];
+  selectedProfessionalId: string;
+  onSelectProfessional: (id: string) => void;
+  loadingStaff?: boolean;
+}
+
+function ProfessionalSelectorModal({
+  isOpen,
+  onClose,
+  serviceName,
+  staff,
+  selectedProfessionalId,
+  onSelectProfessional,
+  loadingStaff = false,
+}: ProfessionalSelectorModalProps) {
+  if (!isOpen) return null;
+
+  const options = [
+    {
+      id: "any",
+      name: "Laisser le salon choisir",
+      subtitle: "Accédez à plus de créneaux",
+      isAny: true,
+    },
+    ...staff.map((member) => ({
+      id: member.id,
+      name: member.firstName,
+      subtitle: "Voir le profil",
+      isAny: false,
+    })),
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Fermer le sélecteur de coiffeur"
+        className="absolute inset-0 bg-black/30"
+      />
+
+      <div className="absolute inset-0 flex items-end sm:items-center sm:justify-center sm:p-6">
+        <div className="relative w-full h-[92vh] sm:h-auto sm:max-h-[86vh] sm:max-w-[760px] bg-white rounded-t-3xl sm:rounded-2xl border border-gray-100 shadow-xl overflow-hidden">
+          <div className="sticky top-0 z-10 bg-white px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-sans font-bold text-2xl sm:text-[36px] text-gray-900 truncate pr-4">
+              {serviceName}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-700 transition-colors shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="px-4 sm:px-6 py-3 overflow-y-auto max-h-[calc(92vh-82px)] sm:max-h-[calc(86vh-90px)]">
+            {loadingStaff && (
+              <div className="py-10 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-[#DE2788] animate-spin" />
+              </div>
+            )}
+
+            {!loadingStaff && (
+              <div className="space-y-3">
+                {options.map((option) => {
+                  const isSelected = selectedProfessionalId === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectProfessional(option.id);
+                        onClose();
+                      }}
+                      className={`w-full p-4 sm:p-5 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? "border-[#DE2788] bg-[#FDECF5]"
+                          : "border-[#D7DCE5] bg-white hover:border-[#C6CFDB]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-16 h-16 rounded-full bg-[#FCE7F3] flex items-center justify-center shrink-0">
+                          {option.isAny ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                              <circle cx="9" cy="7" r="4" />
+                              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                              <circle cx="12" cy="7" r="4" />
+                            </svg>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="font-sans font-semibold text-base sm:text-lg leading-tight text-[#0E1A2A]">
+                            {option.name}
+                          </p>
+                          <p className="font-sans text-sm sm:text-base leading-tight text-[#61708A] mt-1">
+                            {option.subtitle}
+                          </p>
+                        </div>
+
+                        {isSelected ? (
+                          <div className="w-11 h-11 rounded-full bg-[#DE2788] flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <span className="shrink-0 inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-[#CCD3DF] bg-white font-sans text-sm sm:text-base font-medium text-[#1A2433]">
+                            Sélectionnez
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── No Slots Message ─────────────────────────────────────────────────
+function NoSlotsMessage({
+  professionalName,
+  professionalInitial,
+  nextAvailableDate,
+  onGoToNext,
+  isLoadingNextDate,
+  noSlotActionLabel,
+}: {
+  professionalName: string;
+  professionalInitial: string;
+  nextAvailableDate?: string;
+  onGoToNext?: () => void;
+  isLoadingNextDate?: boolean;
+  noSlotActionLabel?: string;
+}) {
+  return (
+    <div className="bg-gray-50 rounded-2xl p-6 sm:p-8 flex flex-col items-center text-center">
+      <div className="w-10 h-10 rounded-full bg-[#FCE7F3] flex items-center justify-center mb-4">
+        <span className="text-sm font-semibold text-[#DE2788]">{professionalInitial}</span>
+      </div>
+      <p className="font-sans font-semibold text-base text-gray-900 mb-1">
+        {professionalName} n&apos;a plus aucun créneau disponible à cette date
+      </p>
+      {nextAvailableDate ? (
+        <p className="font-sans text-sm text-gray-500 mb-5">
+          Créneaux disponibles à partir de {nextAvailableDate}
+        </p>
+      ) : (
+        <p className="font-sans text-sm text-gray-500 mb-5">
+          Aucun créneau n&apos;est disponible pour cette date.
+        </p>
+      )}
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        {onGoToNext && (
+          <button
+            onClick={onGoToNext}
+            disabled={isLoadingNextDate}
+            className="px-5 py-2.5 rounded-full border border-gray-300 font-sans text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            {isLoadingNextDate ? "Recherche..." : noSlotActionLabel || "Voir la prochaine date"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────
 function HeurePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const salonId = searchParams.get("salon") || "championnet";
   const serviceParam = searchParams.get("service")?.trim() || "";
-  const professionalId = searchParams.get("professional") || "any";
+  const initialProfessionalId = searchParams.get("professional") || "any";
 
-  const salon = salonsData[salonId as keyof typeof salonsData];
-
-  // States pour les données chargées depuis l'API
+  const [salon, setSalon] = useState<Salon | null>(null);
   const [service, setService] = useState<Service | null>(null);
   const [professional, setProfessional] = useState<Staff | null>(null);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStaff, setLoadingStaff] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [closedDays, setClosedDays] = useState<number[]>([0]);
+  const [nextAvailableDateLabel, setNextAvailableDateLabel] = useState<string | null>(null);
+  const [loadingNextDate, setLoadingNextDate] = useState(false);
 
-  // Get current date (memoized to avoid recreating on every render)
   const today = useMemo(() => new Date(), []);
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(today);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState(initialProfessionalId);
+  const [isProfessionalSelectorOpen, setIsProfessionalSelectorOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Calculer la durée totale et le prix total
   const totalPrice = service ? Number(service.price) : 0;
 
-  // Charger la prestation depuis l'API
+  useEffect(() => {
+    async function loadSalonData() {
+      try {
+        const [salonData, salonClosedDays] = await Promise.all([
+          getSalonByIdentifier(salonId),
+          getSalonClosedDaysByIdentifier(salonId),
+        ]);
+        setSalon(salonData);
+        setClosedDays(salonClosedDays.length ? salonClosedDays : [0]);
+      } catch (err) {
+        console.error("Erreur lors du chargement du salon:", err);
+        setSalon(null);
+        setClosedDays([0]);
+      }
+    }
+
+    void loadSalonData();
+  }, [salonId]);
+
+  // Fetch service
   useEffect(() => {
     async function fetchService() {
       if (!serviceParam) {
-        setError("Aucune prestation selectionnee");
+        setError("Aucune prestation sélectionnée");
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         const serviceData = await api.services.getServiceById(serviceParam);
         setService(serviceData);
         setError(null);
       } catch (err) {
-        console.error('Erreur lors du chargement de la prestation:', err);
-        setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la prestation');
+        console.error("Erreur lors du chargement de la prestation:", err);
+        setError(err instanceof Error ? err.message : "Erreur lors du chargement de la prestation");
       } finally {
         setLoading(false);
       }
     }
-
     fetchService();
   }, [serviceParam]);
 
-  // Charger le professionnel si ce n'est pas "any"
-  useEffect(() => {
-    async function fetchProfessional() {
-      if (!professionalId || professionalId === 'any') {
-        setProfessional(null);
-        return;
-      }
-
-      try {
-        const staffData = await api.staff.getStaffById(professionalId);
-        setProfessional(staffData);
-      } catch (err) {
-        console.error('Erreur lors du chargement du professionnel:', err);
-        setProfessional(null);
-      }
+  const findNextAvailableDate = useCallback(async () => {
+    if (!selectedDate || !service) {
+      return null;
     }
 
-    fetchProfessional();
-  }, [professionalId]);
+    setLoadingNextDate(true);
+    setNextAvailableDateLabel(null);
 
-  // 1. Charger les créneaux disponibles (Ne dépend PLUS de selectedTime)
-  useEffect(() => {
-    async function fetchAvailableSlots() {
-      // Si pas de date ou de prestation, on vide les slots
-      if (!selectedDate || !service) {
-        setAvailableSlots([]);
-        return;
-      }
+    const startDate = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate()
+    );
 
-      try {
-        setLoadingSlots(true);
-        // Format de date: YYYY-MM-DD (utiliser les composants locaux pour éviter les décalages de timezone)
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(selectedDate.getDate()).padStart(2, '0');
+    try {
+      for (let dayOffset = 1; dayOffset <= 45; dayOffset += 1) {
+        const candidateDate = new Date(startDate);
+        candidateDate.setDate(startDate.getDate() + dayOffset);
+
+        if (closedDays.includes(candidateDate.getDay())) {
+          continue;
+        }
+
+        const year = candidateDate.getFullYear();
+        const month = String(candidateDate.getMonth() + 1).padStart(2, "0");
+        const day = String(candidateDate.getDate()).padStart(2, "0");
         const dateStr = `${year}-${month}-${day}`;
 
-        // Reservation mono-prestation
         const slots = await api.bookings.getAvailableSlots(
           salonId,
-          professionalId,
+          selectedProfessionalId,
           service.id,
           dateStr
         );
 
+        if (slots.length > 0) {
+          return candidateDate;
+        }
+      }
+
+      return null;
+    } catch (err) {
+      console.error("Erreur lors de la recherche d'une date disponible:", err);
+      return null;
+    } finally {
+      setLoadingNextDate(false);
+    }
+  }, [closedDays, selectedDate, selectedProfessionalId, service, salonId]);
+
+  const goToNextAvailableDate = async () => {
+    const nextDate = await findNextAvailableDate();
+    if (!nextDate) {
+      setNextAvailableDateLabel("Aucune autre disponibilité trouvée.");
+      return;
+    }
+
+    const label = `${nextDate.getDate()} ${monthNames[nextDate.getMonth()]} ${nextDate.getFullYear()}`;
+    setNextAvailableDateLabel(label);
+    setSelectedDate(nextDate);
+    setSelectedTime(null);
+  };
+
+  // Fetch professional
+  useEffect(() => {
+    async function fetchProfessional() {
+      if (!selectedProfessionalId || selectedProfessionalId === "any") {
+        setProfessional(null);
+        return;
+      }
+
+      const selectedFromStaff = staff.find((member) => member.id === selectedProfessionalId);
+      if (selectedFromStaff) {
+        setProfessional(selectedFromStaff);
+        return;
+      }
+
+      try {
+        const staffData = await api.staff.getStaffById(selectedProfessionalId);
+        setProfessional(staffData);
+      } catch (err) {
+        console.error("Erreur lors du chargement du professionnel:", err);
+        setProfessional(null);
+      }
+    }
+    fetchProfessional();
+  }, [selectedProfessionalId, staff]);
+
+  // Fetch salon staff for selector
+  useEffect(() => {
+    async function fetchStaff() {
+      try {
+        setLoadingStaff(true);
+        const staffData = await api.staff.getStaffBySalon(salonId, true, true);
+        setStaff(staffData);
+      } catch (err) {
+        console.error("Erreur lors du chargement du staff:", err);
+        setStaff([]);
+      } finally {
+        setLoadingStaff(false);
+      }
+    }
+    fetchStaff();
+  }, [salonId]);
+
+  // Fetch available slots
+  useEffect(() => {
+    async function fetchAvailableSlots() {
+      if (!selectedDate || !service) {
+        setAvailableSlots([]);
+        return;
+      }
+      try {
+        setLoadingSlots(true);
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(selectedDate.getDate()).padStart(2, "0");
+        const dateStr = `${year}-${month}-${day}`;
+
+        const slots = await api.bookings.getAvailableSlots(
+          salonId,
+          selectedProfessionalId,
+          service.id,
+          dateStr
+        );
         setAvailableSlots(slots);
       } catch (err) {
-        console.error('Erreur lors du chargement des créneaux:', err);
+        console.error("Erreur lors du chargement des créneaux:", err);
         setAvailableSlots([]);
       } finally {
         setLoadingSlots(false);
       }
     }
-
     fetchAvailableSlots();
-  }, [selectedDate, salonId, professionalId, service]);
+  }, [selectedDate, salonId, selectedProfessionalId, service]);
 
-  // 2. Vérifier si l'heure sélectionnée est toujours valide
-  // Ce petit effet instantané ne fait pas d'appel API
+  // Reset selected time when slots change
   useEffect(() => {
-    // Si on a une heure sélectionnée, qu'on a fini de charger, 
-    // et que cette heure n'est pas dans la liste des créneaux : on réinitialise.
     if (!loadingSlots && selectedTime && !availableSlots.includes(selectedTime)) {
       setSelectedTime(null);
     }
   }, [availableSlots, selectedTime, loadingSlots]);
-  // Check if we can go to previous month (not before current month)
-  const canGoPrevious = () => {
-    if (currentYear > today.getFullYear()) return true;
-    if (currentYear === today.getFullYear() && currentMonth > today.getMonth()) return true;
-    return false;
-  };
 
-  // Navigate months
-  const goToPreviousMonth = () => {
-    if (!canGoPrevious()) return;
+  useEffect(() => {
+    setNextAvailableDateLabel(null);
+  }, [selectedDate, selectedProfessionalId, service]);
 
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const goToNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  // Generate all days for the current month
-  const generateDays = useMemo(() => {
-    const days = [];
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    // Get the first day of the month to know which day of week it starts on
-    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-
-    // Add empty cells for days before the month starts
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(null);
-    }
-
-    // Generate all days of the month
-    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
-      const date = new Date(currentYear, currentMonth, dayNumber);
-      const dayOfWeek = date.getDay();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const isPast = date < todayStart;
-
-      days.push({
-        number: dayNumber,
-        name: dayNames[dayOfWeek],
-        date: date,
-        isPast: isPast,
-        isToday: date.toDateString() === today.toDateString(),
-      });
-    }
-
-    return days;
-  }, [currentMonth, currentYear, today]);
-
-  const days = generateDays;
-
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (selectedTime && selectedDate) {
-      // Rediriger vers la page de validation avec tous les paramètres
-      // Format: YYYY-MM-DD (utiliser les composants locaux pour éviter les décalages de timezone)
       const year = selectedDate.getFullYear();
-      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
       const dateStr = `${year}-${month}-${day}`;
 
       const params = new URLSearchParams({
         salon: salonId,
         service: serviceParam,
-        professional: professionalId,
+        professional: selectedProfessionalId,
         date: dateStr,
-        time: selectedTime
+        time: selectedTime,
       });
       router.push(`/reserver/valider?${params.toString()}`);
     }
-  };
+  }, [selectedTime, selectedDate, salonId, serviceParam, selectedProfessionalId, router]);
 
-  const handleDateSelect = (day: { date: Date; isPast: boolean }) => {
-    if (!day.isPast) {
-      setSelectedDate(day.date);
-    }
-  };
+  const formatDuration = (minutes: number): string => `${minutes} min`;
 
-  // Helper pour formater la durée
-  const formatDuration = (minutes: number): string => {
-    return `${minutes} min`;
-  };
-
-  // Nom du professionnel
   const professionalName = professional
-    ? `${professional.firstName} ${professional.lastName}`
-    : "n'importe quel professionnel";
+    ? professional.firstName
+    : selectedProfessionalId === "any"
+      ? "Laisser le salon choisir"
+      : "Professionnel";
 
-  // Afficher l'état de chargement initial
+  const professionalInitial = professional
+    ? professional.firstName.charAt(0).toUpperCase()
+    : selectedProfessionalId === "any"
+      ? "S"
+      : "P";
+
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="font-archivo text-xl text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-gray-300 border-t-[#DE2788] animate-spin" />
+          <p className="font-sans text-sm text-gray-500">Chargement...</p>
+        </div>
       </div>
     );
   }
 
-  // Afficher l'erreur
+  // Error state
   if (error || !service) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="font-archivo text-xl text-red-600 mb-4">
+          <p className="font-sans text-xl text-red-600 mb-4">
             {error || "Prestation introuvable"}
           </p>
           <Link
             href={`/reserver/prestations?salon=${salonId}`}
-            className="font-archivo text-sm text-gray-600 hover:text-[#DE2788] underline"
+            className="font-sans text-sm text-gray-600 hover:text-[#DE2788] underline"
           >
             Retour aux prestations
           </Link>
@@ -272,218 +937,134 @@ function HeurePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Back button */}
-        <Link
-          href={`/reserver/professionnel?salon=${salonId}&service=${serviceParam}`}
-          className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-gray-300 hover:border-[#DE2788] transition-colors mb-4 sm:mb-6"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-6 h-6 sm:w-7 sm:h-7"
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14 sm:h-16">
+          <Link
+            href={`/reserver/professionnel?salon=${salonId}&service=${serviceParam}`}
+            className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors"
           >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </Link>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </Link>
 
-        {/* Close button */}
-        <Link
-          href="/"
-          className="fixed top-4 right-4 sm:top-6 sm:right-6 inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-gray-300 hover:border-[#DE2788] transition-colors z-50"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-6 h-6 sm:w-7 sm:h-7"
+          <h2 className="sm:hidden font-sans font-semibold text-sm text-gray-900 truncate max-w-[200px]">
+            Sélectionnez l&apos;heure
+          </h2>
+
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </Link>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </Link>
+        </div>
+      </div>
 
-        {/* Breadcrumb */}
-        <BookingBreadcrumb
-          items={[
-            {
-              label: "Prestations",
-              href: `/reserver/prestations?salon=${salonId}`,
-            },
-            {
-              label: "Professionnel",
-              href: `/reserver/professionnel?salon=${salonId}&service=${serviceParam}`,
-            },
-            { label: "Heure", active: true },
-            { label: "Valider" },
-          ]}
-        />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-32 lg:pb-8">
+        {/* Breadcrumb - desktop only */}
+        <div className="hidden sm:block">
+          <BookingBreadcrumb
+            items={[
+              { label: "Prestations", href: `/reserver/prestations?salon=${salonId}` },
+              { label: "Professionnel", href: `/reserver/professionnel?salon=${salonId}&service=${serviceParam}` },
+              { label: "Heure", active: true },
+              { label: "Valider" },
+            ]}
+          />
+        </div>
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Left: Date & Time */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10">
+          {/* Left: Date & Time selection */}
           <div className="lg:col-span-2">
-            <h1 className="font-archivo font-black text-3xl sm:text-4xl md:text-5xl text-black mb-6 sm:mb-8 uppercase">
-              Selectionnez l&apos;heure
+            <h1 className="font-sans font-bold text-2xl sm:text-3xl md:text-4xl text-gray-900 mb-6 sm:mb-8">
+              Sélectionnez l&apos;heure
             </h1>
 
-            {/* Professional selector */}
-            <div className="mb-6 sm:mb-8">
-              <select className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-white border border-black font-archivo font-bold text-sm sm:text-base uppercase focus:outline-none focus:border-[#DE2788]">
-                <option>{professionalName}</option>
-              </select>
+            {/* Professional pill + calendar icon */}
+            <div className="flex items-center justify-between mb-6">
+              <ProfessionalPill
+                name={professionalName}
+                initial={professionalInitial}
+                isAny={selectedProfessionalId === "any"}
+                onClick={() => setIsProfessionalSelectorOpen(true)}
+              />
+              <CalendarIconButton onClick={() => setIsCalendarOpen(true)} />
             </div>
 
-            {/* Calendar header */}
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="font-archivo font-black text-xl sm:text-2xl text-black uppercase">
-                {monthNames[currentMonth]} {currentYear}
-              </h2>
-              <div className="flex gap-1 sm:gap-2">
-                <button
-                  onClick={goToPreviousMonth}
-                  disabled={!canGoPrevious()}
-                  className={`p-2 rounded-full transition-colors cursor-pointer ${canGoPrevious()
-                      ? "hover:bg-gray-100"
-                      : "opacity-30 cursor-not-allowed"
-                    }`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                </button>
-                <button
-                  onClick={goToNextMonth}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="mb-6 sm:mb-8">
-              {/* Week day headers */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-3 sm:mb-4">
-                {["DIM", "LUN", "MAR", "MER", "JEU", "VEN", "SAM"].map((day) => (
-                  <div
-                    key={day}
-                    className="text-center font-archivo font-black text-xs sm:text-sm text-black py-1 sm:py-2"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Days grid */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {days.map((day, index) => (
-                  <div key={index}>
-                    {day === null ? (
-                      <div className="aspect-square"></div>
-                    ) : (
-                      <button
-                        onClick={() => handleDateSelect(day)}
-                        className={`aspect-square w-full flex items-center justify-center font-archivo font-black text-sm sm:text-base md:text-lg transition-all cursor-pointer ${selectedDate?.toDateString() === day.date.toDateString()
-                            ? "bg-[#DE2788] text-white border border-[#DE2788]"
-                            : day.isPast
-                              ? "bg-gray-100 text-gray-300 cursor-not-allowed border border-gray-200"
-                              : day.isToday
-                                ? "bg-black text-white border border-black hover:bg-[#DE2788] hover:border-[#DE2788]"
-                                : "bg-white text-black border border-black hover:border-[#DE2788]"
-                          }`}
-                        disabled={day.isPast}
-                      >
-                        {day.number}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {/* Date strip */}
+            <div className="mb-8">
+              <DateStrip
+                selectedDate={selectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  setSelectedTime(null);
+                }}
+                closedDays={closedDays}
+              />
             </div>
 
             {/* Time slots */}
-            <div className="space-y-3 sm:space-y-4">
-              {/* Chargement des créneaux */}
+            <div className="space-y-3">
               {loadingSlots && (
-                <div className="text-center py-6 sm:py-8">
-                  <p className="font-archivo text-base sm:text-lg text-gray-600">Chargement des créneaux...</p>
+                <div className="py-12 flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-[#DE2788] animate-spin" />
+                  <p className="font-sans text-sm text-gray-500">
+                    Chargement des créneaux...
+                  </p>
                 </div>
               )}
 
-              {/* Aucun créneau disponible */}
               {!loadingSlots && availableSlots.length === 0 && (
-                <div className="bg-yellow-50 border border-yellow-300 p-4 sm:p-6 text-center">
-                  <p className="font-archivo text-sm sm:text-base text-yellow-800">
-                    Aucun créneau disponible pour cette date.
-                  </p>
-                  <p className="font-archivo text-xs sm:text-sm text-yellow-700 mt-2">
-                    Veuillez sélectionner une autre date.
-                  </p>
-                </div>
+                <NoSlotsMessage
+                  professionalName={professionalName}
+                  professionalInitial={professionalInitial}
+                  onGoToNext={goToNextAvailableDate}
+                  isLoadingNextDate={loadingNextDate}
+                  nextAvailableDate={nextAvailableDateLabel || undefined}
+                  noSlotActionLabel="Aller à la prochaine date dispo"
+                />
               )}
 
-              {/* Créneaux disponibles */}
-              {!loadingSlots && availableSlots.map((time: string) => (
-                <button
-                  key={time}
-                  onClick={() => setSelectedTime(time)}
-                  className={`w-full p-4 sm:p-5 text-center font-archivo font-black text-base sm:text-lg uppercase transition-colors cursor-pointer ${selectedTime === time
-                      ? "bg-[#DE2788] text-white border border-[#DE2788]"
-                      : "bg-white text-black border border-black hover:border-[#DE2788]"
+              {!loadingSlots &&
+                availableSlots.map((time) => (
+                  <button
+                    key={time}
+                    onClick={() => setSelectedTime(time)}
+                    className={`w-full px-5 py-4 rounded-xl border text-left font-sans text-sm font-medium transition-all cursor-pointer ${
+                      selectedTime === time
+                        ? "border-[#DE2788] bg-[#DE2788]/5 text-[#DE2788]"
+                        : "border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:shadow-sm"
                     }`}
-                >
-                  {time}
-                </button>
-              ))}
+                  >
+                    {time}
+                  </button>
+                ))}
             </div>
           </div>
 
-          {/* Right: Summary */}
-          <div className="lg:col-span-1">
+          {/* Right: Desktop summary sidebar */}
+          <div className="hidden lg:block lg:col-span-1">
             <BookingSummary
-              salon={salon}
-              service={service ? {
+              salon={
+                salon
+                  ? {
+                      name: salon.name,
+                      address: salon.address,
+                      image: salon.image || "/Championnet.avif",
+                    }
+                  : undefined
+              }
+              service={{
                 name: service.name,
                 duration: formatDuration(service.duration),
                 price: Number(service.price),
-              } : undefined}
+              }}
               professional={{ name: professionalName }}
               date={
                 selectedDate
@@ -498,13 +1079,68 @@ function HeurePageContent() {
           </div>
         </div>
       </div>
+
+      <CalendarPicker
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={(date) => {
+          setSelectedDate(date);
+          setSelectedTime(null);
+        }}
+        closedDays={closedDays}
+        minDate={today}
+      />
+
+      <ProfessionalSelectorModal
+        isOpen={isProfessionalSelectorOpen}
+        onClose={() => setIsProfessionalSelectorOpen(false)}
+        serviceName={service.name}
+        staff={staff}
+        selectedProfessionalId={selectedProfessionalId}
+        loadingStaff={loadingStaff}
+        onSelectProfessional={(id) => {
+          setSelectedProfessionalId(id);
+          setSelectedTime(null);
+        }}
+      />
+
+      {/* Mobile bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 lg:hidden z-20">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-sans font-bold text-base text-gray-900">
+              {totalPrice} €
+            </p>
+            <p className="font-sans text-xs text-gray-500">
+              1 prestation · {formatDuration(service.duration)}
+            </p>
+          </div>
+          <button
+            onClick={handleContinue}
+            disabled={!selectedTime}
+            className="bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-sans font-semibold text-sm px-8 py-3 rounded-xl transition-colors"
+          >
+            Continuez
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function HeurePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Chargement...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="animate-pulse flex flex-col items-center gap-3">
+            <div className="w-10 h-10 rounded-full border-2 border-gray-300 border-t-[#DE2788] animate-spin" />
+            <p className="font-sans text-sm text-gray-500">Chargement...</p>
+          </div>
+        </div>
+      }
+    >
       <HeurePageContent />
     </Suspense>
   );

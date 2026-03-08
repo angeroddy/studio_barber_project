@@ -73,7 +73,11 @@ class StaffAuthService {
   }
 
   async getProfile(): Promise<StaffUser> {
-    const response = await api.get('/staff-auth/me')
+    const response = await api.get('/staff-auth/me', {
+      headers: {
+        'X-Skip-Auth-Redirect': 'true',
+      },
+    })
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la récupération du profil')

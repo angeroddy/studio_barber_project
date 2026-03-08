@@ -134,10 +134,16 @@ export const getClientsBySalon = async (
  */
 export const getAllClients = async (
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
+  salonId?: string
 ): Promise<{ clients: Client[]; total: number; page: number; limit: number; totalPages: number }> => {
+  const params: { page: number; limit: number; salonId?: string } = { page, limit };
+  if (salonId) {
+    params.salonId = salonId;
+  }
+
   const response = await api.get<ApiResponse<Client[]>>('/clients', {
-    params: { page, limit }
+    params
   });
 
   if (!response.data.success) {
@@ -189,13 +195,9 @@ export const updateClient = async (
   id: string,
   data: UpdateClientData
 ): Promise<Client> => {
-  console.log('=== client.service.ts: updateClient ===');
-  console.log('ID:', id);
-  console.log('Data:', data);
 
   try {
     const response = await api.put<ApiResponse<Client>>(`/clients/${id}`, data);
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la mise à jour du client');
@@ -211,12 +213,9 @@ export const updateClient = async (
  * Supprimer un client
  */
 export const deleteClient = async (id: string): Promise<void> => {
-  console.log('=== client.service.ts: deleteClient ===');
-  console.log('ID:', id);
 
   try {
     const response = await api.delete<ApiResponse<void>>(`/clients/${id}`);
-    console.log('Response:', response.data);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Erreur lors de la suppression du client');

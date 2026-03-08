@@ -4,9 +4,9 @@ import './App.css'
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/home";
-import SignUp from "./pages/AuthPages/SignUp";
 import SignIn from "./pages/AuthPages/SignIn";
 import ClientSetPassword from "./pages/AuthPages/ClientSetPassword";
+import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CrudService from "./pages/Services/crudService";
@@ -71,8 +71,9 @@ function App() {
 
           {/* Routes publiques d'authentification */}
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
+          <Route path="/signup" element={<NotFound />} />
           <Route path="/set-password" element={<ClientSetPassword />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </Router>

@@ -7,8 +7,6 @@ import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
 import { completeClientInvitation } from "../../services/clientAuth.service";
 
-const AUTH_TOKEN_KEY = "authToken";
-
 export default function ClientSetPassword() {
   const [searchParams] = useSearchParams();
   const token = (searchParams.get("token") || "").trim();
@@ -46,8 +44,7 @@ export default function ClientSetPassword() {
 
     try {
       setIsLoading(true);
-      const result = await completeClientInvitation(token, password);
-      localStorage.setItem(AUTH_TOKEN_KEY, result.token);
+      await completeClientInvitation(token, password);
       setSuccess(true);
     } catch (err: any) {
       setError(err?.message || "Erreur lors de la creation du mot de passe.");

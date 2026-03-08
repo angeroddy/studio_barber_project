@@ -7,6 +7,8 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
 
+  const initials = `${(user?.firstName?.[0] || '').toUpperCase()}${(user?.lastName?.[0] || '').toUpperCase()}` || '?';
+
   function toggleDropdown() {
     setIsOpen(!isOpen);
   }
@@ -26,8 +28,8 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src="/images/user/owner.jpg" alt="User" />
+        <span className="mr-3 flex items-center justify-center rounded-full h-11 w-11 bg-[#EB549E] text-white font-semibold text-sm">
+          {initials}
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">

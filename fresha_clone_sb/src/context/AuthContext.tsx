@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as authService from '../services/auth.service';
 import staffAuthService from '../services/staffAuth.service';
@@ -6,7 +6,6 @@ import type { User, LoginData, RegisterData } from '../services/auth.service';
 import type { StaffUser } from '../services/staffAuth.service';
 
 type UserType = 'owner' | 'staff';
-const AUTH_TOKEN_KEY = 'authToken';
 
 interface AuthContextType {
   user: User | StaffUser | null;
@@ -19,6 +18,7 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<void>;
   staffLogin: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   logout: () => void;
   error: string | null;
   clearError: () => void;
@@ -33,55 +33,144 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const storedUserType = localStorage.getItem('userType') as UserType | null;
+  const getHttpStatus = (error: unknown): number | undefined => {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as any).response?.status === 'number'
+    ) {
+      return (error as any).response.status as number;
+    }
+    return undefined;
+  };
 
-      // Cleanup legacy token storage (migration to HttpOnly cookies)
-      localStorage.removeItem('token');
+  const isNetworkError = (error: unknown): boolean => {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
 
-      if (storedUserType) {
+    const axiosLikeError = error as any;
+    return axiosLikeError.code === 'ERR_NETWORK' || !axiosLikeError.response;
+  };
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    setIsLoading(true);
+    // Cleanup legacy token storage (migration to HttpOnly cookies)
+    localStorage.removeItem('token');
+
+    const preferredType = localStorage.getItem('userType') as UserType | null;
+    const resolveOwnerSession = async (): Promise<boolean> => {
+      const response = await authService.getProfile();
+      setUser(response.data);
+      setUserType('owner');
+      localStorage.setItem('userType', 'owner');
+      return true;
+    };
+
+    const resolveStaffSession = async (): Promise<boolean> => {
+      const response = await staffAuthService.getProfile();
+      setUser(response);
+      setUserType('staff');
+      localStorage.setItem('userType', 'staff');
+      return true;
+    };
+
+    try {
+      if (preferredType === 'owner') {
         try {
-          if (storedUserType === 'owner') {
-            const response = await authService.getProfile();
-            setUser(response.data);
-            setUserType('owner');
-          } else if (storedUserType === 'staff') {
-            const response = await staffAuthService.getProfile();
-            setUser(response);
-            setUserType('staff');
+          await resolveOwnerSession();
+          return true;
+        } catch (error) {
+          const status = getHttpStatus(error);
+          if (status === 403) {
+            await resolveStaffSession();
+            return true;
           }
-        } catch {
-          localStorage.removeItem('user');
-          localStorage.removeItem('userType');
-          localStorage.removeItem(AUTH_TOKEN_KEY);
-          setUser(null);
-          setUserType(null);
+          throw error;
         }
       }
 
+      if (preferredType === 'staff') {
+        try {
+          await resolveStaffSession();
+          return true;
+        } catch (error) {
+          const status = getHttpStatus(error);
+          if (status === 403) {
+            await resolveOwnerSession();
+            return true;
+          }
+          throw error;
+        }
+      }
+
+      try {
+        await resolveOwnerSession();
+        return true;
+      } catch (ownerError) {
+        const ownerStatus = getHttpStatus(ownerError);
+
+        if (ownerStatus === 403) {
+          await resolveStaffSession();
+          return true;
+        }
+
+        throw ownerError;
+      }
+    } catch {
+      localStorage.removeItem('userType');
+      setUser(null);
+      setUserType(null);
+    } finally {
       setIsLoading(false);
+    }
+
+    return false;
+  }, []);
+
+  useEffect(() => {
+    void refreshSession();
+  }, [refreshSession]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem('userType');
+      setUser(null);
+      setUserType(null);
+      navigate('/signin', { replace: true });
     };
 
-    void checkAuth();
-  }, []);
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
+  }, [navigate]);
 
   const login = async (data: LoginData) => {
     try {
       setError(null);
       setIsLoading(true);
-      const response = await authService.login(data);
-
-      // Token is now managed by HttpOnly cookie.
-      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      await authService.login(data);
       localStorage.setItem('userType', 'owner');
-      setUser(response.data.user);
+
+      // Validate that backend session is really established before navigating.
+      const profileResponse = await authService.getProfile();
+      setUser(profileResponse.data);
       setUserType('owner');
 
       navigate('/');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur de connexion';
+      const status = getHttpStatus(error);
+      const errorMessage =
+        isNetworkError(error)
+          ? "Impossible de joindre l'API backend (http://127.0.0.1:5000). Vérifiez que le serveur backend est démarré."
+          : status === 401
+          ? "Session invalide apres connexion. Verifiez la configuration cookie/CORS du backend."
+          : error.response?.data?.error || error.response?.data?.message || 'Erreur de connexion';
+      localStorage.removeItem('userType');
+      setUser(null);
+      setUserType(null);
       setError(errorMessage);
       throw error;
     } finally {
@@ -93,21 +182,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       setIsLoading(true);
-      const response = await staffAuthService.login({
+      await staffAuthService.login({
         email: data.email,
         password: data.password,
       });
 
-      // Token is now managed by HttpOnly cookie.
-      localStorage.setItem(AUTH_TOKEN_KEY, response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Validate that backend session is really established before navigating.
+      const profileResponse = await staffAuthService.getProfile();
       localStorage.setItem('userType', 'staff');
-      setUser(response.user);
+      setUser(profileResponse);
       setUserType('staff');
 
       navigate('/');
     } catch (error: any) {
-      const errorMessage = error.message || 'Erreur de connexion';
+      const status = getHttpStatus(error);
+      const errorMessage =
+        isNetworkError(error)
+          ? "Impossible de joindre l'API backend (http://127.0.0.1:5000). Vérifiez que le serveur backend est démarré."
+          : status === 401
+          ? "Session invalide apres connexion. Verifiez la configuration cookie/CORS du backend."
+          : error.response?.data?.error || error.response?.data?.message || error.message || 'Erreur de connexion';
+      localStorage.removeItem('userType');
+      setUser(null);
+      setUserType(null);
       setError(errorMessage);
       throw error;
     } finally {
@@ -119,18 +216,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       setIsLoading(true);
-      const response = await authService.register(data);
-
-      // Token is now managed by HttpOnly cookie.
-      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      await authService.register(data);
       localStorage.setItem('userType', 'owner');
-      setUser(response.data.user);
+
+      // Validate that backend session is really established before navigating.
+      const profileResponse = await authService.getProfile();
+      setUser(profileResponse.data);
       setUserType('owner');
 
       navigate('/');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Erreur lors de l'inscription";
+      const status = getHttpStatus(error);
+      const errorMessage =
+        isNetworkError(error)
+          ? "Impossible de joindre l'API backend (http://127.0.0.1:5000). Vérifiez que le serveur backend est démarré."
+          : status === 401
+          ? "Session invalide apres inscription. Verifiez la configuration cookie/CORS du backend."
+          : error.response?.data?.error || error.response?.data?.message || "Erreur lors de l'inscription";
+      localStorage.removeItem('userType');
+      setUser(null);
+      setUserType(null);
       setError(errorMessage);
       throw error;
     } finally {
@@ -145,9 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void authService.logout().catch(() => undefined);
     }
 
-    localStorage.removeItem('user');
     localStorage.removeItem('userType');
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     setUser(null);
     setUserType(null);
     navigate('/signin');
@@ -172,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     staffLogin,
     register,
+    refreshSession,
     logout,
     error,
     clearError,

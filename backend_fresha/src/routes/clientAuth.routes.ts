@@ -15,7 +15,9 @@ import {
   verifyEmailValidation,
   verifyEmailHandler,
   completeInvitationValidation,
-  completeInvitationHandler
+  completeInvitationHandler,
+  oauthGoogleValidation,
+  oauthGoogleHandler
 } from '../controllers/clientAuth.controller'
 import { authMiddleware } from '../middlewares/auth.middleware'
 import { requireClient } from '../middlewares/authorization.middleware'
@@ -29,6 +31,7 @@ router.post('/register', registerValidation, registerHandler)
 router.post('/register-with-booking', registerWithBookingValidation, registerWithBookingHandler)
 router.post('/complete-invitation', completeInvitationValidation, completeInvitationHandler)
 router.get('/verify-email', verifyEmailValidation, verifyEmailHandler)
+router.post('/oauth/google', oauthGoogleValidation, oauthGoogleHandler)
 router.post('/login', loginValidation, loginHandler)
 router.post('/logout', logoutHandler)
 

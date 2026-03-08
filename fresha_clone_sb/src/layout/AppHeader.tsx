@@ -2,22 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
-import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
-import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
 
-  const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
-
-  const handleToggle = () => {
-    if (window.innerWidth >= 1024) {
-      toggleSidebar();
-    } else {
-      toggleMobileSidebar();
-    }
-  };
+  const { isMobileOpen, toggleSidebar } = useSidebar();
 
   const toggleApplicationMenu = () => {
     setApplicationMenuOpen(!isApplicationMenuOpen);
@@ -45,8 +35,8 @@ const AppHeader: React.FC = () => {
       <div className="flex flex-col items-center justify-between grow lg:flex-row lg:px-6">
         <div className="flex items-center justify-between w-full gap-2 px-2.5 py-2.5 border-b border-gray-200 dark:border-gray-800 sm:gap-3 sm:px-3 sm:py-3 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
           <button
-            className="flex items-center justify-center w-9 h-9 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 sm:w-10 sm:h-10 dark:text-gray-400 lg:h-11 lg:w-11 lg:border"
-            onClick={handleToggle}
+            className="hidden items-center justify-center w-9 h-9 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 dark:text-gray-400 lg:flex lg:h-11 lg:w-11 lg:border"
+            onClick={toggleSidebar}
             aria-label="Toggle Sidebar"
           >
             {isMobileOpen ? (
@@ -84,11 +74,7 @@ const AppHeader: React.FC = () => {
           </button>
 
           <Link to="/" className="lg:hidden">
-            <img
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
-              alt="Logo"
-            />
+        
             <img
               className="hidden dark:block"
               src="./images/logo/logo-dark.svg"
@@ -154,15 +140,8 @@ const AppHeader: React.FC = () => {
         <div
           className={`${
             isApplicationMenuOpen ? "flex" : "hidden"
-          } items-center justify-between w-full gap-3 px-3 py-3 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none sm:gap-4 sm:px-5 sm:py-4`}
+          } items-center justify-end w-full gap-3 px-3 py-3 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none sm:gap-4 sm:px-5 sm:py-4`}
         >
-          <div className="flex items-center gap-2 sm:gap-2.5 2xsm:gap-3">
-            {/* <!-- Dark Mode Toggler --> */}
-            <ThemeToggleButton />
-            {/* <!-- Dark Mode Toggler --> */}
-            <NotificationDropdown />
-            {/* <!-- Notification Menu Area --> */}
-          </div>
           {/* <!-- User Area --> */}
           <UserDropdown />
         </div>

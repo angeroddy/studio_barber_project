@@ -283,29 +283,33 @@
 }
 
 .fc .fc-timegrid-event {
-  min-height: 100px !important;
+  min-height: 52px !important;
 }
 
 .fc .fc-event {
-  padding: 12px !important;
-  border-radius: 10px !important;
-  border-width: 3px !important;
-  font-size: 1rem !important;
+  padding: 4px !important;
+  border-radius: 4px !important;
+  border-width: 1px !important;
+  box-shadow: none !important;
+  font-size: 0.875rem !important;
 }
 
 .fc .fc-event-main {
-  padding: 8px !important;
+  padding: 0 !important;
 }
 
 .fc .fc-event-title {
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-  line-height: 1.4 !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  color: #1e293b !important;
 }
 
 .fc .fc-event-time {
-  font-size: 0.875rem !important;
+  font-size: 0.72rem !important;
   font-weight: 600 !important;
+  line-height: 1 !important;
+  color: #334155 !important;
 }
 
 .fc .fc-daygrid-event {
@@ -324,23 +328,23 @@
 
 /* Forcer une hauteur minimale pour les événements */
 .fc-timegrid-event-harness {
-  min-height: 100px !important;
+  min-height: 52px !important;
 }
 
 .fc .fc-timegrid-event .fc-event-main-frame {
-  min-height: 90px !important;
+  min-height: 46px !important;
 }
 
 /* Styles pour le drag and drop */
 .fc-event {
   cursor: move !important;
   cursor: grab !important;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out !important;
+  transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out, opacity 0.2s ease-in-out !important;
 }
 
 .fc-event:hover {
-  transform: scale(1.02) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-1px) !important;
+  filter: brightness(0.98) !important;
   z-index: 1000 !important;
 }
 
@@ -414,20 +418,21 @@
   }
 
   .fc .fc-timegrid-event {
-    min-height: 60px !important;
+    min-height: 44px !important;
   }
 
   .fc .fc-event {
-    padding: 6px !important;
+    padding: 3px !important;
     font-size: 0.75rem !important;
   }
 
   .fc .fc-event-title {
-    font-size: 0.875rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.05 !important;
   }
 
   .fc .fc-event-time {
-    font-size: 0.75rem !important;
+    font-size: 0.65rem !important;
   }
 
   .fc .fc-timegrid-slot-label {

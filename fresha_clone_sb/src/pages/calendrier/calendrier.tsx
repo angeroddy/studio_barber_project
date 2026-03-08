@@ -23,6 +23,7 @@ import { useSalon } from "../../context/SalonContext";
 import ClientAutocomplete from "../../components/form/input/ClientAutocomplete";
 import type { Client } from "../../services/client.service";
 import { useNavigate } from "react-router-dom";
+import { useBreakpoint } from "../../hooks/useBreakpoint";
 import "./calendrier.css";
 
 interface HairdresserResource {
@@ -91,6 +92,12 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   const { selectedSalon, isLoading: salonLoading } = useSalon();
   const navigate = useNavigate();
   const isCalendarReadOnly = readOnly;
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === "xs" || breakpoint === "sm";
+  const isTablet = breakpoint === "md";
+  const [isCompactToolbar, setIsCompactToolbar] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 1180 : true
+  );
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventTitle, setEventTitle] = useState("");
@@ -113,6 +120,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = useState(false);
 
   // Animation states
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -131,6 +139,19 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Ã‰tat pour le client sÃ©lectionnÃ©
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  useEffect(() => {
+    const handleToolbarResize = () => {
+      setIsCompactToolbar(window.innerWidth < 1182);
+    };
+
+    handleToolbarResize();
+    window.addEventListener("resize", handleToolbarResize);
+
+    return () => {
+      window.removeEventListener("resize", handleToolbarResize);
+    };
+  }, []);
 
   // Handlers pour le drag and drop dans les vues grilles personnalisées
   const handleDragStart = (event: CalendarEvent) => {
@@ -1124,6 +1145,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   const goToToday = () => {
     setSelectedDate(new Date());
+    setIsMobileActionsOpen(false);
   };
 
   const handleQuickFilterToggle = () => {
@@ -1134,13 +1156,16 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
       }
       setSelectedResource(nextResource);
       setViewMode("single");
+      setIsMobileActionsOpen(false);
       return;
     }
 
     setViewMode("all");
+    setIsMobileActionsOpen(false);
   };
 
   const handleOpenSettings = () => {
+    setIsMobileActionsOpen(false);
     navigate("/parametres");
   };
 
@@ -1165,6 +1190,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 
   // Fonction pour rafraîchir les données avec animation
   const handleRefresh = async () => {
+    setIsMobileActionsOpen(false);
     setIsRefreshing(true);
     await fetchBookings();
     setTimeout(() => setIsRefreshing(false), 500);
@@ -1549,8 +1575,170 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
         </div>
       )}
 
-      {/* Barre de navigation moderne */}
-      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+      <input
+        ref={quickDateInputRef}
+        type="date"
+        value={formatDateInputValue(selectedDate)}
+        onChange={(e) => {
+          const nextDate = parseDateInputValue(e.target.value);
+          if (nextDate) {
+            setSelectedDate(nextDate);
+            setIsMobileActionsOpen(false);
+          }
+        }}
+        className="absolute h-0 w-0 opacity-0 pointer-events-none"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
+      {/* Toolbar compacte mobile/tablette */}
+      {isCompactToolbar && (
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goToPreviousPeriod}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            aria-label="Période précédente"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <button
+            onClick={handleOpenQuickDatePicker}
+            className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+          >
+            <span className="truncate capitalize">{getFormattedDate()}</span>
+            <svg className="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <button
+            onClick={goToNextPeriod}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            aria-label="Période suivante"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {!isCalendarReadOnly && (
+            <button
+              onClick={openModal}
+              className={`flex h-11 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 ${isTablet ? "gap-2 px-4" : "w-11"}`}
+              aria-label="Ajouter"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {isTablet && <span className="text-sm font-semibold">Add</span>}
+            </button>
+          )}
+        </div>
+
+        <div className={`mt-3 flex gap-2 ${isTablet ? "items-start" : "items-center"}`}>
+          <div className={`relative min-w-0 ${isTablet ? "flex-[1.4]" : "flex-1"}`}>
+            <select
+              value={viewMode === "all" ? "all" : selectedResource}
+              onChange={(e) => {
+                if (e.target.value === "all") {
+                  setViewMode("all");
+                } else {
+                  setViewMode("single");
+                  setSelectedResource(e.target.value);
+                }
+                setIsMobileActionsOpen(false);
+              }}
+              className="h-11 w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 text-sm font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">Toute l'équipe</option>
+              {hairdressers.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.title}
+                </option>
+              ))}
+            </select>
+            <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+
+          <div className={`relative shrink-0 ${isTablet ? "w-32" : "w-28"}`}>
+            <select
+              value={timeView}
+              onChange={(e) => {
+                setTimeView(e.target.value as TimeView);
+                setIsMobileActionsOpen(false);
+              }}
+              className="h-11 w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 text-sm font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="day">Jour</option>
+              <option value="week">Semaine</option>
+              <option value="month">Mois</option>
+            </select>
+            <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setIsMobileActionsOpen((prev) => !prev)}
+              className={`flex h-11 w-11 items-center justify-center rounded-xl border ${isMobileActionsOpen ? "border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-gray-900" : "border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}
+              aria-label="Plus d'actions"
+              aria-expanded={isMobileActionsOpen}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01" />
+              </svg>
+            </button>
+
+            {isMobileActionsOpen && (
+              <div className="absolute right-0 top-13 z-30 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                <button
+                  onClick={goToToday}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <span>Aujourd'hui</span>
+                </button>
+                <button
+                  onClick={handleOpenQuickDatePicker}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <span>Aller à une date</span>
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <span>Actualiser</span>
+                </button>
+                <button
+                  onClick={handleQuickFilterToggle}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <span>{viewMode === "single" ? "Afficher toute l'équipe" : "Filtrer sur un coiffeur"}</span>
+                </button>
+                <button
+                  onClick={handleOpenSettings}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <span>Paramètres</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Barre de navigation moderne desktop */}
+      {!isCompactToolbar && (
+      <div className="mb-4 sm:mb-6 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-4">
         {/* Section gauche: Navigation de date */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -1657,21 +1845,6 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
             </svg>
           </button>
 
-          <input
-            ref={quickDateInputRef}
-            type="date"
-            value={formatDateInputValue(selectedDate)}
-            onChange={(e) => {
-              const nextDate = parseDateInputValue(e.target.value);
-              if (nextDate) {
-                setSelectedDate(nextDate);
-              }
-            }}
-            className="absolute h-0 w-0 opacity-0 pointer-events-none"
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -1725,6 +1898,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
           )}
         </div>
       </div>
+      )}
 
       {/* Vue Tous les coiffeurs en mode Jour - Grille personnalisée */}
       {!useFullCalendar && timeView === "day" && (
@@ -1865,7 +2039,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 setSelectedResource(appointment.resourceId);
                                 openModal();
                               }}
-                              className={`absolute left-1 right-1 rounded-lg p-3 shadow-sm border-2 cursor-move hover:shadow-lg hover:scale-[1.02] hover:-translate-y-0.5 transition-all duration-200 ease-in-out animate-fade-in overflow-hidden ${isDragging && draggedEvent?.id === appointment.id ? 'opacity-50' : ''
+                              className={`absolute left-1 right-1 rounded-[4px] px-3 py-2 shadow-none border cursor-move hover:-translate-y-0.5 hover:brightness-[0.98] transition-all duration-200 ease-in-out animate-fade-in overflow-hidden ${isDragging && draggedEvent?.id === appointment.id ? 'opacity-50' : ''
                                 }`}
                               style={{
                                 top: `${top}px`,
@@ -1874,15 +2048,15 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 borderColor: appointment.borderColor,
                               }}
                             >
-                              <div className="flex flex-col h-full justify-start">
-                                <div className="text-xs font-semibold text-gray-800 mb-0.5 truncate">
+                              <div className="flex h-full flex-col justify-start">
+                                <div className="mb-1 truncate text-[11px] font-semibold leading-none tracking-[-0.01em] text-slate-700">
                                   {startHour}:{String(startMinute).padStart(2, "0")} - {endHour}:{String(endMinute).padStart(2, "0")}
                                 </div>
-                                <div className="text-sm font-bold text-gray-900 truncate leading-tight">
+                                <div className="truncate text-[15px] font-bold leading-[1.1] tracking-[-0.02em] text-slate-800">
                                   {appointment.title || "Sans nom"}
                                 </div>
                                 {appointment.extendedProps?.service && (
-                                  <div className="text-xs text-gray-700 mt-0.5 truncate leading-tight">
+                                  <div className="mt-1 truncate text-[11px] leading-[1.15] text-slate-700/95">
                                     {appointment.extendedProps.service}
                                   </div>
                                 )}
@@ -2060,6 +2234,8 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                           const pixelPerMinute = 96 / 60; // 96px hauteur de cellule
                           const top = startMinutes * pixelPerMinute;
                           const height = duration * pixelPerMinute;
+                          const isCompactWeekCard = height < 78;
+                          const isUltraCompactWeekCard = height < 54;
 
                           const staffMember = hairdressers.find(h => h.id === appointment.resourceId);
 
@@ -2091,7 +2267,7 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 setSelectedResource(appointment.resourceId);
                                 openModal();
                               }}
-                              className={`absolute left-1 right-1 rounded-md p-2 shadow-sm border cursor-move hover:shadow-md transition-all duration-200 ease-in-out animate-fade-in overflow-hidden pointer-events-auto ${isDragging && draggedEvent?.id === appointment.id ? 'opacity-50' : ''
+                              className={`absolute left-1 right-1 rounded-[4px] ${isUltraCompactWeekCard ? "px-2 py-1.5" : "px-2.5 py-2"} shadow-none border cursor-move hover:-translate-y-0.5 hover:brightness-[0.98] transition-all duration-200 ease-in-out animate-fade-in overflow-hidden pointer-events-auto ${isDragging && draggedEvent?.id === appointment.id ? 'opacity-50' : ''
                                 }`}
                               style={{
                                 top: `${top}px`,
@@ -2100,20 +2276,25 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
                                 borderColor: appointment.borderColor,
                               }}
                             >
-                              <div className="flex flex-col h-full justify-start">
-                                <div className="text-[10px] font-semibold text-gray-800 mb-0.5 truncate">
-                                  {startHour}:{String(startMinute).padStart(2, "0")}
+                              <div className="flex h-full flex-col justify-start">
+                                <div className={`truncate font-semibold leading-none tracking-[-0.01em] text-slate-700 ${isUltraCompactWeekCard ? "mb-0.5 text-[9px]" : "mb-1 text-[10px]"}`}>
+                                  {startHour}:{String(startMinute).padStart(2, "0")} - {endHour}:{String(endMinute).padStart(2, "0")}
                                 </div>
-                                <div className="text-xs font-bold text-gray-900 truncate leading-tight">
+                                <div className={`truncate font-bold leading-[1.1] tracking-[-0.02em] text-slate-800 ${isUltraCompactWeekCard ? "text-[12px]" : "text-[14px]"}`}>
                                   {appointment.title || "Sans nom"}
                                 </div>
+                                {!isCompactWeekCard && appointment.extendedProps?.service && (
+                                  <div className="mt-1 truncate text-[11px] leading-[1.15] text-slate-700/95">
+                                    {appointment.extendedProps.service}
+                                  </div>
+                                )}
                                 {staffMember && viewMode === "all" && (
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[7px] font-semibold">
+                                  <div className="mt-1 flex items-center gap-1">
+                                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/60 text-slate-700 text-[7px] font-semibold">
                                       {getStaffInitials(staffMember.title)}
                                     </div>
-                                    <span className="text-[9px] text-gray-700 truncate">
-                                      {staffMember.title}
+                                    <span className="truncate text-[10px] leading-none text-slate-700/90">
+                                      {isUltraCompactWeekCard ? getStaffInitials(staffMember.title) : staffMember.title}
                                     </span>
                                   </div>
                                 )}
@@ -2181,28 +2362,39 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
               contentHeight="auto"
               expandRows={true}
               allDaySlot={false}
-              eventMinHeight={120}
+              eventMinHeight={56}
               eventContent={(eventInfo) => {
                 const staffMember = hairdressers.find(h => h.id === eventInfo.event.extendedProps.resourceId);
+                const eventStart = eventInfo.event.start;
+                const eventEnd = eventInfo.event.end;
+                const durationMinutes =
+                  eventStart && eventEnd
+                    ? Math.max(0, Math.round((eventEnd.getTime() - eventStart.getTime()) / 60000))
+                    : 0;
+                const isCompactCard = durationMinutes <= 35;
+                const isSemiCompactCard = durationMinutes <= 50;
+                const shouldShowService = !isCompactCard && (!isMobile || durationMinutes >= 45);
+                const shouldShowStaff = viewMode === "all" && staffMember && !isCompactCard;
+
                 return (
-                  <div className="p-3 h-full overflow-hidden flex flex-col gap-2">
-                    <div className="text-base font-bold text-gray-800 leading-snug">
+                  <div className={`flex h-full flex-col overflow-hidden ${isCompactCard ? "px-2 py-1.5" : "px-2.5 py-2"}`}>
+                    <div className={`truncate font-semibold leading-none tracking-[-0.01em] text-slate-700 ${isCompactCard ? "mb-0.5 text-[10px]" : "mb-1 text-[11px]"}`}>
                       {eventInfo.timeText}
                     </div>
-                    <div className="text-lg font-bold text-gray-900 leading-snug">
+                    <div className={`truncate font-bold leading-[1.1] tracking-[-0.02em] text-slate-800 ${isCompactCard ? "text-[13px]" : isTablet || isSemiCompactCard ? "text-[14px]" : "text-[15px]"}`}>
                       {eventInfo.event.title || "Sans nom"}
                     </div>
-                    {eventInfo.event.extendedProps.service && (
-                      <div className="text-base text-gray-700 leading-snug">
+                    {shouldShowService && eventInfo.event.extendedProps.service && (
+                      <div className="mt-1 truncate text-[11px] leading-[1.15] text-slate-700/95">
                         {eventInfo.event.extendedProps.service}
                       </div>
                     )}
-                    {staffMember && viewMode === "all" && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 text-[10px] font-semibold">
+                    {shouldShowStaff && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white/60 text-[8px] font-semibold text-slate-700">
                           {getStaffInitials(staffMember.title)}
                         </div>
-                        <span className="text-sm text-gray-600">
+                        <span className="truncate text-[10px] leading-none text-slate-700/90">
                           {staffMember.title}
                         </span>
                       </div>
@@ -2490,5 +2682,3 @@ const Calendrier: React.FC<CalendrierProps> = ({ readOnly = false }) => {
 };
 
 export default Calendrier;
-
-

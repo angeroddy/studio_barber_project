@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Logo2 from '@/public/logoApp.png';
 import { completeClientInvitation, saveToken, saveUser } from '@/lib/api/auth';
+import { PasswordGuidance } from '@/components/password-guidance';
+import { validatePassword } from '@/lib/password-policy';
 
 export default function SetPasswordClient() {
   const searchParams = useSearchParams();
@@ -37,8 +39,9 @@ export default function SetPasswordClient() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caracteres.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
@@ -105,6 +108,7 @@ export default function SetPasswordClient() {
                     placeholder="Minimum 8 caracteres"
                   />
                 </div>
+                <PasswordGuidance password={password} />
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
                   <input
@@ -114,6 +118,11 @@ export default function SetPasswordClient() {
                     className="h-11 w-full rounded-lg border border-gray-300 px-4 text-sm"
                     placeholder="Confirmer le mot de passe"
                   />
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="mt-2 text-sm text-red-600">
+                      Les mots de passe ne correspondent pas.
+                    </p>
+                  )}
                 </div>
                 <button
                   type="submit"

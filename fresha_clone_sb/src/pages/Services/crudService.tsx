@@ -44,8 +44,6 @@ const CrudService = () => {
   // ID du salon actuellement sélectionné
   const salonId = selectedSalon?.id || '';
 
-  console.log('🏪 Salon sélectionné:', selectedSalon);
-  console.log('🔑 Salon ID:', salonId);
 
   // États
   const [services, setServices] = useState<Service[]>([]);
@@ -73,18 +71,14 @@ const CrudService = () => {
   useEffect(() => {
     // Ne pas charger si pas de salonId
     if (!salonId) {
-      console.log('⚠️ Aucun salonId disponible - en attente...');
       setServices([]);
       return;
     }
 
     const loadServices = async () => {
       try {
-        console.log('🔄 Chargement des services pour le salon:', salonId);
         setIsLoading(true);
         const data = await getServicesBySalon(salonId);
-        console.log('✅ Services chargés:', data);
-        console.log('📊 Nombre de services:', data.length);
         setServices(data);
       } catch (error: unknown) {
         console.error('❌ Erreur lors du chargement des services:', error);
@@ -144,11 +138,7 @@ const CrudService = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    console.log('💾 handleSave appelé');
-    console.log('📝 FormData:', formData);
-    console.log('🔄 Mode:', currentService ? 'Modification' : 'Ajout');
     if (currentService) {
-      console.log('🎯 Service à modifier:', currentService);
     }
 
     // Validation
@@ -164,7 +154,6 @@ const CrudService = () => {
 
       if (currentService) {
         // Modification - Garantir que les nombres sont bien des nombres
-        console.log('🔄 Appel updateService avec ID:', currentService.id);
         const updatedService = await updateService(currentService.id, {
           name: formData.name,
           description: formData.description,
@@ -173,7 +162,6 @@ const CrudService = () => {
           category: formData.category,
           isActive: formData.isActive,
         });
-        console.log('✅ Service mis à jour:', updatedService);
 
         setServices((prev) =>
           prev.map((service) =>
@@ -183,7 +171,6 @@ const CrudService = () => {
         setAlertMessage("Service modifié avec succès");
       } else {
         // Ajout - Garantir que les nombres sont bien des nombres
-        console.log('➕ Appel createService avec salonId:', salonId);
         const newService = await createService({
           salonId,
           name: formData.name,
@@ -194,7 +181,6 @@ const CrudService = () => {
           isActive: formData.isActive,
           color: generateRandomColor(),
         });
-        console.log('✅ Service créé:', newService);
 
         setServices((prev) => [...prev, newService]);
         setAlertMessage("Service ajouté avec succès");
@@ -229,17 +215,13 @@ const CrudService = () => {
 
   // Confirmer la suppression
   const handleDeleteConfirm = async () => {
-    console.log('🗑️ handleDeleteConfirm appelé');
-    console.log('🎯 ID du service à supprimer:', serviceToDelete);
 
     if (!serviceToDelete) return;
 
     try {
       setIsLoading(true);
 
-      console.log('🔄 Appel deleteService avec ID:', serviceToDelete);
       await deleteService(serviceToDelete);
-      console.log('✅ Service supprimé avec succès');
 
       setServices((prev) =>
         prev.filter((service) => service.id !== serviceToDelete)

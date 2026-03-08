@@ -1,15 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import { useAuth } from "../../context/AuthContext";
 import staffAuthService from "../../services/staffAuth.service";
 
-const AUTH_TOKEN_KEY = 'authToken';
-
 
 export default function SignInForm() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +18,7 @@ export default function SignInForm() {
   const [searchParams] = useSearchParams();
   const inviteToken = (searchParams.get("staffInviteToken") || "").trim();
   const isInvitationFlow = inviteToken.length > 0;
-  const { login, staffLogin, isLoading, error, clearError } = useAuth();
+  const { login, staffLogin, refreshSession, isLoading, error, clearError } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,17 +55,17 @@ export default function SignInForm() {
 
       try {
         // Appel à l'API de première connexion
-        const response = isInvitationFlow
-          ? await staffAuthService.completeInvitation(inviteToken, password)
-          : await staffAuthService.firstLogin(normalizedEmail, password);
-
-        // Sauvegarder l'utilisateur (token gere par cookie HttpOnly)
-        localStorage.setItem(AUTH_TOKEN_KEY, response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        if (isInvitationFlow) {
+          await staffAuthService.completeInvitation(inviteToken, password);
+        } else {
+          await staffAuthService.firstLogin(normalizedEmail, password);
+        }
         localStorage.setItem('userType', 'staff');
-
-        // Rediriger
-        window.location.href = '/';
+        const hasSession = await refreshSession();
+        if (!hasSession) {
+          throw new Error("Session invalide apres activation. Verifiez la configuration cookie/CORS.");
+        }
+        navigate('/', { replace: true });
       } catch (error: any) {
         setLocalError(error.message || 'Erreur lors de la création du mot de passe');
       }
@@ -80,9 +79,8 @@ export default function SignInForm() {
         await staffLogin({ email: normalizedEmail, password });
       }
       // La redirection est gérée dans le contexte
-    } catch (error) {
+    } catch {
       // L'erreur est gérée dans le contexte
-      console.error("Erreur de connexion:", error);
     }
   };
 
@@ -162,6 +160,7 @@ export default function SignInForm() {
                     <Input
                       type="email"
                       placeholder="info@gmail.com"
+                      autoComplete="username"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -175,6 +174,7 @@ export default function SignInForm() {
                     <Input
                       type={showPassword ? "text" : "password"}
                       placeholder={isFirstLogin ? "Choisir un mot de passe" : "Entrer votre mot de passe"}
+                      autoComplete={isFirstLogin ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -201,6 +201,7 @@ export default function SignInForm() {
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="Confirmer votre mot de passe"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                       />
@@ -221,13 +222,7 @@ export default function SignInForm() {
                 <div className="mt-5">
                   {!isFirstLogin && !isInvitationFlow && loginType === 'owner' && (
                     <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400">
-                      Pas encore de compte?{" "}
-                      <Link
-                        to="/signup"
-                        className="text-[#EB549E] hover:text-[#D33982]"
-                      >
-                        S'inscrire
-                      </Link>
+                      Création de compte administrateur désactivée.
                     </p>
                   )}
                   {!isFirstLogin && !isInvitationFlow && loginType === 'staff' && (

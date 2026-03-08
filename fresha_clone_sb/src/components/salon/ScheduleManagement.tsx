@@ -276,17 +276,17 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-3 sm:p-6">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Horaires d'ouverture - {salonName}
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            Horaires d'ouverture
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Définissez plusieurs plages horaires pour chaque jour de la semaine
+            Définissez les plages horaires pour chaque jour
           </p>
         </div>
-        <Button onClick={handleCreateDefaults} variant="outline" disabled={isLoading}>
+        <Button onClick={handleCreateDefaults} variant="outline" disabled={isLoading} className="w-full sm:w-auto">
           Horaires par défaut
         </Button>
       </div>
@@ -358,16 +358,16 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {schedules.map((schedule) => (
           <div
             key={schedule.dayOfWeek}
-            className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+            className="rounded-lg border border-gray-200 bg-white p-3 sm:p-6 dark:border-gray-700 dark:bg-gray-800"
           >
             {/* En-tête du jour */}
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="mb-3 sm:mb-4 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   {getDayName(schedule.dayOfWeek)}
                 </span>
 
@@ -390,13 +390,13 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                 </div>
               </div>
 
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleOpenCopyModal(schedule.dayOfWeek)}
-                  className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs sm:text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   title="Copier ces horaires vers d'autres jours"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -404,12 +404,13 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                       d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                     />
                   </svg>
-                  Copier vers...
+                  Copier
                 </button>
                 <Button
                   onClick={() => handleSaveSchedule(schedule.dayOfWeek)}
                   variant="primary"
                   disabled={isLoading}
+                  className="flex-1 sm:flex-none text-xs sm:text-sm"
                 >
                   Enregistrer
                 </Button>
@@ -418,17 +419,17 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
 
             {/* Plages horaires */}
             {!schedule.isClosed && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {schedule.timeSlots.map((slot, slotIndex) => (
                   <div
                     key={slot.tempId || `slot-${schedule.dayOfWeek}-${slotIndex}`}
-                    className="flex items-center gap-3 rounded-md bg-gray-50 p-3 dark:bg-gray-700/50"
+                    className="flex items-center gap-2 sm:gap-3 rounded-md bg-gray-50 p-2 sm:p-3 dark:bg-gray-700/50"
                   >
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <span className="hidden sm:inline text-sm font-medium text-gray-700 dark:text-gray-300">
                       Plage {slotIndex + 1}:
                     </span>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-1 items-center gap-1.5 sm:gap-2">
                       <Input
                         type="time"
                         value={slot.startTime}
@@ -440,7 +441,7 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                             e.target.value
                           )
                         }
-                        className="w-32"
+                        className="min-w-0 flex-1 sm:w-32 sm:flex-none"
                       />
                       <span className="text-gray-500 dark:text-gray-400">-</span>
                       <Input
@@ -454,18 +455,18 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                             e.target.value
                           )
                         }
-                        className="w-32"
+                        className="min-w-0 flex-1 sm:w-32 sm:flex-none"
                       />
                     </div>
 
                     {schedule.timeSlots.length > 1 && (
                       <button
                         onClick={() => handleRemoveTimeSlot(schedule.dayOfWeek, slotIndex)}
-                        className="ml-auto rounded-lg p-2 text-error-600 transition hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
+                        className="flex-shrink-0 rounded-lg p-1.5 sm:p-2 text-error-600 transition hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
                         title="Supprimer cette plage"
                       >
                         <svg
-                          className="h-5 w-5"
+                          className="h-4 w-4 sm:h-5 sm:w-5"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -485,9 +486,9 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                 {/* Bouton pour ajouter une plage */}
                 <button
                   onClick={() => handleAddTimeSlot(schedule.dayOfWeek)}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-300 p-3 text-sm font-medium text-gray-600 transition hover:border-brand-500 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-400 dark:hover:text-brand-400"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-300 p-2.5 sm:p-3 text-sm font-medium text-gray-600 transition hover:border-brand-500 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-400 dark:hover:text-brand-400"
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -495,14 +496,14 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ salonId, salonN
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  Ajouter une plage horaire
+                  Ajouter une plage
                 </button>
               </div>
             )}
 
             {/* Message si fermé */}
             {schedule.isClosed && (
-              <div className="rounded-md bg-gray-100 p-4 text-center dark:bg-gray-700">
+              <div className="rounded-md bg-gray-100 p-3 sm:p-4 text-center dark:bg-gray-700">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Le salon est fermé ce jour
                 </p>

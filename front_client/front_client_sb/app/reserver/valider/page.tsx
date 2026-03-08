@@ -7,22 +7,11 @@ import Image from "next/image";
 import { BookingBreadcrumb } from "@/components/booking-breadcrumb";
 import { AuthModal } from "@/components/auth-modal";
 import { api, Service, Staff } from "@/lib/api/index";
+import { Salon } from "@/lib/api/salon.api";
 import { isAuthenticated, removeToken } from "@/lib/api/auth";
 import { createClientBooking } from "@/lib/api/clientBooking";
 import { ApiError } from "@/lib/api/config";
-
-const salonsData = {
-  championnet: {
-    name: "Studio Barber Championnet",
-    address: "42 Rue Lesdiguieres, Grenoble, Auvergne-rh...",
-    image: "/Championnet.avif",
-  },
-  clemenceau: {
-    name: "Studio Barber Clemenceau",
-    address: "47 Boulevard Clemenceau, Grenoble, Auvergne-rh...",
-    image: "/Clemenceau.avif",
-  },
-};
+import { getSalonByIdentifier } from "@/lib/api/salonLookup";
 
 const monthNames = [
   "janvier", "fevrier", "mars", "avril", "mai", "juin",
@@ -61,7 +50,7 @@ function ValiderPageContent() {
   const dateParam = searchParams.get("date") || "";
   const timeParam = searchParams.get("time") || "";
 
-  const salon = salonsData[salonId as keyof typeof salonsData];
+  const [salon, setSalon] = useState<Salon | null>(null);
 
   const [service, setService] = useState<Service | null>(null);
   const [professional, setProfessional] = useState<Staff | null>(null);
@@ -88,6 +77,13 @@ function ValiderPageContent() {
         setLoading(true);
         const serviceData = await api.services.getServiceById(serviceParam);
         setService(serviceData);
+        try {
+          const salonData = await getSalonByIdentifier(salonId);
+          setSalon(salonData);
+        } catch (err) {
+          console.error("Erreur lors du chargement du salon:", err);
+          setSalon(null);
+        }
         setError(null);
       } catch (err) {
         console.error("Erreur lors du chargement de la prestation:", err);
@@ -98,7 +94,7 @@ function ValiderPageContent() {
     }
 
     fetchService();
-  }, [serviceParam]);
+  }, [serviceParam, salonId]);
 
   useEffect(() => {
     async function fetchProfessional() {
@@ -278,12 +274,12 @@ function ValiderPageContent() {
                 <h2 className="font-archivo font-black text-xl sm:text-2xl text-black mb-3 sm:mb-4 uppercase">
                   Mode de paiement
                 </h2>
-                <div className="bg-white border border-black p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-6 sm:h-6 shrink-0">
+                <div className="bg-[#FFF7FB] border border-[#F7C5DF] p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-[#DE2788]">
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
                     <line x1="1" y1="10" x2="23" y2="10" />
                   </svg>
-                  <span className="font-archivo font-bold text-sm sm:text-base">Payer sur place</span>
+                  <span className="font-archivo font-bold text-sm sm:text-base text-[#8F1E5A]">Payer sur place</span>
                 </div>
               </div>
 
@@ -322,7 +318,7 @@ function ValiderPageContent() {
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white border border-black p-5 sm:p-6 md:p-8 lg:sticky lg:top-6">
+              <div className="bg-white border border-[#F0D1E2] p-5 sm:p-6 md:p-8 lg:sticky lg:top-6 shadow-sm">
                 {salon && (
                   <div className="flex items-start gap-2 sm:gap-3 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-gray-300">
                     {salon.image && (
@@ -405,7 +401,7 @@ function ValiderPageContent() {
                 <button
                   onClick={handleValidate}
                   disabled={creatingBooking}
-                  className="w-full bg-black hover:bg-[#DE2788] text-white font-archivo font-black text-sm sm:text-base uppercase py-5 sm:py-6 md:py-7 rounded-none transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+                  className="w-full bg-[#DE2788] hover:bg-[#C62077] text-white font-archivo font-black text-sm sm:text-base uppercase py-5 sm:py-6 md:py-7 rounded-xl transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
                 >
                   {creatingBooking ? "Creation en cours..." : "Valider"}
                 </button>

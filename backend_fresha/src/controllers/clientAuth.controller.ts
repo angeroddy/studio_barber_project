@@ -12,6 +12,7 @@ import {
   registerClientWithPendingBooking,
   verifyClientEmailAndFinalizeBooking
 } from '../services/clientAuth.service'
+import { loginWithGoogle } from '../services/clientSocialAuth.service'
 
 function getFrontendBaseUrl(): string {
   const configured = process.env.CLIENT_APP_URL?.trim() || process.env.FRONTEND_URL?.trim()
@@ -68,10 +69,87 @@ export const registerWithBookingValidation = [
   body('notes').optional().isString().withMessage('Notes invalides')
 ]
 
+export const oauthGoogleValidation = [
+  body('idToken').trim().notEmpty().withMessage('Token Google requis'),
+  body('phone').optional().trim(),
+  body('pendingBooking').optional().isObject().withMessage('pendingBooking doit etre un objet'),
+  body('pendingBooking.salonId').if(body('pendingBooking').exists()).notEmpty().withMessage('Salon requis'),
+  body('pendingBooking.serviceId').if(body('pendingBooking').exists()).notEmpty().withMessage('Prestation requise'),
+  body('pendingBooking.staffId').optional().isString().withMessage('Professionnel invalide'),
+  body('pendingBooking.startTime').if(body('pendingBooking').exists()).isISO8601().withMessage('Date de reservation invalide'),
+  body('pendingBooking.notes').optional().isString().withMessage('Notes invalides')
+]
+
 export const loginValidation = [
   body('email').trim().isEmail().withMessage('Email invalide').normalizeEmail(),
   body('password').notEmpty().withMessage('Mot de passe requis')
 ]
+
+export async function oauthGoogleHandler(req: Request, res: Response) {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      })
+    }
+
+    const { idToken, phone } = req.body as { idToken: string; phone?: string }
+    const rawPendingBooking = req.body.pendingBooking as
+      | {
+          salonId?: string
+          serviceId?: string
+          staffId?: string
+          startTime?: string
+          notes?: string
+        }
+      | undefined
+
+    const pendingBooking = rawPendingBooking
+      ? {
+          salonId: String(rawPendingBooking.salonId || '').trim(),
+          serviceId: String(rawPendingBooking.serviceId || '').trim(),
+          staffId: rawPendingBooking.staffId ? String(rawPendingBooking.staffId).trim() : undefined,
+          startTime: String(rawPendingBooking.startTime || '').trim(),
+          notes: rawPendingBooking.notes ? String(rawPendingBooking.notes).trim() : undefined
+        }
+      : undefined
+
+    const result = await loginWithGoogle({
+      idToken,
+      phone: phone?.trim(),
+      pendingBooking
+    })
+
+    if (result.mode === 'authenticated') {
+      setAuthCookie(res, result.token)
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+      data: result
+    })
+  } catch (error: any) {
+    logger.error('Erreur connexion Google client:', { error: error.message, stack: error.stack })
+
+    if (error.code === 'PHONE_REQUIRED') {
+      return res.status(422).json({
+        success: false,
+        error: error.message,
+        errorCode: error.code,
+        data: error.data
+      })
+    }
+
+    const status = error.status || (error.code === 'GOOGLE_EMAIL_NOT_VERIFIED' ? 400 : 401)
+    return res.status(status).json({
+      success: false,
+      error: error.message || 'Erreur lors de la connexion Google'
+    })
+  }
+}
 
 export const verifyEmailValidation = [
   query('token').notEmpty().withMessage('Token requis')

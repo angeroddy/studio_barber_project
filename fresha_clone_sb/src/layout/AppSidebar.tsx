@@ -1,116 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import logo from "../assets/4x/log.png";
-// Assume these icons are imported from an icon library
-import {
-  GridIcon,
-  CalenderIcon,
-  BookingIcon,
-  GroupIcon,
-  ScissorsIcon,
-  UsersIcon,
-  StoreIcon,
-  PieChartIcon,
-  SettingsIcon,
-  BellIcon,
-  ChevronDownIcon,
-  HorizontaLDots,
-  TimeIcon,
-} from "../icons";
+import { ChevronDownIcon, HorizontaLDots } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useSalon } from "../context/SalonContext";
 import { useAuth } from "../context/AuthContext";
-
-type NavItem = {
-  name: string;
-  icon: React.ReactNode;
-  path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
-  disabled?: boolean;
-};
-
-// Icone pour les absences
-const AbsenceIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    path: "/",
-  },
-  {
-    icon: <CalenderIcon />,
-    name: "Calendrier",
-    path: "/calendar",
-  },
-];
-
-const gestionItems: NavItem[] = [
-  {
-    icon: <GroupIcon />,
-    name: "Clients",
-    path: "/clients",
-  },
-  {
-    icon: <ScissorsIcon />,
-    name: "Services",
-    path: "/services",
-  },
-  {
-    icon: <UsersIcon />,
-    name: "Equipe",
-    path: "/equipe",
-  },
-  {
-    icon: <TimeIcon />,
-    name: "Planification",
-    path: "/planification",
-  },
-  {
-    icon: <AbsenceIcon />,
-    name: "Gestion des Absences",
-    path: "/gestion-absences",
-  },
-  {
-    icon: <StoreIcon />,
-    name: "Mes Salons",
-    path: "/salons",
-  },
-];
-
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Statistiques",
-    path: "/statistiques",
-    disabled: true,
-  },
-  {
-    icon: <SettingsIcon />,
-    name: "Parametres",
-    path: "/parametres",
-    // Active pour les owners uniquement
-  },
-  {
-    icon: <BellIcon />,
-    name: "Notifications",
-    path: "/notifications",
-    disabled: true,
-  },
-];
+import {
+  getNavigationSections,
+  isNavigationItemActive,
+  type NavigationItem,
+} from "../navigation/appNavigation";
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isMobile, isHovered, setIsHovered } = useSidebar();
   const { selectedSalon, salons, selectSalon } = useSalon();
   const { isStaff, isOwner, isManager } = useAuth();
   const location = useLocation();
 
   // Determiner si l'utilisateur est un simple employe (pas manager, pas owner)
   const isSimpleEmployee = isStaff && !isManager && !isOwner;
+  const { main: navItems, gestion: gestionItems, others: othersItems } = useMemo(
+    () =>
+      getNavigationSections({
+        isOwner,
+        isSimpleEmployee,
+      }),
+    [isOwner, isSimpleEmployee]
+  );
 
   const [isSalonDropdownOpen, setIsSalonDropdownOpen] = useState(false);
 
@@ -122,12 +38,14 @@ const AppSidebar: React.FC = () => {
     {}
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const shouldShowLabels = isExpanded || isHovered || isMobile;
 
-  // const isActive = (path: string) => location.pathname === path;
   const isActive = useCallback(
-    (path: string) => location.pathname === path,
+    (item: Pick<NavigationItem, "path" | "matchPaths">) =>
+      isNavigationItemActive(item, location.pathname),
     [location.pathname]
   );
+  const isPathActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   useEffect(() => {
     let submenuMatched = false;
@@ -136,7 +54,7 @@ const AppSidebar: React.FC = () => {
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
+            if (isPathActive(subItem.path)) {
               setOpenSubmenu({
                 type: menuType as "main" | "gestion" | "others",
                 index,
@@ -151,7 +69,7 @@ const AppSidebar: React.FC = () => {
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [location, isActive]);
+  }, [gestionItems, isPathActive, navItems, othersItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -178,7 +96,7 @@ const AppSidebar: React.FC = () => {
     });
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main" | "gestion" | "others") => (
+  const renderMenuItems = (items: NavigationItem[], menuType: "main" | "gestion" | "others") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
@@ -204,10 +122,10 @@ const AppSidebar: React.FC = () => {
               >
                 {nav.icon}
               </span>
-              {(isExpanded || isHovered || isMobileOpen) && (
+              {shouldShowLabels && (
                 <span className="menu-item-text">{nav.name}</span>
               )}
-              {(isExpanded || isHovered || isMobileOpen) && (
+              {shouldShowLabels && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200 ${
                     openSubmenu?.type === menuType &&
@@ -231,7 +149,7 @@ const AppSidebar: React.FC = () => {
                   >
                     {nav.icon}
                   </span>
-                  {(isExpanded || isHovered || isMobileOpen) && (
+                  {shouldShowLabels && (
                     <span className="menu-item-text">{nav.name}</span>
                   )}
                 </div>
@@ -239,26 +157,26 @@ const AppSidebar: React.FC = () => {
                 <Link
                   to={nav.path}
                   className={`menu-item group ${
-                    isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
+                    isActive(nav) ? "menu-item-active" : "menu-item-inactive"
                   }`}
                 >
                   <span
                     className={`menu-item-icon-size ${
-                      isActive(nav.path)
+                      isActive(nav)
                         ? "menu-item-icon-active"
                         : "menu-item-icon-inactive"
                     }`}
                   >
                     {nav.icon}
                   </span>
-                  {(isExpanded || isHovered || isMobileOpen) && (
+                  {shouldShowLabels && (
                     <span className="menu-item-text">{nav.name}</span>
                   )}
                 </Link>
               )
             )
           )}
-          {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
+          {nav.subItems && shouldShowLabels && (
             <div
               ref={(el) => {
                 subMenuRefs.current[`${menuType}-${index}`] = el;
@@ -277,7 +195,7 @@ const AppSidebar: React.FC = () => {
                     <Link
                       to={subItem.path}
                       className={`menu-dropdown-item ${
-                        isActive(subItem.path)
+                        isPathActive(subItem.path)
                           ? "menu-dropdown-item-active"
                           : "menu-dropdown-item-inactive"
                       }`}
@@ -287,7 +205,7 @@ const AppSidebar: React.FC = () => {
                         {subItem.new && (
                           <span
                             className={`ml-auto ${
-                              isActive(subItem.path)
+                              isPathActive(subItem.path)
                                 ? "menu-dropdown-badge-active"
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
@@ -298,7 +216,7 @@ const AppSidebar: React.FC = () => {
                         {subItem.pro && (
                           <span
                             className={`ml-auto ${
-                              isActive(subItem.path)
+                              isPathActive(subItem.path)
                                 ? "menu-dropdown-badge-active"
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
@@ -320,15 +238,10 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
-        ${
-          isExpanded || isMobileOpen
-            ? "w-[290px]"
-            : isHovered
-            ? "w-[290px]"
-            : "w-[90px]"
-        }
-        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transform-gpu transition-transform duration-200 ease-out lg:transition-[width] lg:duration-300 z-50 border-r border-gray-200 will-change-transform
+        w-[290px] 
+        ${isExpanded || isHovered ? "lg:w-[290px]" : "lg:w-[90px]"}
+        ${isMobileOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none lg:pointer-events-auto"}
         lg:translate-x-0`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -339,7 +252,7 @@ const AppSidebar: React.FC = () => {
         }`}
       >
         <Link to="/">
-          {isExpanded || isHovered || isMobileOpen ? (
+          {shouldShowLabels ? (
             <>
               <img
                 className="dark:hidden"
@@ -368,7 +281,7 @@ const AppSidebar: React.FC = () => {
       </div>
       <div className="flex flex-col h-full overflow-y-auto duration-300 ease-linear no-scrollbar">
         {/* Salon Selector */}
-        {(isExpanded || isHovered || isMobileOpen) && salons.length > 0 && (
+        {shouldShowLabels && salons.length > 0 && (
           <div className="relative px-3 py-3 mb-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setIsSalonDropdownOpen(!isSalonDropdownOpen)}
@@ -424,7 +337,7 @@ const AppSidebar: React.FC = () => {
                       : "justify-start"
                   }`}
                 >
-                  {isExpanded || isHovered || isMobileOpen ? (
+                  {shouldShowLabels ? (
                     "GESTION"
                   ) : (
                     <HorizontaLDots className="size-6" />

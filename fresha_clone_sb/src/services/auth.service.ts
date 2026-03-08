@@ -48,7 +48,11 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
 
 // Service pour récupérer le profil de l'utilisateur connecté
 export const getProfile = async (): Promise<{ success: boolean; data: User }> => {
-  const response = await api.get<{ success: boolean; data: User }>('/auth/me');
+  const response = await api.get<{ success: boolean; data: User }>('/auth/me', {
+    headers: {
+      'X-Skip-Auth-Redirect': 'true',
+    },
+  });
   return response.data;
 };
 

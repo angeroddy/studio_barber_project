@@ -134,18 +134,21 @@ const ClosedDayManagement: React.FC<ClosedDayManagementProps> = ({ salonId, salo
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-3 sm:p-6">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Jours de fermeture exceptionnels - {salonName}
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            Jours de fermeture
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Gérez les jours où le salon sera fermé exceptionnellement
+            Gérez les fermetures exceptionnelles
           </p>
         </div>
-        <Button onClick={handleAdd} variant="primary" disabled={isLoading}>
-          Ajouter un jour de fermeture
+        <Button onClick={handleAdd} variant="primary" disabled={isLoading} className="w-full sm:w-auto">
+          <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Ajouter
         </Button>
       </div>
 
@@ -168,69 +171,115 @@ const ClosedDayManagement: React.FC<ClosedDayManagementProps> = ({ salonId, salo
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                <TableCell isHeader className="px-6 py-4 text-left text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
-                  Date
-                </TableCell>
-                <TableCell isHeader className="px-6 py-4 text-left text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
-                  Raison
-                </TableCell>
-                <TableCell isHeader className="px-6 py-4 text-right text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {closedDays.map((closedDay) => (
-                <TableRow
-                  key={closedDay.id}
-                  className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                >
-                  <TableCell className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    {formatShortDate(closedDay.date)}
+        <>
+          {/* Vue mobile - Cards */}
+          <div className="space-y-3 sm:hidden">
+            {closedDays.map((closedDay) => (
+              <div
+                key={closedDay.id}
+                className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {formatShortDate(closedDay.date)}
+                    </p>
+                    {closedDay.reason && (
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {closedDay.reason}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <button
+                      onClick={() => handleEdit(closedDay)}
+                      className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                      disabled={isLoading}
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(closedDay.id)}
+                      className="rounded-lg p-1.5 text-error-600 transition hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
+                      disabled={isLoading}
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vue desktop - Tableau */}
+          <div className="hidden sm:block overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+                  <TableCell isHeader className="px-6 py-4 text-left text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
+                    Date
                   </TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {closedDay.reason || '-'}
+                  <TableCell isHeader className="px-6 py-4 text-left text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
+                    Raison
                   </TableCell>
-                  <TableCell className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(closedDay)}
-                        className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                        title="Modifier"
-                        disabled={isLoading}
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(closedDay.id)}
-                        className="rounded-lg p-2 text-error-600 transition hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
-                        title="Supprimer"
-                        disabled={isLoading}
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                  <TableCell isHeader className="px-6 py-4 text-right text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
+                    Actions
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {closedDays.map((closedDay) => (
+                  <TableRow
+                    key={closedDay.id}
+                    className="border-b border-gray-200 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                  >
+                    <TableCell className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                      {formatShortDate(closedDay.date)}
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {closedDay.reason || '-'}
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(closedDay)}
+                          className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                          title="Modifier"
+                          disabled={isLoading}
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(closedDay.id)}
+                          className="rounded-lg p-2 text-error-600 transition hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
+                          title="Supprimer"
+                          disabled={isLoading}
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {/* Modal d'ajout/modification */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-lg p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {currentClosedDay ? 'Modifier le jour de fermeture' : 'Ajouter un jour de fermeture'}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-lg p-4 sm:p-6" mobileFullscreen={true}>
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            {currentClosedDay ? 'Modifier' : 'Ajouter un jour de fermeture'}
           </h2>
         </div>
 
@@ -239,11 +288,12 @@ const ClosedDayManagement: React.FC<ClosedDayManagementProps> = ({ salonId, salo
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Date *
             </label>
-            <Input
+            <input
               type="date"
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               min={new Date().toISOString().split('T')[0]}
+              className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
             />
           </div>
 
@@ -260,18 +310,18 @@ const ClosedDayManagement: React.FC<ClosedDayManagementProps> = ({ salonId, salo
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button onClick={() => setIsModalOpen(false)} variant="outline" disabled={isLoading}>
+        <div className="mt-4 sm:mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
+          <Button onClick={() => setIsModalOpen(false)} variant="outline" disabled={isLoading} className="w-full sm:w-auto">
             Annuler
           </Button>
-          <Button onClick={handleSave} variant="primary" disabled={isLoading}>
+          <Button onClick={handleSave} variant="primary" disabled={isLoading} className="w-full sm:w-auto">
             {isLoading ? 'Enregistrement...' : currentClosedDay ? 'Modifier' : 'Ajouter'}
           </Button>
         </div>
       </Modal>
 
       {/* Modal de confirmation de suppression */}
-      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} className="max-w-md p-6">
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} className="max-w-md p-4 sm:p-6" mobileFullscreen={true}>
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-error-100 dark:bg-error-900/30">
             <svg className="h-6 w-6 text-error-600 dark:text-error-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,13 +332,13 @@ const ClosedDayManagement: React.FC<ClosedDayManagementProps> = ({ salonId, salo
             Confirmer la suppression
           </h3>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            Êtes-vous sûr de vouloir supprimer ce jour de fermeture ?
+            Supprimer ce jour de fermeture ?
           </p>
-          <div className="flex justify-center gap-3">
-            <Button onClick={() => setIsDeleteModalOpen(false)} variant="outline" disabled={isLoading}>
+          <div className="flex flex-col-reverse sm:flex-row justify-center gap-2 sm:gap-3">
+            <Button onClick={() => setIsDeleteModalOpen(false)} variant="outline" disabled={isLoading} className="w-full sm:w-auto">
               Annuler
             </Button>
-            <Button onClick={handleDeleteConfirm} variant="primary" className="bg-error-600 hover:bg-error-700" disabled={isLoading}>
+            <Button onClick={handleDeleteConfirm} variant="primary" className="w-full sm:w-auto bg-error-600 hover:bg-error-700" disabled={isLoading}>
               {isLoading ? 'Suppression...' : 'Supprimer'}
             </Button>
           </div>

@@ -4,6 +4,7 @@ import { Outlet } from "react-router";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
+import MobileBottomNav from "./MobileBottomNav";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -20,9 +21,10 @@ const LayoutContent: React.FC = () => {
         } ${isMobileOpen ? "ml-0" : ""}`}
       >
         <AppHeader />
-        <div className="p-3 mx-auto max-w-(--breakpoint-2xl) sm:p-4 md:p-6">
+        <div className="mx-auto max-w-(--breakpoint-2xl) p-3 pb-24 sm:p-4 sm:pb-28 md:p-6 lg:pb-6">
           <Outlet />
         </div>
+        <MobileBottomNav />
       </div>
     </div>
   );

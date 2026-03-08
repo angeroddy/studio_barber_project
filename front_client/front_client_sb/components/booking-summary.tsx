@@ -33,11 +33,11 @@ export function BookingSummary({
   continueDisabled = false,
 }: BookingSummaryProps) {
   return (
-    <div className="bg-white border border-black p-8 sticky top-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-6 sticky top-6 shadow-sm">
       {salon && (
-        <div className="flex items-start gap-3 mb-6 pb-6 border-b border-gray-300">
+        <div className="flex items-start gap-3 mb-5 pb-5 border-b border-gray-100">
           {salon.image && (
-            <div className="relative w-16 h-16 flex-shrink-0">
+            <div className="relative w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden">
               <Image
                 src={salon.image}
                 alt={salon.name}
@@ -47,10 +47,10 @@ export function BookingSummary({
             </div>
           )}
           <div>
-            <h3 className="font-archivo font-black text-black text-base uppercase">
+            <h3 className="font-archivo font-black text-black text-sm">
               {salon.name}
             </h3>
-            <p className="font-archivo text-sm text-gray-600 mt-1">
+            <p className="font-archivo text-xs text-gray-500 mt-1">
               {salon.address}
             </p>
           </div>
@@ -58,41 +58,43 @@ export function BookingSummary({
       )}
 
       {!service && (
-        <p className="font-archivo text-gray-500 text-sm mb-6">
-          Aucune prestation selectionnee
+        <p className="font-archivo text-gray-400 text-sm mb-5">
+          Aucune prestation sélectionnée
         </p>
       )}
 
       {service && (
-        <div className="mb-6 pb-6 border-b border-gray-300">
-          <h4 className="font-archivo font-black text-black text-base mb-2 uppercase">
-            {service.name}
-          </h4>
-          <p className="font-archivo text-sm text-gray-600">
-            {service.duration}
-            {professional && ` avec ${professional.name}`}
-          </p>
-          <p className="font-archivo font-black text-xl text-black mt-2">
-            {service.price} EUR
-          </p>
+        <div className="mb-5 pb-5 border-b border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-archivo font-bold text-black text-sm">{service.name}</p>
+              <p className="font-archivo text-xs text-gray-500 mt-1">
+                {service.duration}
+                {professional && ` · ${professional.name}`}
+              </p>
+            </div>
+            <p className="font-archivo font-black text-black text-sm">
+              {service.price} €
+            </p>
+          </div>
         </div>
       )}
 
       {date && time && (
-        <div className="mb-6 pb-6 border-b border-gray-300">
+        <div className="mb-5 pb-5 border-b border-gray-100">
           <p className="font-archivo text-sm text-gray-600">
-            <span className="font-black text-black uppercase">{date}</span> a{" "}
-            <span className="font-black text-black">{time}</span>
+            <span className="font-bold text-black">{date}</span> à{" "}
+            <span className="font-bold text-black">{time}</span>
           </p>
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
-        <span className="font-archivo font-black text-xl text-black uppercase">
+      <div className="flex justify-between items-center mb-6">
+        <span className="font-archivo font-black text-base text-black">
           Total
         </span>
-        <span className="font-archivo font-black text-3xl text-black">
-          {total > 0 ? `${total} EUR` : "gratuit"}
+        <span className="font-archivo font-black text-xl text-black">
+          {total > 0 ? `${total} €` : "gratuit"}
         </span>
       </div>
 
@@ -100,7 +102,7 @@ export function BookingSummary({
         <Button
           onClick={onContinue}
           disabled={continueDisabled}
-          className="w-full bg-black hover:bg-[#DE2788] text-white font-archivo font-black text-base uppercase py-7 rounded-none transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+          className="w-full bg-black hover:bg-gray-800 text-white font-archivo font-bold text-sm py-6 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           Continuez
         </Button>

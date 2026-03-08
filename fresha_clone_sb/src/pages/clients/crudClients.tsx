@@ -59,14 +59,18 @@ const CrudClients = () => {
 
   // Charger les clients au montage du composant et quand la page change
   useEffect(() => {
+    if (salonLoading) return;
+    if (!salonId) {
+      setClientList([]);
+      setTotalPages(1);
+      setTotalClients(0);
+      return;
+    }
+
     const loadClients = async () => {
       try {
-        console.log('🔄 Chargement des clients - Page:', currentPage);
         setIsLoading(true);
-        const result = await getAllClients(currentPage, 20);
-        console.log('✅ Clients chargés:', result);
-        console.log('📊 Nombre de clients:', result.clients.length);
-        console.log('📄 Total:', result.total);
+        const result = await getAllClients(currentPage, 20, salonId);
         setClientList(result.clients);
         setTotalPages(result.totalPages);
         setTotalClients(result.total);
@@ -83,7 +87,7 @@ const CrudClients = () => {
     };
 
     loadClients();
-  }, [currentPage]);
+  }, [currentPage, salonId, salonLoading]);
 
   // Gestion des changements de formulaire
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -95,11 +99,19 @@ const CrudClients = () => {
 
   // Rechercher des clients (avec useCallback pour éviter les re-créations)
   const handleSearch = useCallback(async () => {
+    if (salonLoading) return;
+    if (!salonId) {
+      setClientList([]);
+      setTotalPages(1);
+      setTotalClients(0);
+      return;
+    }
+
     if (!searchTerm.trim()) {
       // Si la recherche est vide, recharger tous les clients
       try {
         setIsLoading(true);
-        const result = await getAllClients(currentPage, 20);
+        const result = await getAllClients(currentPage, 20, salonId);
         setClientList(result.clients);
         setTotalPages(result.totalPages);
         setTotalClients(result.total);
@@ -116,7 +128,7 @@ const CrudClients = () => {
 
     try {
       setIsLoading(true);
-      const result = await searchClients(searchTerm, undefined, 1, 100);
+      const result = await searchClients(searchTerm, salonId, 1, 100);
       setClientList(result.clients);
       setTotalPages(1);
       setTotalClients(result.total);
@@ -128,7 +140,7 @@ const CrudClients = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, currentPage]);
+  }, [searchTerm, currentPage, salonId, salonLoading]);
 
   // Recherche dynamique avec debounce
   useEffect(() => {
@@ -173,9 +185,6 @@ const CrudClients = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    console.log('💾 handleSave appelé');
-    console.log('📝 FormData:', formData);
-    console.log('🔄 Mode:', currentClient ? 'Modification' : 'Ajout');
 
     // Validation - différente pour création et modification
     if (currentClient) {
@@ -218,7 +227,6 @@ const CrudClients = () => {
 
       if (currentClient) {
         // Modification
-        console.log('🔄 Appel updateClient avec ID:', currentClient.id);
         const updateData: {
           firstName: string;
           lastName: string;
@@ -240,7 +248,6 @@ const CrudClients = () => {
         }
 
         const updatedClient = await updateClient(currentClient.id, updateData);
-        console.log('✅ Client mis à jour:', updatedClient);
 
         setClientList((prev) =>
           prev.map((client) =>
@@ -250,7 +257,6 @@ const CrudClients = () => {
         setAlertMessage("Client modifié avec succès");
       } else {
         // Ajout
-        console.log('➕ Appel createClient');
         const newClient = await createClient({
           salonId,
           email: formData.email,
@@ -260,7 +266,6 @@ const CrudClients = () => {
           notes: formData.notes || undefined,
           marketing: formData.marketing,
         });
-        console.log('✅ Client créé:', newClient);
 
         setClientList((prev) => [newClient, ...prev]);
         setTotalClients(totalClients + 1);
@@ -296,17 +301,13 @@ const CrudClients = () => {
 
   // Confirmer la suppression
   const handleDeleteConfirm = async () => {
-    console.log('🗑️ handleDeleteConfirm appelé');
-    console.log('🎯 ID du client à supprimer:', clientToDelete);
 
     if (!clientToDelete) return;
 
     try {
       setIsLoading(true);
 
-      console.log('🔄 Appel deleteClient avec ID:', clientToDelete);
       await deleteClient(clientToDelete);
-      console.log('✅ Client supprimé avec succès');
 
       setClientList((prev) =>
         prev.filter((client) => client.id !== clientToDelete)

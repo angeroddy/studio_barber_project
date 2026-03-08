@@ -161,13 +161,9 @@ export const updateStaff = async (
   id: string,
   data: UpdateStaffData
 ): Promise<Staff> => {
-  console.log('=== staff.service.ts: updateStaff ===');
-  console.log('ID:', id);
-  console.log('Data:', data);
 
   try {
     const response = await api.put<ApiResponse<Staff>>(`/staff/${id}`, data);
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la mise à jour du membre du personnel');
@@ -183,12 +179,9 @@ export const updateStaff = async (
  * Supprimer un membre du personnel
  */
 export const deleteStaff = async (id: string): Promise<void> => {
-  console.log('=== staff.service.ts: deleteStaff ===');
-  console.log('ID:', id);
 
   try {
     const response = await api.delete<ApiResponse<void>>(`/staff/${id}`);
-    console.log('Response:', response.data);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Erreur lors de la suppression du membre du personnel');

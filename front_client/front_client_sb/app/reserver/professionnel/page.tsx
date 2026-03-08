@@ -3,22 +3,11 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { BookingBreadcrumb } from "@/components/booking-breadcrumb";
-import { BookingSummary } from "@/components/booking-summary";
 import { api, Service, Staff } from "@/lib/api/index";
-
-const salonsData = {
-  championnet: {
-    name: "Studio Barber Championnet",
-    address: "42 Rue Lesdiguieres, Grenoble, Auvergne-rh...",
-    image: "/Championnet.avif",
-  },
-  clemenceau: {
-    name: "Studio Barber Clemenceau",
-    address: "47 Boulevard Clemenceau, Grenoble, Auvergne-rh...",
-    image: "/Clemenceau.avif",
-  },
-};
+import { getSalonByIdentifier } from "@/lib/api/salonLookup";
+import { Salon } from "@/lib/api/salon.api";
 
 interface Professional {
   id: string;
@@ -29,13 +18,21 @@ interface Professional {
   role?: string;
 }
 
+const DEFAULT_SALON_IMAGE = "/Championnet.avif";
+
+function getSafeSalonImage(image?: unknown) {
+  if (typeof image !== "string") return DEFAULT_SALON_IMAGE;
+
+  const normalized = image.trim();
+  return normalized.length > 0 ? normalized : DEFAULT_SALON_IMAGE;
+}
+
 function ProfessionnelPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const salonId = searchParams.get("salon") || "championnet";
   const serviceParam = searchParams.get("service")?.trim() || "";
-
-  const salon = salonsData[salonId as keyof typeof salonsData];
+  const [salon, setSalon] = useState<Salon | null>(null);
 
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [service, setService] = useState<Service | null>(null);
@@ -56,6 +53,8 @@ function ProfessionnelPageContent() {
         setLoading(true);
         const serviceData = await api.services.getServiceById(serviceParam);
         setService(serviceData);
+        const salonData = await getSalonByIdentifier(salonId);
+        setSalon(salonData);
         setError(null);
       } catch (err) {
         console.error("Erreur lors du chargement de la prestation:", err);
@@ -66,7 +65,7 @@ function ProfessionnelPageContent() {
     }
 
     fetchService();
-  }, [serviceParam]);
+  }, [serviceParam, salonId]);
 
   useEffect(() => {
     async function fetchStaff() {
@@ -93,41 +92,52 @@ function ProfessionnelPageContent() {
     }
   };
 
+  const handleSelect = (pro: Professional) => {
+    if (selectedProfessional?.id === pro.id) {
+      setSelectedProfessional(null);
+    } else {
+      setSelectedProfessional(pro);
+    }
+  };
+
   const formatDuration = (minutes: number): string => `${minutes} min`;
 
   const professionals: Professional[] = [
     {
       id: "any",
-      name: "N'importe quel professionnel",
-      subtitle: "pour une disponibilite maximale",
+      name: "Laisser le salon choisir",
+      subtitle: "Accédez à plus de créneaux",
     },
     ...staff.map((s) => ({
       id: s.id,
       firstName: s.firstName,
       lastName: s.lastName,
-      name: `${s.firstName} ${s.lastName}`,
+      name: `${s.firstName}`,
       role: s.role,
     })),
   ];
 
   if (loading || loadingStaff) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="font-archivo text-xl text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-gray-300 border-t-[#DE2788] animate-spin" />
+          <p className="font-sans text-sm text-gray-500">Chargement...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !service) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="font-archivo text-xl text-red-600 mb-4">
+          <p className="font-sans text-xl text-red-600 mb-4">
             {error || "Prestation introuvable"}
           </p>
           <Link
             href={`/reserver/prestations?salon=${salonId}`}
-            className="font-archivo text-sm text-gray-600 hover:text-[#DE2788] underline"
+            className="font-sans text-sm text-gray-600 hover:text-[#DE2788] underline"
           >
             Retour aux prestations
           </Link>
@@ -137,56 +147,87 @@ function ProfessionnelPageContent() {
   }
 
   const totalPrice = Number(service.price);
+  const isSelected = (proId: string) => selectedProfessional?.id === proId;
+  const salonImage = salon ? getSafeSalonImage(salon.image) : DEFAULT_SALON_IMAGE;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <Link
-          href={`/reserver/prestations?salon=${salonId}`}
-          className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-gray-300 hover:border-[#DE2788] transition-colors mb-4 sm:mb-6"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 sm:w-7 sm:h-7">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </Link>
+    <div className="min-h-screen bg-white">
+      {/* Header with back and close buttons */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14 sm:h-16">
+          <Link
+            href={`/reserver/prestations?salon=${salonId}`}
+            className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </Link>
 
-        <BookingBreadcrumb
-          items={[
-            { label: "Prestations", href: `/reserver/prestations?salon=${salonId}` },
-            { label: "Professionnel", active: true },
-            { label: "Heure" },
-            { label: "Valider" },
-          ]}
-        />
+          {/* Mobile: truncated title in header */}
+          <h2 className="sm:hidden font-sans font-semibold text-sm text-gray-900 truncate max-w-[200px]">
+            Sélectionner un professionn...
+          </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-32 lg:pb-8">
+        {/* Breadcrumb - desktop only */}
+        <div className="hidden sm:block">
+          <BookingBreadcrumb
+            items={[
+              { label: "Prestations", href: `/reserver/prestations?salon=${salonId}` },
+              { label: "Professionnel", active: true },
+              { label: "Heure" },
+              { label: "Valider" },
+            ]}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10">
+          {/* Professional list */}
           <div className="lg:col-span-2">
-            <h1 className="font-archivo font-black text-3xl sm:text-4xl md:text-5xl text-black mb-6 sm:mb-8 lg:mb-10 uppercase">
-              Selectionner un professionnel
+            <h1 className="font-sans font-bold text-2xl sm:text-3xl md:text-4xl text-gray-900 mb-6 sm:mb-8">
+              Sélectionner un professionnel
             </h1>
 
             {staff.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-300 p-4 mb-6">
-                <p className="font-archivo text-sm text-yellow-800">
-                  Aucun professionnel disponible pour ce salon. Vous pouvez continuer avec l'option "N'importe quel professionnel".
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <p className="font-sans text-sm text-amber-800">
+                  Aucun professionnel disponible pour ce salon.
                 </p>
               </div>
             )}
 
-            <div className="space-y-3 sm:space-y-4">
-              {professionals.map((pro) => (
-                <div
-                  key={pro.id}
-                  className={`bg-white border p-4 sm:p-6 transition-all ${
-                    selectedProfessional?.id === pro.id
-                      ? "border-[#DE2788]"
-                      : "border-black hover:border-[#DE2788]"
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9333ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 sm:w-8 sm:h-8">
+            <div className="space-y-3">
+              {professionals.map((pro) => {
+                const selected = isSelected(pro.id);
+                return (
+                  <button
+                    key={pro.id}
+                    onClick={() => handleSelect(pro)}
+                    className={`w-full rounded-xl border-2 p-4 sm:p-5 transition-all duration-200 cursor-pointer text-left ${
+                      selected
+                        ? "border-[#DE2788] bg-[#DE2788]/5 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      {/* Avatar */}
+                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shrink-0 ${
+                        pro.id === "any" ? "bg-[#FCE7F3]" : "bg-[#FCE7F3]"
+                      }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DE2788" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 sm:w-7 sm:h-7">
                           {pro.id === "any" ? (
                             <>
                               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -203,58 +244,127 @@ function ProfessionnelPageContent() {
                         </svg>
                       </div>
 
+                      {/* Name and subtitle */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-archivo font-black text-lg sm:text-xl text-black uppercase">
+                        <h3 className="font-sans font-semibold text-base sm:text-lg text-gray-900">
                           {pro.name}
                         </h3>
                         {pro.subtitle ? (
-                          <p className="font-archivo text-xs sm:text-sm text-gray-600">
+                          <p className="font-sans text-sm text-gray-500">
                             {pro.subtitle}
                           </p>
-                        ) : pro.role ? (
-                          <p className="font-archivo text-xs sm:text-sm text-gray-600">
-                            {pro.role === "MANAGER" ? "Manager" : "Employe"}
+                        ) : (
+                          <p className="font-sans text-sm text-gray-500">
+                            Voir le profil
                           </p>
-                        ) : null}
+                        )}
                       </div>
-                    </div>
 
-                    <button
-                      onClick={() => setSelectedProfessional(pro)}
-                      className={`w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 font-archivo font-black text-xs sm:text-sm uppercase transition-colors cursor-pointer ${
-                        selectedProfessional?.id === pro.id
-                          ? "bg-[#DE2788] text-white"
-                          : "bg-black text-white hover:bg-[#DE2788]"
-                      }`}
-                    >
-                      Selectionnez
-                    </button>
-                  </div>
-                </div>
-              ))}
+                      {/* Select button or checkmark */}
+                      {selected ? (
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#DE2788] flex items-center justify-center shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                      ) : (
+                        <span className="hidden sm:inline-flex px-5 py-2 rounded-full border border-gray-300 font-sans text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
+                          Sélectionnez
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="lg:col-span-1">
-            <BookingSummary
-              salon={salon}
-              service={{
-                name: service.name,
-                duration: formatDuration(service.duration),
-                price: Number(service.price),
-              }}
-              professional={
-                selectedProfessional && selectedProfessional.id !== "any"
-                  ? { name: selectedProfessional.name || "" }
-                  : selectedProfessional?.id === "any"
-                    ? { name: "n'importe quel professionnel" }
-                    : undefined
-              }
-              total={totalPrice}
-              onContinue={handleContinue}
-              continueDisabled={!selectedProfessional}
-            />
+          {/* Desktop sidebar summary */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 sticky top-24 shadow-sm">
+              {/* Salon info */}
+              {salon && (
+                <div className="flex items-start gap-3 mb-5 pb-5 border-b border-gray-100">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                    <Image
+                      src={salonImage}
+                      alt={salon.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-sans font-semibold text-sm text-gray-900 leading-tight">
+                      {salon.name}
+                    </h3>
+                    <p className="font-sans text-xs text-gray-500 mt-0.5 truncate">
+                      {salon.address}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Service details */}
+              <div className="mb-5 pb-5 border-b border-gray-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-sans text-sm text-gray-900">
+                      {service.name}
+                    </p>
+                    <p className="font-sans text-xs text-gray-500 mt-0.5">
+                      {formatDuration(service.duration)}
+                      {selectedProfessional && selectedProfessional.id !== "any"
+                        ? ` avec ${selectedProfessional.name}`
+                        : ""}
+                    </p>
+                  </div>
+                  <span className="font-sans font-semibold text-sm text-gray-900 whitespace-nowrap">
+                    {totalPrice} €
+                  </span>
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex items-center justify-between mb-6">
+                <span className="font-sans font-semibold text-base text-gray-900">
+                  Total
+                </span>
+                <span className="font-sans font-bold text-lg text-gray-900">
+                  {totalPrice} €
+                </span>
+              </div>
+
+              {/* Continue button */}
+              <button
+                onClick={handleContinue}
+                disabled={!selectedProfessional}
+                className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-sans font-semibold text-sm py-3.5 rounded-xl transition-colors"
+              >
+                Continuez
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 lg:hidden z-20">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-sans font-bold text-base text-gray-900">
+              {totalPrice} €
+            </p>
+            <p className="font-sans text-xs text-gray-500">
+              1 prestation · {formatDuration(service.duration)}
+            </p>
+          </div>
+          <button
+            onClick={handleContinue}
+            disabled={!selectedProfessional}
+            className="bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-sans font-semibold text-sm px-8 py-3 rounded-xl transition-colors"
+          >
+            Continuez
+          </button>
         </div>
       </div>
     </div>
@@ -263,7 +373,14 @@ function ProfessionnelPageContent() {
 
 export default function ProfessionnelPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Chargement...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-gray-300 border-t-[#DE2788] animate-spin" />
+          <p className="font-sans text-sm text-gray-500">Chargement...</p>
+        </div>
+      </div>
+    }>
       <ProfessionnelPageContent />
     </Suspense>
   );

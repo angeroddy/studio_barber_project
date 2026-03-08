@@ -66,12 +66,9 @@ interface ApiResponse<T> {
  * Créer un nouveau salon
  */
 export const createSalon = async (data: CreateSalonData): Promise<Salon> => {
-  console.log('=== salon.service.ts: createSalon ===');
-  console.log('Data:', data);
 
   try {
     const response = await api.post<ApiResponse<Salon>>('/salons', data);
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la création du salon');
@@ -138,11 +135,9 @@ export const getSalonsByOwner = async (ownerId: string): Promise<Salon[]> => {
  * Récupérer tous les salons du propriétaire connecté
  */
 export const getMySalons = async (): Promise<Salon[]> => {
-  console.log('=== salon.service.ts: getMySalons ===');
 
   try {
     const response = await api.get<ApiResponse<Salon[]>>('/salons/my-salons');
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la récupération de vos salons');
@@ -161,13 +156,9 @@ export const updateSalon = async (
   id: string,
   data: UpdateSalonData
 ): Promise<Salon> => {
-  console.log('=== salon.service.ts: updateSalon ===');
-  console.log('ID:', id);
-  console.log('Data:', data);
 
   try {
     const response = await api.put<ApiResponse<Salon>>(`/salons/${id}`, data);
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la mise à jour du salon');
@@ -189,12 +180,9 @@ export const updateSalon = async (
  * Supprimer un salon
  */
 export const deleteSalon = async (id: string): Promise<void> => {
-  console.log('=== salon.service.ts: deleteSalon ===');
-  console.log('ID:', id);
 
   try {
     const response = await api.delete<ApiResponse<void>>(`/salons/${id}`);
-    console.log('Response:', response.data);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Erreur lors de la suppression du salon');

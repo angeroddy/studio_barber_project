@@ -66,11 +66,9 @@ const ClientAutocomplete: React.FC<ClientAutocompleteProps> = ({
     setIsSearching(true);
     setHasSearched(true);
 
-    console.log('🔍 [ClientAutocomplete] Recherche:', { term, salonId });
 
     try {
       const response = await searchClients(term, salonId, 1, 15);
-      console.log('✅ [ClientAutocomplete] Résultats:', response);
       setResults(response.clients);
       setShowDropdown(true);
     } catch (error) {

@@ -139,7 +139,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 export default app
 
 function getAllowedOrigins(): string[] {
-  const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000']
+  const defaultOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ]
   const configuredOrigins = process.env.ALLOWED_ORIGINS
 
   if (!configuredOrigins) {

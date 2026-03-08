@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -111,26 +112,27 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) {
-      return;
-    }
+  const requestCancelBooking = (bookingId: string) => {
+    setCancelConfirmId(bookingId);
+    setError(null);
+  };
 
+  const handleCancelBooking = async (bookingId: string) => {
     try {
       setCancelingId(bookingId);
       await cancelClientBooking(bookingId);
 
       // Recharger les réservations
       await loadDashboardData();
-
-      alert('Réservation annulée avec succès');
     } catch (err) {
       console.error('Erreur annulation:', err);
-      alert(err instanceof Error ? err.message : 'Erreur lors de l\'annulation');
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'annulation');
     } finally {
       setCancelingId(null);
+      setCancelConfirmId((current) => (current === bookingId ? null : current));
     }
   };
+
 
   const handleLogout = () => {
     removeToken();
@@ -421,21 +423,53 @@ export default function DashboardPage() {
                           </div>
 
                           {/* Cancel Button */}
-                          <Button
-                            onClick={() => handleCancelBooking(booking.id)}
-                            disabled={cancelingId === booking.id}
-                            variant="outline"
-                            className="w-full border-red-300 text-red-600 hover:bg-red-50 font-archivo"
-                          >
-                            {cancelingId === booking.id ? (
-                              <>
-                                <span className="animate-spin mr-2">⏳</span>
-                                Annulation...
-                              </>
-                            ) : (
-                              'Annuler la réservation'
-                            )}
-                          </Button>
+                          {cancelConfirmId === booking.id ? (
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-700 font-archivo">
+                                Confirmer l&apos;annulation de ce rendez-vous ?
+                              </p>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <Button
+                                  onClick={() => handleCancelBooking(booking.id)}
+                                  disabled={cancelingId === booking.id}
+                                  className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-archivo"
+                                >
+                                  {cancelingId === booking.id ? (
+                                    <>
+                                      <span className="animate-spin mr-2">⏳</span>
+                                      Annulation...
+                                    </>
+                                  ) : (
+                                    'Confirmer'
+                                  )}
+                                </Button>
+                                <Button
+                                  onClick={() => setCancelConfirmId(null)}
+                                  variant="outline"
+                                  disabled={cancelingId === booking.id}
+                                  className="w-full sm:w-auto font-archivo"
+                                >
+                                  Annuler
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => requestCancelBooking(booking.id)}
+                              disabled={cancelingId === booking.id}
+                              variant="outline"
+                              className="w-full border-red-300 text-red-600 hover:bg-red-50 font-archivo"
+                            >
+                              {cancelingId === booking.id ? (
+                                <>
+                                  <span className="animate-spin mr-2">⏳</span>
+                                  Annulation...
+                                </>
+                              ) : (
+                                'Annuler la réservation'
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );

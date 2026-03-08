@@ -121,13 +121,9 @@ export const updateService = async (
   id: string,
   data: UpdateServiceData
 ): Promise<Service> => {
-  console.log('=== service.service.ts: updateService ===');
-  console.log('ID:', id);
-  console.log('Data:', data);
 
   try {
     const response = await api.put<ApiResponse<Service>>(`/services/${id}`, data);
-    console.log('Response:', response.data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || 'Erreur lors de la mise à jour du service');
@@ -143,12 +139,9 @@ export const updateService = async (
  * Supprimer un service
  */
 export const deleteService = async (id: string): Promise<void> => {
-  console.log('=== service.service.ts: deleteService ===');
-  console.log('ID:', id);
 
   try {
     const response = await api.delete<ApiResponse<void>>(`/services/${id}`);
-    console.log('Response:', response.data);
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Erreur lors de la suppression du service');

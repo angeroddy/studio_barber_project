@@ -40,10 +40,58 @@ export interface RegisterWithVerificationResponse {
 export interface ErrorResponse {
   success: false
   error: string
+  errorCode?: string
+  data?: {
+    email?: string
+    firstName?: string
+    lastName?: string
+  }
   errors?: Array<{
     msg: string
     param: string
   }>
+}
+
+export interface SocialAuthUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+}
+
+export interface SocialAuthVerificationPending {
+  mode: 'verification_pending'
+  email: string
+  verificationExpiresAt: string
+}
+
+export interface SocialAuthAuthenticated {
+  mode: 'authenticated'
+  user: SocialAuthUser
+  token: string
+}
+
+export interface SocialAuthResponse {
+  success: true
+  message: string
+  data: SocialAuthVerificationPending | SocialAuthAuthenticated
+}
+
+export interface SocialAuthErrorPayload {
+  status?: number
+  errorCode?: string
+  data?: {
+    email?: string
+    firstName?: string
+    lastName?: string
+  }
+}
+
+export class SocialAuthError extends Error {
+  status?: number
+  errorCode?: string
+  data?: SocialAuthErrorPayload['data']
 }
 
 function getApiErrorMessage(error: ErrorResponse, fallback: string): string {
@@ -54,6 +102,24 @@ function getApiErrorMessage(error: ErrorResponse, fallback: string): string {
     return error.errors[0].msg || fallback
   }
   return fallback
+}
+
+async function parseErrorResponse(
+  response: Response,
+  fallback: string
+): Promise<never> {
+  let errorData: ErrorResponse
+  try {
+    errorData = (await response.json()) as ErrorResponse
+  } catch {
+    throw new Error(fallback)
+  }
+
+  const error = new SocialAuthError(getApiErrorMessage(errorData, fallback))
+  error.status = response.status
+  error.errorCode = errorData.errorCode
+  error.data = errorData.data
+  throw error
 }
 
 function normalizeEmail(email: string): string {
@@ -239,6 +305,39 @@ export function saveToken(_token: string) {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('authToken')
   }
+}
+
+export async function loginWithGoogle(data: {
+  idToken: string
+  phone?: string
+  pendingBooking?: {
+    salonId: string
+    serviceId: string
+    staffId?: string
+    startTime: string
+    notes?: string
+  }
+}): Promise<SocialAuthResponse> {
+  const payload = {
+    idToken: data.idToken,
+    ...(data.phone ? { phone: data.phone.trim() } : {}),
+    ...(data.pendingBooking ? { pendingBooking: data.pendingBooking } : {})
+  }
+
+  const response = await fetch(`${API_URL}/client-auth/oauth/google`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload),
+    credentials: 'include'
+  })
+
+  if (!response.ok) {
+    await parseErrorResponse(response, 'Erreur lors de la connexion avec Google')
+  }
+
+  return response.json()
 }
 
 /**

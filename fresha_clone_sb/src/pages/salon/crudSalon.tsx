@@ -69,11 +69,8 @@ const CrudSalon = () => {
   useEffect(() => {
     const loadSalons = async () => {
       try {
-        console.log('🔄 Chargement des salons...');
         setIsLoading(true);
         const data = await getMySalons();
-        console.log('✅ Salons chargés:', data);
-        console.log('📊 Nombre de salons:', data.length);
         setSalons(data);
       } catch (error: unknown) {
         console.error('❌ Erreur lors du chargement des salons:', error);
@@ -158,9 +155,6 @@ const CrudSalon = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    console.log('💾 handleSave appelé');
-    console.log('📝 FormData:', formData);
-    console.log('🔄 Mode:', currentSalon ? 'Modification' : 'Ajout');
 
     const validationError = validateSalonFormData(formData);
     if (validationError) {
@@ -175,7 +169,6 @@ const CrudSalon = () => {
 
       if (currentSalon) {
         // Modification
-        console.log('🔄 Appel updateSalon avec ID:', currentSalon.id);
         const updatedSalon = await updateSalon(currentSalon.id, {
           name: formData.name,
           address: formData.address,
@@ -184,7 +177,6 @@ const CrudSalon = () => {
           phone: formData.phone,
           email: formData.email,
         });
-        console.log('✅ Salon mis à jour:', updatedSalon);
 
         setSalons((prev) =>
           prev.map((salon) =>
@@ -198,7 +190,6 @@ const CrudSalon = () => {
         setAlertMessage("Salon modifié avec succès");
       } else {
         // Ajout
-        console.log('➕ Appel createSalon');
         const newSalon = await createSalon({
           name: formData.name,
           address: formData.address,
@@ -207,7 +198,6 @@ const CrudSalon = () => {
           phone: formData.phone,
           email: formData.email,
         });
-        console.log('✅ Salon créé:', newSalon);
 
         setSalons((prev) => [newSalon, ...prev]);
         setAlertMessage("Salon ajouté avec succès");
@@ -276,17 +266,13 @@ const CrudSalon = () => {
 
   // Confirmer la suppression
   const handleDeleteConfirm = async () => {
-    console.log('🗑️ handleDeleteConfirm appelé');
-    console.log('🎯 ID du salon à supprimer:', salonToDelete);
 
     if (!salonToDelete) return;
 
     try {
       setIsLoading(true);
 
-      console.log('🔄 Appel deleteSalon avec ID:', salonToDelete);
       await deleteSalon(salonToDelete);
-      console.log('✅ Salon supprimé avec succès');
 
       setSalons((prev) =>
         prev.filter((salon) => salon.id !== salonToDelete)
@@ -625,6 +611,7 @@ const CrudSalon = () => {
               salon={salon}
               onEdit={handleEdit}
               onDelete={handleDeleteClick}
+              onSelect={handleSelectSalon}
             />
           ))}
         </div>

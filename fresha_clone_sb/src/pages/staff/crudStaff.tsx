@@ -32,8 +32,6 @@ const CrudStaff = () => {
   // ID du salon actuellement sélectionné
   const salonId = selectedSalon?.id || '';
 
-  console.log('🏪 Salon sélectionné:', selectedSalon);
-  console.log('🔑 Salon ID:', salonId);
 
   // États
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -65,17 +63,13 @@ const CrudStaff = () => {
   useEffect(() => {
     // Ne pas charger si pas de salonId
     if (!salonId) {
-      console.log('Aucun salonId disponible - en attente...');
       return;
     }
 
     const loadStaff = async () => {
       try {
-        console.log('= Chargement du personnel pour le salon:', salonId);
         setIsLoading(true);
         const data = await getStaffBySalon(salonId);
-        console.log(' Personnel chargé:', data);
-        console.log('Nombre de membres:', data.length);
         setStaffList(data);
       } catch (error: unknown) {
         console.error('L Erreur lors du chargement du personnel:', error);
@@ -153,9 +147,6 @@ const CrudStaff = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    console.log('handleSave appelé');
-    console.log('FormData:', formData);
-    console.log('= Mode:', currentStaff ? 'Modification' : 'Ajout');
 
     // Validation
     if (!formData.firstName || !formData.lastName) {
@@ -170,7 +161,6 @@ const CrudStaff = () => {
 
       if (currentStaff) {
         // Modification
-        console.log('= Appel updateStaff avec ID:', currentStaff.id);
         const updateData: {
           email?: string;
           firstName: string;
@@ -192,7 +182,6 @@ const CrudStaff = () => {
         };
 
         const updatedStaff = await updateStaff(currentStaff.id, updateData);
-        console.log(' Membre mis à jour:', updatedStaff);
 
         setStaffList((prev) =>
           prev.map((staff) =>
@@ -202,7 +191,6 @@ const CrudStaff = () => {
         setAlertMessage("Membre du personnel modifié avec succès");
       } else {
         // Ajout
-        console.log('Appel createStaff avec salonId:', salonId);
         const newStaff = await createStaff({
           salonId,
           email: formData.email || undefined,
@@ -214,7 +202,6 @@ const CrudStaff = () => {
           bio: formData.bio || undefined,
           isActive: formData.isActive,
         });
-        console.log(' Membre crée:', newStaff);
 
         setStaffList((prev) => [...prev, newStaff]);
         setAlertMessage(
@@ -253,17 +240,13 @@ const CrudStaff = () => {
 
   // Confirmer la suppression
   const handleDeleteConfirm = async () => {
-    console.log('handleDeleteConfirm appelé');
-    console.log('ID du membre à supprimer:', staffToDelete);
 
     if (!staffToDelete) return;
 
     try {
       setIsLoading(true);
 
-      console.log('= Appel deleteStaff avec ID:', staffToDelete);
       await deleteStaff(staffToDelete);
-      console.log(' Membre supprimé avec succès');
 
       setStaffList((prev) =>
         prev.filter((staff) => staff.id !== staffToDelete)

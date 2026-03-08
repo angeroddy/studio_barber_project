@@ -3,17 +3,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image'
-import { useEffect, useState, useRef } from 'react';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuList,
-} from '@/components/ui/navigation-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import Logo2 from '@/public/logoApp.png';
 import { isAuthenticated } from '@/lib/api/auth';
@@ -119,29 +109,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
     },
     ref
   ) => {
-    const [isMobile, setIsMobile] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const containerRef = useRef<HTMLElement>(null);
-
-    useEffect(() => {
-      const checkWidth = () => {
-        if (containerRef.current) {
-          const width = containerRef.current.offsetWidth;
-          setIsMobile(width < 768); // 768px is md breakpoint
-        }
-      };
-
-      checkWidth();
-
-      const resizeObserver = new ResizeObserver(checkWidth);
-      if (containerRef.current) {
-        resizeObserver.observe(containerRef.current);
-      }
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    }, []);
 
     // Vérifier l'authentification au montage et lors des changements
     useEffect(() => {
@@ -156,29 +124,26 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
         checkAuth();
       };
 
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          checkAuth();
+        }
+      };
+
       window.addEventListener('storage', handleStorageChange);
-      // Vérifier périodiquement (pour détecter les changements dans le même onglet)
-      const interval = setInterval(checkAuth, 1000);
+      window.addEventListener('focus', checkAuth);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
         window.removeEventListener('storage', handleStorageChange);
-        clearInterval(interval);
+        window.removeEventListener('focus', checkAuth);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }, []);
 
-    // Combine refs
-    const combinedRef = React.useCallback((node: HTMLElement | null) => {
-      containerRef.current = node;
-      if (typeof ref === 'function') {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    }, [ref]);
-
     return (
       <header
-        ref={combinedRef}
+        ref={ref}
         className={cn(
           'sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 [&_*]:no-underline py-4',
           className
@@ -186,95 +151,17 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
         {...(props as any)}
       >
         <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4">
-          {/* Left side */}
-          <div className="flex items-center gap-2">
-            {/* Mobile menu trigger */}
-            {isMobile && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    className="group h-9 w-9 hover:bg-accent hover:text-accent-foreground"
-                    variant="ghost"
-                    size="icon"
-                  >
-                    <HamburgerIcon />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-48 p-2">
-                <NavigationMenu className="max-w-none">
-                  <NavigationMenuList className="flex-col items-start gap-1">
-                    {navigationLinks.map((link, index) => (
-                      <NavigationMenuItem key={index} className="w-full">
-                        <Link
-                          href={link.href}
-                          className={cn(
-                            "flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer no-underline",
-                            link.active 
-                              ? "bg-accent text-accent-foreground" 
-                              : "text-foreground/80"
-                          )}
-                        >
-                          {link.label}
-                        </Link>
-                      </NavigationMenuItem>
-                    ))}
-                  </NavigationMenuList>
-                </NavigationMenu>
-                </PopoverContent>
-              </Popover>
-            )}
-            {/* Main nav */}
-            <div className="flex items-center gap-6">
-              <Link
-                href={logoHref}
-                className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
-              >
-                <div className="text-2xl">
-                  {logo}
-                </div>
-              </Link>
-              {/* Navigation menu */}
-              {!isMobile && (
-                <NavigationMenu className="flex">
-                <NavigationMenuList className="gap-1">
-                  {navigationLinks.map((link, index) => (
-                    <NavigationMenuItem key={index}>
-                      <Link
-                        href={link.href}
-                        className={cn(
-                          "group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer no-underline",
-                          link.active 
-                            ? "bg-accent text-accent-foreground" 
-                            : "text-foreground/80 hover:text-foreground"
-                        )}
-                      >
-                        {link.label}
-                      </Link>
-                    </NavigationMenuItem>
-                  ))}
-                </NavigationMenuList>
-                </NavigationMenu>
-              )}
+          {/* Logo */}
+          <Link
+            href={logoHref}
+            className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
+          >
+            <div className="text-2xl">
+              {logo}
             </div>
-          </div>
+          </Link>
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              <Link href={homeHref}>{Accueil}</Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="font-archivo font-extrabold text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              <Link href={signInHref}>{signInText}</Link>
-            </Button>
             {isLoggedIn ? (
               <Button
                 asChild

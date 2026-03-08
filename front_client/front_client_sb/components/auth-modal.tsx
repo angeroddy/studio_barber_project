@@ -8,19 +8,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { checkEmail, setPassword, register, registerWithBooking, login, saveToken, saveUser } from "@/lib/api/auth"
+import { checkEmail, setPassword, register, registerWithBooking, login, saveToken, saveUser, loginWithGoogle, SocialAuthError } from "@/lib/api/auth"
+import { GoogleAuthButton } from "@/components/google-auth-button"
+import { PasswordGuidance } from "@/components/password-guidance"
+import { validatePassword } from "@/lib/password-policy"
 
-type AuthStep = 'email' | 'set-password' | 'full-registration' | 'login'
+type AuthStep = 'email' | 'set-password' | 'full-registration' | 'login' | 'google-phone'
 type AuthMode = 'signup' | 'login'
-
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
-const PASSWORD_HINT = 'Au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)'
-
-function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'Mot de passe minimum 8 caractères'
-  if (!PASSWORD_REGEX.test(password)) return PASSWORD_HINT
-  return null
-}
 
 interface AuthModalProps {
   isOpen: boolean
@@ -53,6 +47,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [googleAuthToken, setGoogleAuthToken] = useState('')
 
   // Form data
   const [formData, setFormData] = useState({
@@ -74,6 +69,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
     setExistingClient(null)
     setError('')
     setSuccessMessage('')
+    setGoogleAuthToken('')
     setFormData({
       firstName: '',
       lastName: '',
@@ -89,6 +85,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
   }
 
   // ============= SIGNUP HANDLERS =============
+  const getPendingBookingPayload = (): {
+    salonId: string
+    serviceId: string
+    staffId?: string
+    startTime: string
+    notes?: string
+  } | undefined => {
+    return bookingDetails?.pendingBooking
+  }
 
   const handleEmailCheck = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -238,6 +243,90 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
     }
   }
 
+  const handleGoogleAuth = async (idToken: string) => {
+    setLoading(true)
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      const response = await loginWithGoogle({
+        idToken,
+        pendingBooking: getPendingBookingPayload()
+      })
+
+      if (response.data.mode === 'authenticated') {
+        saveToken(response.data.token)
+        saveUser(response.data.user)
+        onSuccess()
+        handleClose()
+        return
+      }
+
+      if (response.data.mode === 'verification_pending') {
+        onVerificationPending?.(response.data.email)
+        handleClose()
+        return
+      }
+
+      setError('Reponse Google inattendue')
+    } catch (err) {
+      const socialError = err as SocialAuthError
+      if (socialError?.errorCode === 'PHONE_REQUIRED') {
+        setGoogleAuthToken(idToken)
+        setMode('signup')
+        setStep('google-phone')
+        setError('Ajoutez un numéro de téléphone pour continuer')
+        return
+      }
+
+      setError(err instanceof Error ? err.message : 'Erreur lors de la connexion Google')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGooglePhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setSuccessMessage('')
+
+    if (!formData.phone) {
+      setError('Le téléphone est requis')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await loginWithGoogle({
+        idToken: googleAuthToken,
+        phone: formData.phone,
+        pendingBooking: getPendingBookingPayload()
+      })
+
+      if (response.data.mode === 'authenticated') {
+        saveToken(response.data.token)
+        saveUser(response.data.user)
+        onSuccess()
+        handleClose()
+        return
+      }
+
+      if (response.data.mode === 'verification_pending') {
+        onVerificationPending?.(response.data.email)
+        setGoogleAuthToken('')
+        handleClose()
+        return
+      }
+
+      setError('Reponse Google inattendue')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la validation Google')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // ============= LOGIN HANDLER =============
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -274,7 +363,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
             {mode === 'login' ? 'Connexion' : 'Inscription'}
           </h2>
           <button
+            type="button"
             onClick={handleClose}
+            aria-label="Fermer la fenêtre d'authentification"
             className="text-black hover:text-[#DE2788] transition-colors"
           >
             <svg
@@ -313,32 +404,38 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
           {/* Mode switcher */}
           <div className="flex gap-2 mb-6 border-b-2 border-gray-300">
             <button
+              type="button"
               onClick={() => {
                 setMode('signup')
                 setStep('email')
                 setError('')
                 setSuccessMessage('')
+                setGoogleAuthToken('')
               }}
               className={`flex-1 py-3 font-archivo font-bold text-base uppercase transition-colors ${
                 mode === 'signup'
                   ? 'text-[#DE2788] border-b-4 border-[#DE2788]'
                   : 'text-gray-500 hover:text-black'
               }`}
+              aria-pressed={mode === 'signup'}
             >
               S'inscrire
             </button>
             <button
+              type="button"
               onClick={() => {
                 setMode('login')
                 setStep('login')
                 setError('')
                 setSuccessMessage('')
+                setGoogleAuthToken('')
               }}
               className={`flex-1 py-3 font-archivo font-bold text-base uppercase transition-colors ${
                 mode === 'login'
                   ? 'text-[#DE2788] border-b-4 border-[#DE2788]'
                   : 'text-gray-500 hover:text-black'
               }`}
+              aria-pressed={mode === 'login'}
             >
               Se connecter
             </button>
@@ -346,12 +443,20 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
 
           {/* Error message */}
           {error && (
-            <div className="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-6 font-archivo">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="bg-red-50 border-2 border-red-500 text-red-700 p-4 mb-6 font-archivo"
+            >
               {error}
             </div>
           )}
           {successMessage && (
-            <div className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-6 font-archivo">
+            <div
+              role="status"
+              aria-live="polite"
+              className="bg-green-50 border-2 border-green-600 text-green-800 p-4 mb-6 font-archivo"
+            >
               {successMessage}
             </div>
           )}
@@ -364,6 +469,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                   ? handleEmailCheck
                   : step === 'set-password'
                   ? handleSetPassword
+                  : step === 'google-phone'
+                  ? handleGooglePhone
                   : handleFullRegistration
               }
             >
@@ -373,6 +480,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     {step === 'email' && 'Entrez votre email pour commencer'}
                     {step === 'set-password' && `Bonjour ${existingClient?.firstName}, définissez votre mot de passe`}
                     {step === 'full-registration' && 'Complétez votre inscription'}
+                    {step === 'google-phone' && 'Renseignez votre numéro pour continuer avec Google'}
                   </p>
                 </div>
 
@@ -385,6 +493,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     <Input
                       id="signup-email"
                       type="email"
+                      autoComplete="email"
                       placeholder="votre@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -401,11 +510,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     {isBookingSignupFlow && (
                       <Field>
                         <FieldLabel htmlFor="signup-phone" className="font-archivo font-bold text-black text-base uppercase">
-                          TÃ©lÃ©phone
+                          Téléphone
                         </FieldLabel>
                         <Input
                           id="signup-phone"
                           type="tel"
+                          autoComplete="tel"
                           placeholder="06 XX XX XX XX"
                           value={formData.phone}
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -419,17 +529,19 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <FieldLabel htmlFor="signup-password" className="font-archivo font-bold text-black text-base uppercase">
                         Mot de passe
                       </FieldLabel>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="Au moins 8 caractères"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        <Input
+                          id="signup-password"
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="Au moins 8 caractères"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
                         disabled={loading}
                         className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
                       />
                     </Field>
+                    <PasswordGuidance password={formData.password} />
                     <Field>
                       <FieldLabel htmlFor="signup-confirm-password" className="font-archivo font-bold text-black text-base uppercase">
                         Confirmer le mot de passe
@@ -437,12 +549,18 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="signup-confirm-password"
                         type="password"
+                        autoComplete="new-password"
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         required
                         disabled={loading}
                         className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
                       />
+                      {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <p className="mt-2 text-sm text-red-600 font-archivo">
+                          Les mots de passe ne correspondent pas
+                        </p>
+                      )}
                     </Field>
                   </>
                 )}
@@ -457,6 +575,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="firstName"
                         type="text"
+                        autoComplete="given-name"
                         placeholder="Votre prénom"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -472,6 +591,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="lastName"
                         type="text"
+                        autoComplete="family-name"
                         placeholder="Votre nom"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -487,6 +607,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="phone"
                         type="tel"
+                        autoComplete="tel"
                         placeholder="06 XX XX XX XX"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -502,6 +623,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="reg-password"
                         type="password"
+                        autoComplete="new-password"
                         placeholder="Au moins 8 caractères"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -510,6 +632,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                         className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
                       />
                     </Field>
+                    <PasswordGuidance password={formData.password} />
                     <Field>
                       <FieldLabel htmlFor="reg-confirm-password" className="font-archivo font-bold text-black text-base uppercase">
                         Confirmer le mot de passe
@@ -517,14 +640,40 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                       <Input
                         id="reg-confirm-password"
                         type="password"
+                        autoComplete="new-password"
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         required
                         disabled={loading}
                         className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
                       />
+                      {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <p className="mt-2 text-sm text-red-600 font-archivo">
+                          Les mots de passe ne correspondent pas
+                        </p>
+                      )}
                     </Field>
                   </>
+                )}
+
+                {/* Google phone step */}
+                {step === 'google-phone' && (
+                  <Field>
+                    <FieldLabel htmlFor="google-phone" className="font-archivo font-bold text-black text-base uppercase">
+                      Téléphone
+                    </FieldLabel>
+                    <Input
+                      id="google-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="06 XX XX XX XX"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      required
+                      disabled={loading}
+                      className="border-2 border-gray-300 rounded-none p-4 font-archivo focus:border-[#DE2788] focus:ring-0"
+                    />
+                  </Field>
                 )}
 
                 <Field>
@@ -533,14 +682,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     disabled={loading}
                     className="w-full bg-[#DE2788] hover:bg-black text-white font-archivo font-black text-base uppercase py-6 rounded-none transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? 'Chargement...' :
-                     step === 'email' ? 'Continuer' :
-                     step === 'set-password' ? 'Activer mon compte' :
-                     'Créer mon compte'}
-                  </Button>
-                </Field>
+                  {loading ? 'Chargement...' :
+                   step === 'email' ? 'Continuer' :
+                   step === 'google-phone' ? 'Valider' :
+                   step === 'set-password' ? 'Activer mon compte' :
+                   'Créer mon compte'}
+                </Button>
+              </Field>
 
-                {step !== 'email' && (
+                {step !== 'email' && step !== 'google-phone' && (
                   <Button
                     type="button"
                     onClick={() => {
@@ -561,6 +711,42 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     Retour
                   </Button>
                 )}
+
+                {step === 'google-phone' && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setStep('email')
+                      setGoogleAuthToken('')
+                      setError('')
+                      setSuccessMessage('')
+                      setFormData({
+                        firstName: '',
+                        lastName: '',
+                        phone: '',
+                        password: '',
+                        confirmPassword: ''
+                      })
+                    }}
+                    disabled={loading}
+                    className="w-full bg-gray-300 hover:bg-gray-400 text-black font-archivo font-bold text-base uppercase py-4 rounded-none transition-colors duration-300 mt-4"
+                  >
+                    Retour
+                  </Button>
+                )}
+
+                {step === 'email' && (
+                  <>
+                    <div className="text-center mt-6 mb-4">
+                      <span className="text-sm text-gray-500 font-archivo">ou</span>
+                    </div>
+                    <GoogleAuthButton
+                      onCredential={handleGoogleAuth}
+                      onError={(message) => setError(message)}
+                      disabled={loading}
+                    />
+                  </>
+                )}
               </FieldGroup>
             </form>
           )}
@@ -576,6 +762,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                   <Input
                     id="login-email"
                     type="email"
+                    autoComplete="email"
                     placeholder="votre@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -592,6 +779,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                   <Input
                     id="login-password"
                     type="password"
+                    autoComplete="current-password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
@@ -609,6 +797,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, onVerificationPending, b
                     {loading ? 'Connexion...' : 'Se connecter'}
                   </Button>
                 </Field>
+
+                <div className="text-center mt-6 mb-4">
+                  <span className="text-sm text-gray-500 font-archivo">ou</span>
+                </div>
+                <GoogleAuthButton
+                  onCredential={handleGoogleAuth}
+                  onError={(message) => setError(message)}
+                  disabled={loading}
+                />
               </FieldGroup>
             </form>
           )}

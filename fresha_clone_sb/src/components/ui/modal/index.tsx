@@ -56,8 +56,10 @@ export const Modal: React.FC<ModalProps> = ({
   const contentClasses = isFullscreen
     ? "w-full h-full"
     : mobileFullscreen
-    ? "w-full h-full md:w-auto md:h-auto md:rounded-3xl md:max-w-2xl relative bg-white dark:bg-gray-900"
-    : "relative w-full max-w-2xl mx-4 rounded-3xl bg-white dark:bg-gray-900";
+    ? "w-full h-full md:w-auto md:h-auto md:rounded-3xl relative bg-white dark:bg-gray-900"
+    : "relative w-full mx-4 rounded-3xl bg-white dark:bg-gray-900";
+
+  const maxWidthClass = className ? "" : "max-w-2xl";
 
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
@@ -69,7 +71,7 @@ export const Modal: React.FC<ModalProps> = ({
       )}
       <div
         ref={modalRef}
-        className={`${contentClasses}  ${className}`}
+        className={`${contentClasses} ${maxWidthClass} ${className ?? ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {showCloseButton && (
