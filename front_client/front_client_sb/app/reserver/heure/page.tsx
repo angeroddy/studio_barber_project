@@ -332,12 +332,6 @@ function CalendarPicker({
     return new Date(base.getFullYear(), base.getMonth(), 1);
   });
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const base = selectedDate ?? minSelectableDate;
-    setViewMonth(new Date(base.getFullYear(), base.getMonth(), 1));
-  }, [isOpen, selectedDate, minSelectableDate]);
-
   if (!isOpen) return null;
 
   const year = viewMonth.getFullYear();
@@ -1081,6 +1075,7 @@ function HeurePageContent() {
       </div>
 
       <CalendarPicker
+        key={`${isCalendarOpen}-${getDateKey(selectedDate ?? today)}`}
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
         selectedDate={selectedDate}

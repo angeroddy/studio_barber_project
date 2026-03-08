@@ -96,6 +96,8 @@ export function GoogleAuthButton({
   const [reloadKey, setReloadKey] = useState(0)
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim()
+  const effectiveLoadState =
+    clientId && !disabled && loadState === 'idle' ? 'loading' : loadState
 
   useEffect(() => {
     if (!containerRef.current || !clientId || disabled) {
@@ -104,7 +106,6 @@ export function GoogleAuthButton({
 
     let cancelled = false
 
-    setLoadState('loading')
     loadGoogleScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.google?.accounts?.id) {
@@ -168,9 +169,9 @@ export function GoogleAuthButton({
   return (
     <div className={`${className}`}>
       <p className="text-sm text-gray-500 font-archivo text-center mb-2">
-        {loadState === 'loading'
+        {effectiveLoadState === 'loading'
           ? 'Chargement de Google...'
-          : loadState === 'error'
+          : effectiveLoadState === 'error'
           ? 'Erreur de chargement Google'
           : label}
       </p>
@@ -179,7 +180,7 @@ export function GoogleAuthButton({
         key={reloadKey}
         className={disabled ? 'pointer-events-none opacity-60' : ''}
       />
-      {loadState === 'error' && (
+      {effectiveLoadState === 'error' && (
         <button
           type="button"
           onClick={retryLoad}
@@ -189,13 +190,13 @@ export function GoogleAuthButton({
           Réessayer Google
         </button>
       )}
-      {loadState !== 'ready' && loadState !== 'error' && (
+      {effectiveLoadState !== 'ready' && effectiveLoadState !== 'error' && (
         <button
           type="button"
           disabled
           className="w-full mt-2 bg-gray-200 text-gray-500 font-archivo font-bold py-3 rounded-none"
         >
-          {loadState === 'loading' ? 'Chargement de Google...' : label}
+          {effectiveLoadState === 'loading' ? 'Chargement de Google...' : label}
         </button>
       )}
     </div>

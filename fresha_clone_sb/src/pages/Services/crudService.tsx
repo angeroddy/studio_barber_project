@@ -138,9 +138,6 @@ const CrudService = () => {
 
   // Sauvegarder (ajouter ou modifier)
   const handleSave = async () => {
-    if (currentService) {
-    }
-
     // Validation
     if (!formData.name || !formData.duration || !formData.price || !formData.category) {
       setAlertMessage("Veuillez remplir tous les champs obligatoires");
