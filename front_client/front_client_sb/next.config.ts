@@ -15,6 +15,9 @@ const configuredImageOrigins = (process.env.NEXT_PUBLIC_ALLOWED_IMAGE_ORIGINS ??
 const imageOrigins = configuredImageOrigins.length > 0 ? configuredImageOrigins : defaultImageOrigins;
 const remotePatterns = buildImageRemotePatterns(imageOrigins);
 
+const backendUrl =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns,
@@ -22,6 +25,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  rewrites: async () => [
+    {
+      source: "/api/:path*",
+      destination: `${backendUrl}/api/:path*`,
+    },
+  ],
 };
 
 export default nextConfig;
