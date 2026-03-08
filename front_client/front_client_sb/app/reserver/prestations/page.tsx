@@ -338,7 +338,15 @@ function PrestationsPageContent() {
 
             <div className="col-span-1">
               <BookingSummary
-                salon={salon}
+                salon={
+                  salon
+                    ? {
+                        name: salon.name,
+                        address: salon.address,
+                        image: salon.image || "/Championnet.avif",
+                      }
+                    : undefined
+                }
                 service={selectedService ? {
                   name: selectedService.name,
                   duration: formatDuration(selectedService.duration),
