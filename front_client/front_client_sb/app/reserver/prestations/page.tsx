@@ -51,8 +51,16 @@ function PrestationsPageContent() {
 
         setServicesByCategory(grouped);
         setSalon(salonData);
-        const cats = Object.keys(grouped);
-        if (cats.length > 0) setActiveTab(cats[0]);
+        const sortedCategories = Object.keys(grouped).sort((a, b) => {
+          const categoryOrder = ['La formule', 'Coupes', 'Barbe'];
+          const ia = categoryOrder.indexOf(a);
+          const ib = categoryOrder.indexOf(b);
+          if (ia !== -1 && ib !== -1) return ia - ib;
+          if (ia !== -1) return -1;
+          if (ib !== -1) return 1;
+          return a.localeCompare(b);
+        });
+        if (sortedCategories.length > 0) setActiveTab(sortedCategories[0]);
         setError(null);
       } catch (err) {
         console.error('Erreur lors du chargement des services:', err);

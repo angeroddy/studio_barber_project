@@ -39,7 +39,7 @@ export default function Home() {
             <img
               src="/lettrage_sb.png"
               alt="Studio Barber"
-              className="w-auto h-auto max-w-[92vw] sm:max-w-[620px] md:max-w-[760px] lg:max-w-[980px]"
+              className="w-auto h-auto max-w-[72vw] sm:max-w-[620px] md:max-w-[760px] lg:max-w-[980px]"
             />
 
 

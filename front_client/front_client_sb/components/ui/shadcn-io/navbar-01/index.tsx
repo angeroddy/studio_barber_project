@@ -95,7 +95,15 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
   (
     {
       className,
-      logo =  <Image src={Logo2} alt="Logo" height={80} width={80} />,
+      logo = (
+        <Image
+          src={Logo2}
+          alt="Logo"
+          height={72}
+          width={72}
+          className="h-14 w-14 md:h-20 md:w-20"
+        />
+      ),
       logoHref = '/',
       navigationLinks = defaultNavigationLinks,
       signInText = 'SALONS',
@@ -149,12 +157,12 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
       <header
         ref={ref}
         className={cn(
-          'sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 [&_*]:no-underline py-4',
+          'sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 [&_*]:no-underline py-3 md:py-4',
           className
         )}
         {...(props as any)}
       >
-        <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4">
+        <div className="container mx-auto flex h-14 md:h-16 max-w-screen-2xl items-center justify-between gap-3 md:gap-4">
           {/* Logo */}
           <Link
             href={logoHref}
@@ -170,14 +178,14 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
               <Button
                 asChild
                 size="sm"
-                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788] hover:bg-[#c01f73]"
+                className="rounded-none font-archivo font-black text-xs md:text-sm px-3 md:px-4 h-8 md:h-9 shadow-sm bg-[#DE2788] hover:bg-[#c01f73]"
               >
                 <Link href="/dashboard">MON COMPTE</Link>
               </Button>
             ) : onCtaClick ? (
               <Button
                 size="sm"
-                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788]"
+                className="rounded-none font-archivo font-black text-xs md:text-sm px-3 md:px-4 h-8 md:h-9 shadow-sm bg-[#DE2788]"
                 onClick={onCtaClick}
               >
                 {ctaText}
@@ -186,7 +194,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
               <Button
                 asChild
                 size="sm"
-                className="rounded-none font-archivo font-black text-sm px-4 h-9 shadow-sm bg-[#DE2788]"
+                className="rounded-none font-archivo font-black text-xs md:text-sm px-3 md:px-4 h-8 md:h-9 shadow-sm bg-[#DE2788]"
               >
                 <Link href={ctaHref}>{ctaText}</Link>
               </Button>

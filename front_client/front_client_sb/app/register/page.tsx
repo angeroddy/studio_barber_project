@@ -22,18 +22,8 @@ export default function RegisterPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Left side - Signup Form */}
-      <div className="flex flex-col gap-4 p-6 md:p-10 bg-white relative">
-        {/* Texture Background with opacity */}
-        <div
-          className="absolute inset-0 opacity-5 pointer-events-none"
-          style={{
-            backgroundImage: `url('/Vector (1).png')`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: 'auto'
-          }}
-        />
-
-        <div className="flex justify-center gap-2 md:justify-start relative z-10">
+      <div className="flex flex-col gap-4 p-6 md:p-10 bg-white">
+        <div className="flex justify-center gap-2 md:justify-start">
           <Link href="/" className="flex items-center gap-3">
             <div className=" text-white flex size-12 items-center justify-center">
               <Image
@@ -46,14 +36,14 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        <div className="flex flex-1 items-center justify-center relative z-10">
+        <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md">
             <SignupForm />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-sm text-gray-600 font-archivo relative z-10">
+        <div className="text-center text-sm text-gray-600 font-archivo">
           <p>&copy; 2024 Studio Barber. Tous droits reserves.</p>
         </div>
       </div>
